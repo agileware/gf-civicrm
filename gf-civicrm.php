@@ -1,15 +1,25 @@
 <?php
 /**
- * Plugin Name: Integration of CiviCRM's Form Processor with Gravity Forms
+ * Plugin Name: Gravity Forms CiviCRM Integration
  * Plugin URI: https://bitbucket.org/agileware/gf-civicrm-formprocessor
  * Description: Extends Gravity Forms to get option lists and defaults from linked CiviCRM Form Processors
  * Author: Agileware
  * Author URI: https://agileware.com.au
- * Version: 1.0.0
- * Text Domain: gf-civicrm-formprocessor
+ * Version: 1.0.1
+ * Text Domain: gf-civicrm
+ *
+ * Gravity Forms CiviCRM Integration is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * any later version.
+ *
+ * Gravity Forms CiviCRM Integration is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
  */
 
-namespace GFCiviCRMFormProcessor;
+namespace GFCiviCRM;
 
 use Civi\Api4\{OptionValue, OptionGroup, Contact};
 
@@ -146,7 +156,7 @@ function webhooks_request_data( $request_data, $feed, $entry, $form ) {
 	return $request_data;
 }
 
-add_filter( 'gform_webhooks_request_data', 'GFCiviCRMFormProcessor\webhooks_request_data', 10, 4 );
+add_filter( 'gform_webhooks_request_data', 'GFCiviCRM\webhooks_request_data', 10, 4 );
 
 /**
  * Add setting for CiviCRM Source to Gravity Forms editor standard settings
@@ -218,7 +228,7 @@ function civicrm_optiongroup_setting( $position, $form_id ) {
 	}
 }
 
-add_action( 'gform_field_standard_settings', 'GFCiviCRMFormProcessor\civicrm_optiongroup_setting', 10, 2 );
+add_action( 'gform_field_standard_settings', 'GFCiviCRM\civicrm_optiongroup_setting', 10, 2 );
 
 /**
  * Embed javascript to save the selected CiviCRM Source option.
@@ -258,10 +268,10 @@ function editor_script() {
 	<?php
 }
 
-add_action( 'gform_editor_js', 'GFCiviCRMFormProcessor\editor_script', 11, 0 );
+add_action( 'gform_editor_js', 'GFCiviCRM\editor_script', 11, 0 );
 
 /**
- * Replacement callback for GFCiviCRMFormProcessor\replace_merge_tags()
+ * Replacement callback for GFCiviCRM\replace_merge_tags()
  *
  * @param array $matches
  *
@@ -343,9 +353,9 @@ function replace_merge_tags( $text, $form, $entry, $url_encode, $esc_html, $nl2b
 
 	return preg_replace_callback(
 		'{ {civicrm_fp(?:_default)? \. ([[:alnum:]_]+) \. ([[:alnum:]_]+) } }x',
-		'GFCiviCRMFormProcessor\fp_tag_default',
+		'GFCiviCRM\fp_tag_default',
 		$text
 	);
 }
 
-add_filter( 'gform_replace_merge_tags', 'GFCiviCRMFormProcessor\replace_merge_tags', 10, 7 );
+add_filter( 'gform_replace_merge_tags', 'GFCiviCRM\replace_merge_tags', 10, 7 );
