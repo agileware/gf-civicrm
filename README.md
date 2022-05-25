@@ -10,6 +10,44 @@ Provides the following features:
 
 Integration with the CiviCRM Form Processor uses Web Hooks, which requires the [Gravity Forms, Webhooks Add-on](https://www.gravityforms.com/add-ons/webhooks/). This add-on is currently bundled with the [Gravity Forms, Elite License](https://www.gravityforms.com/elite-license-plan/)
 
+# Setting up a Newsletter Subscription form using Gravity Forms and CiviCRM
+
+Use the following steps to set up a _Newsletter Subscription_ form using the example configuration provided.
+
+1. In WordPress, install and enable this plugin.
+2. On the CiviCRM Extensions page, install the following Extensions:
+   1. [Action Provider](https://lab.civicrm.org/extensions/action-provider)
+   2. [Form Processor](https://lab.civicrm.org/jaapjansma/form-processor)
+   3. [API Key Management](https://lab.civicrm.org/extensions/apikey)
+3. In CiviCRM, locate the CiviCRM "System User" Contact. This is the user account used to execute CiviCRM cron and scheduled jobs. If you do not have such a user, then best to create one now as this will be used by default for processing the form submissions. This user must have a corresponding WordPress user account. 
+4. Open this CiviCRM Contact and click on the **API Key** tab.
+5. Generate a **User API Key** and copy the **Site API Key**. 
+6. In WordPress, open Gravity Forms and import the example Gravity Form, [gravityforms-newsletter_subscribe.json](example/gravityforms-newsletter_subscribe.json)
+7. Open the imported Gravity Form, the following form should be displayed. ![Gravity Form, Newsletter Subscribe](images/gravityforms-example.png)
+8. Click on **Webhooks**
+9. Add a new **Webhook**
+10. Configure the **Webhook**
+11. Configure the Webhook as shown below. ![Gravity Form, Webhook](images/gravityforms-webhook.png)
+12. In the **Request URL** parameters for the Webhook, replace the following values:
+    1. Insert the website address, **replacing** bananas.org.au (_seriously, why did you enter that?_)
+    2. **key**, enter the **Site API Key**
+    3. **api_key**, enter the **User API Key**
+13. Save the Webhook
+14. In CiviCRM, go to the Administer > Automation > Form Processors page, `/wp-admin/admin.php?page=CiviCRM&q=civicrm%2Fadmin%2Fautomation%2Fformprocessor%2F#/formprocessors`
+15. Import example Form Processor, [civicrm-form-processor-newsletter_subscribe.json](example/civicrm-form-processor-newsletter_subscribe.json)
+16. **Edit** the imported Form Processor. Verify that it has the required fields:
+    1. first_name
+    2. last_name
+    3. email
+17. In the Form Processor, edit the **Do Subscribe** action and select the CiviCRM Group that the Contact should be subscribed too for the **Configuration, Subscribe to mailing list**. This option must be set for the **Do Subscribe** action to succeed.
+18. Note that the Form Processor has the name, **newsletter_subscribe** which used in the Webhook, Request URL. This is how the Webhook is **connected** to this Form Processor.
+19. **Save** the Form Processor.
+20. In WordPress, embed the Gravity Form in a new page.
+21. Open a new Web Browser window, not logged into the website. Go to the new page and submit the Gravity Form.
+22. In CiviCRM, confirm that the Contact was created and that the Contact was subscribed to the Group in CiviCRM.
+
+_Note_: When a user who is not logged into the website submits the form, then the form submission will be processed using the CiviCRM "System User" as defined by the **User API Key**. However, if the user is logged into the website, then this plugin will change the form submission so that it is processed using the logged in user.
+
 # License
 
     This program is free software: you can redistribute it and/or modify

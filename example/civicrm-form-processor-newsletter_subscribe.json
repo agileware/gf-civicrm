@@ -1,0 +1,72 @@
+{
+    "name": "newsletter_subscribe",
+    "title": "Newsletter Subscribe",
+    "is_active": "1",
+    "output_handler": "OutputAllActionOutput",
+    "output_handler_configuration": [],
+    "enable_default_data": "0",
+    "default_data_output_configuration": [],
+    "permission": "add contacts",
+    "inputs": [
+        {
+            "title": "Email",
+            "name": "email",
+            "type": "String",
+            "is_required": "1",
+            "default_value": "",
+            "configuration": [],
+            "validators": []
+        },
+        {
+            "title": "First Name",
+            "name": "first_name",
+            "type": "String",
+            "is_required": "1",
+            "default_value": "",
+            "configuration": [],
+            "validators": []
+        },
+        {
+            "title": "Last Name",
+            "name": "last_name",
+            "type": "String",
+            "is_required": "1",
+            "default_value": "",
+            "configuration": [],
+            "validators": []
+        }
+    ],
+    "actions": [
+        {
+            "name": "create_contact",
+            "title": "Create Contact",
+            "type": "FindByEmailOrCreateEmailName",
+            "configuration": {
+                "contact_type": "1"
+            },
+            "mapping": {
+                "email": "input.email",
+                "first_name": "input.first_name",
+                "last_name": "input.last_name"
+            },
+            "condition_configuration": "",
+            "delay_configuration": ""
+        },
+        {
+            "name": "do_subscribe",
+            "title": "Do Subscribe",
+            "type": "MailingEventSubscribe",
+            "configuration": {
+                "group_id": "3"
+            },
+            "mapping": {
+                "email": "input.email",
+                "contact_id": "action.create_contact.contact_id"
+            },
+            "condition_configuration": "",
+            "delay_configuration": ""
+        }
+    ],
+    "default_data_inputs": [],
+    "default_data_actions": []
+}
