@@ -32,7 +32,7 @@ Use the following steps to set up a _Newsletter Subscription_ form using the exa
     1. Insert the website address, **replacing** bananas.org.au (_seriously, why did you enter that?_)
     3. **key**, enter the **Site API Key**
     4. **api_key**, enter the **User API Key**
-    5. Example URL: https://bananas.org.au/wp-json/civicrm/v3/rest?entity=FormProcessor&action=newsletter_subscribe&key=SITEKEY&api_key=APIKEY&json=1
+    5. Example URL: `https://bananas.org.au/wp-json/civicrm/v3/rest?entity=FormProcessor&action=newsletter_subscribe&key=SITEKEY&api_key=APIKEY&json=1`
 13. Save the Webhook
 14. In CiviCRM, go to the Administer > Automation > Form Processors page, `/wp-admin/admin.php?page=CiviCRM&q=civicrm%2Fadmin%2Fautomation%2Fformprocessor%2F#/formprocessors`
 15. Import example Form Processor, [civicrm-form-processor-newsletter_subscribe.json](example/civicrm-form-processor-newsletter_subscribe.json)
@@ -51,7 +51,7 @@ _Note_: When a user who is not logged into the website submits the form, then th
 
 # Trouble-shooting
 
-To trouble-shoot this integration, enable the Gravity Forms Logging on the page /wp-admin/admin.php?page=gf_settings&subview=settings and then check the Web Hooks logs when the Gravity Form is submitted. Logs are available on this page, /wp-admin/admin.php?page=gf_settings&subview=gravityformslogging
+To trouble-shoot this integration, enable the Gravity Forms Logging on the page `/wp-admin/admin.php?page=gf_settings&subview=settings` and then check the Web Hooks logs when the Gravity Form is submitted. Logs are available on this page, `/wp-admin/admin.php?page=gf_settings&subview=gravityformslogging`
 This should help you identify the cause of most issues integrating the Gravity Form and CiviCRM.
 
 # License
