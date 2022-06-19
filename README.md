@@ -49,6 +49,11 @@ Use the following steps to set up a _Newsletter Subscription_ form using the exa
 
 _Note_: When a user who is not logged into the website submits the form, then the form submission will be processed using the CiviCRM "System User" as defined by the **User API Key**. However, if the user is logged into the website, then this plugin will change the form submission so that it is processed using the logged in user.
 
+# Trouble-shooting
+
+To trouble-shoot this integration, enable the Gravity Forms Logging on the page /wp-admin/admin.php?page=gf_settings&subview=settings and then check the Web Hooks logs when the Gravity Form is submitted. Logs are available on this page, /wp-admin/admin.php?page=gf_settings&subview=gravityformslogging
+This should help you identify the cause of most issues integrating the Gravity Form and CiviCRM.
+
 # License
 
     This program is free software: you can redistribute it and/or modify
