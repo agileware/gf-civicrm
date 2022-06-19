@@ -47,7 +47,13 @@ Use the following steps to set up a _Newsletter Subscription_ form using the exa
 21. Open a new Web Browser window, not logged into the website. Go to the new page and submit the Gravity Form.
 22. In CiviCRM, confirm that the Contact was created and that the Contact was subscribed to the Group in CiviCRM.
 
-_Note_: When a user who is not logged into the website submits the form, then the form submission will be processed using the CiviCRM "System User" as defined by the **User API Key**. However, if the user is logged into the website, then this plugin will change the form submission so that it is processed using the logged in user.
+# Processing form submissions as the logged-in user
+
+When you need the Gravity Form to update the details of the CiviCRM contact for the logged-in user, then replace the api_key parameter in the Web Hook with the Gravity Forms, Merge Tag `{civicrm_api_key}`. This will be evaluated to the current logged-in users CiviCRM Contact, API Key. If no API Key exists one will be created at time of submission.
+
+For example, the Web Hook URL would be: `/wp-json/civicrm/v3/rest?entity=FormProcessor&action= update_contact_details&key=XYZ&api_key={civicrm_api_key}&json=1`
+
+If the user is not logged into the website submits the form, then the `{civicrm_api_key}` will return `NULL` and the Web Hook POST will fail, as no valid API Key ws provided.
 
 # Trouble-shooting
 
