@@ -30,8 +30,9 @@ Use the following steps to set up a _Newsletter Subscription_ form using the exa
 11. Configure the Webhook as shown below. ![Gravity Form, Webhook](images/gravityforms-webhook.png)
 12. In the **Request URL** parameters for the Webhook, replace the following values:
     1. Insert the website address, **replacing** bananas.org.au (_seriously, why did you enter that?_)
-    2. **key**, enter the **Site API Key**
-    3. **api_key**, enter the **User API Key**
+    3. **key**, enter the **Site API Key**
+    4. **api_key**, enter the **User API Key**
+    5. Example URL: https://bananas.org.au/wp-json/civicrm/v3/rest?entity=FormProcessor&action=newsletter_subscribe&key=SITEKEY&api_key=APIKEY&json=1
 13. Save the Webhook
 14. In CiviCRM, go to the Administer > Automation > Form Processors page, `/wp-admin/admin.php?page=CiviCRM&q=civicrm%2Fadmin%2Fautomation%2Fformprocessor%2F#/formprocessors`
 15. Import example Form Processor, [civicrm-form-processor-newsletter_subscribe.json](example/civicrm-form-processor-newsletter_subscribe.json)
