@@ -51,7 +51,7 @@ function do_civicrm_replacement( $form, $context ) {
 
 
 			if ( $option_group ) {
-				$options = OptionValue::get( false )
+				$options = OptionValue::get()
 				                      ->addSelect( 'value', 'label', 'is_default' )
 				                      ->addWhere( 'option_group_id:name', '=', $option_group )
                                       ->addWhere( 'is_active', '=', true )
@@ -180,7 +180,7 @@ function civicrm_optiongroup_setting( $position, $form_id ) {
 
 	switch ( $position ) {
 		case BEFORE_CHOICES_SETTING:
-			$option_groups = OptionGroup::get( false )
+			$option_groups = OptionGroup::get()
 			                            ->addSelect( 'name', 'title' )
                                         ->addOrderBy( 'title', 'ASC' )
 			                            ->execute();
