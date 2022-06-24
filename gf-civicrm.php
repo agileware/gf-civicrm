@@ -104,8 +104,6 @@ function do_civicrm_replacement( $form, $context ) {
 			                'label' => $choice['text'],
 		                ];
 	                }, $field->choices );
-                } else {
-                    $field->inputs = null;
                 }
 			}
 
@@ -116,8 +114,21 @@ function do_civicrm_replacement( $form, $context ) {
 	return $form;
 }
 
-add_filter( 'gform_pre_render', function ( $form ) {
+function pre_render ( $form ) {
 	return do_civicrm_replacement( $form, 'pre_render' );
+};
+
+add_filter( 'gform_pre_render', 'GFCiviCRM\pre_render');
+add_filter( '_disabled_gform_pre_process', function( $form ) {
+    remove_filter( 'gform_pre_render', 'GFCiviCRM\pre_render' );
+    return $form;
+});
+
+add_filter( 'gform_pre_validation', function ( $form ) {
+	return do_civicrm_replacement( $form, 'pre_validation' );
+} );
+add_filter( 'gform_pre_submission_filter', function ( $form ) {
+	return do_civicrm_replacement( $form, 'pre_submission_filter' );
 } );
 add_filter( 'gform_admin_pre_render', function ( $form ) {
 	return do_civicrm_replacement( $form, 'admin_pre_render' );
