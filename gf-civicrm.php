@@ -29,7 +29,7 @@ const BEFORE_CHOICES_SETTING = 1350;
  * Replace choices in Gravity Forms with CiviCRM data
  *
  * @param array $form
- * @param array $context
+ * @param string $context
  *
  * @return array
  * @throws \API_Exception
@@ -51,9 +51,10 @@ function do_civicrm_replacement( $form, $context ) {
 
 
 			if ( $option_group ) {
-				$options = OptionValue::get()
+				$options = OptionValue::get( false )
 				                      ->addSelect( 'value', 'label', 'is_default' )
 				                      ->addWhere( 'option_group_id:name', '=', $option_group )
+                                      ->addWhere( 'is_active', '=', true )
 				                      ->addOrderBy( 'weight', 'ASC' )
 				                      ->execute();
 			} elseif ( $matches['processor'] && $matches['field'] ) {
@@ -118,12 +119,6 @@ function do_civicrm_replacement( $form, $context ) {
 add_filter( 'gform_pre_render', function ( $form ) {
 	return do_civicrm_replacement( $form, 'pre_render' );
 } );
-add_filter( 'gform_pre_validation', function ( $form ) {
-	return do_civicrm_replacement( $form, 'pre_validation' );
-} );
-add_filter( 'gform_pre_submission_filter', function ( $form ) {
-	return do_civicrm_replacement( $form, 'pre_submission_filter' );
-} );
 add_filter( 'gform_admin_pre_render', function ( $form ) {
 	return do_civicrm_replacement( $form, 'admin_pre_render' );
 } );
@@ -174,8 +169,9 @@ function civicrm_optiongroup_setting( $position, $form_id ) {
 
 	switch ( $position ) {
 		case BEFORE_CHOICES_SETTING:
-			$option_groups = OptionGroup::get()
+			$option_groups = OptionGroup::get( false )
 			                            ->addSelect( 'name', 'title' )
+                                        ->addOrderBy( 'title', 'ASC' )
 			                            ->execute();
 			try {
 				$form_processors = civicrm_api3( 'FormProcessorInstance', 'get', [ 'sequential' => 1 ] )['values'];
