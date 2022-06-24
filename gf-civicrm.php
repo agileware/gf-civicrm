@@ -5,7 +5,7 @@
  * Description: Extends Gravity Forms to get option lists and defaults from linked CiviCRM Form Processors
  * Author: Agileware
  * Author URI: https://agileware.com.au
- * Version: 1.0.2
+ * Version: 1.1.0
  * Text Domain: gf-civicrm
  *
  * Gravity Forms CiviCRM Integration is free software: you can redistribute it and/or modify
@@ -29,7 +29,7 @@ const BEFORE_CHOICES_SETTING = 1350;
  * Replace choices in Gravity Forms with CiviCRM data
  *
  * @param array $form
- * @param array $context
+ * @param string $context
  *
  * @return array
  * @throws \API_Exception
@@ -51,9 +51,10 @@ function do_civicrm_replacement( $form, $context ) {
 
 
 			if ( $option_group ) {
-				$options = OptionValue::get()
+				$options = OptionValue::get( false )
 				                      ->addSelect( 'value', 'label', 'is_default' )
 				                      ->addWhere( 'option_group_id:name', '=', $option_group )
+				                      ->addWhere( 'is_active', '=', TRUE )
 				                      ->addOrderBy( 'weight', 'ASC' )
 				                      ->execute();
 			} elseif ( $matches['processor'] && $matches['field'] ) {
@@ -103,8 +104,6 @@ function do_civicrm_replacement( $form, $context ) {
 			                'label' => $choice['text'],
 		                ];
 	                }, $field->choices );
-                } else {
-                    $field->inputs = null;
                 }
 			}
 
@@ -115,9 +114,16 @@ function do_civicrm_replacement( $form, $context ) {
 	return $form;
 }
 
-add_filter( 'gform_pre_render', function ( $form ) {
+function pre_render ( $form ) {
 	return do_civicrm_replacement( $form, 'pre_render' );
-} );
+};
+
+add_filter( 'gform_pre_render', 'GFCiviCRM\pre_render');
+add_filter( '_disabled_gform_pre_process', function( $form ) {
+    remove_filter( 'gform_pre_render', 'GFCiviCRM\pre_render' );
+    return $form;
+});
+
 add_filter( 'gform_pre_validation', function ( $form ) {
 	return do_civicrm_replacement( $form, 'pre_validation' );
 } );
@@ -174,8 +180,9 @@ function civicrm_optiongroup_setting( $position, $form_id ) {
 
 	switch ( $position ) {
 		case BEFORE_CHOICES_SETTING:
-			$option_groups = OptionGroup::get()
+			$option_groups = OptionGroup::get( false )
 			                            ->addSelect( 'name', 'title' )
+			                            ->addOrderBy( 'title', 'ASC' )
 			                            ->execute();
 			try {
 				$form_processors = civicrm_api3( 'FormProcessorInstance', 'get', [ 'sequential' => 1 ] )['values'];
