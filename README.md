@@ -17,7 +17,7 @@ Use the following steps to set up a _Newsletter Subscription_ form using the exa
 1. In WordPress, install and enable this plugin.
 2. On the CiviCRM Extensions page, install the following Extensions:
    1. [Action Provider](https://lab.civicrm.org/extensions/action-provider)
-   2. [Form Processor](https://lab.civicrm.org/jaapjansma/form-processor)
+   2. [Form Processor](https://lab.civicrm.org/extensions/form-processor)
    3. [API Key Management](https://lab.civicrm.org/extensions/apikey)
 3. In CiviCRM, locate the CiviCRM "System User" Contact. This is the user account used to execute CiviCRM cron and scheduled jobs. If you do not have such a user, then best to create one now as this will be used by default for processing the form submissions. This user must have a corresponding WordPress user account. 
 4. Open this CiviCRM Contact and click on the **API Key** tab.
