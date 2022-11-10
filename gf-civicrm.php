@@ -233,7 +233,7 @@ function civicrm_optiongroup_setting( $position, $form_id ) {
 					<?php endforeach; ?>
                     <optgroup label="Option Groups">
 						<?php foreach ( $option_groups as $group ) {
-							echo "<option value=\"civicrm__{$group['name']}\">{$group['title']}</option>";
+							echo "<option value=\"civicrm__{$group['name']}\">" . sprintf(__('%1$s (ID: %2$u)', 'gf-civicrm'), $group['title'], $group['id']) . "</option>";
 						} ?>
                     </optgroup>
                 </select>
