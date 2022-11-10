@@ -5,7 +5,7 @@
  * Description: Extends Gravity Forms to get option lists and defaults from linked CiviCRM Form Processors
  * Author: Agileware
  * Author URI: https://agileware.com.au
- * Version: 1.1.0
+ * Version: 1.2.0a1
  * Text Domain: gf-civicrm
  *
  * Gravity Forms CiviCRM Integration is free software: you can redistribute it and/or modify
@@ -279,7 +279,17 @@ function fp_tag_default( $matches ) {
 
 	if ( ! isset( $defaults[ $processor ] ) ) {
 		try {
-			$defaults[ $processor ] = civicrm_api3( 'FormProcessorDefaults', $processor );
+            // Fetch Form Processor options directly from the GET parameters.
+            $params = [ 'check_permissions' => 1 ];
+
+			$fields = civicrm_api3( 'FormProcessorDefaults', 'getfields', [ 'action' => $processor ] );
+			foreach ( array_keys($fields['values']) as $key) {
+				if ( ! empty( $_GET[ $key ] ) ) {
+					$params[ $key ] = $_GET[ $key ];
+				}
+			}
+
+			$defaults[ $processor ] = civicrm_api3( 'FormProcessorDefaults', $processor, $params );
 		} catch ( \CiviCRM_API3_Exception $e ) {
 			$defaults[ $processor ] = false;
 		}

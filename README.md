@@ -29,10 +29,10 @@ Use the following steps to set up a _Newsletter Subscription_ form using the exa
 10. Configure the **Webhook**
 11. Configure the Webhook as shown below. ![Gravity Form, Webhook](images/gravityforms-webhook.png)
 12. In the **Request URL** parameters for the Webhook, replace the following values:
-    1. Insert the website address, **replacing** bananas.org.au (_seriously, why did you enter that?_)
+    1. Insert the website address, **replacing** example.org.au (_seriously, why did you enter that?_)
     3. **key**, enter the **Site API Key**
     4. **api_key**, enter the **User API Key**
-    5. Example URL: `https://bananas.org.au/wp-json/civicrm/v3/rest?entity=FormProcessor&action=newsletter_subscribe&key=SITEKEY&api_key=APIKEY&json=1`
+    5. Example URL: `https://example.org.au/wp-json/civicrm/v3/rest?entity=FormProcessor&action=newsletter_subscribe&key=SITEKEY&api_key=APIKEY&json=1`
 13. Save the Webhook
 14. In CiviCRM, go to the Administer > Automation > Form Processors page, `/wp-admin/admin.php?page=CiviCRM&q=civicrm%2Fadmin%2Fautomation%2Fformprocessor%2F#/formprocessors`
 15. Import example Form Processor, [civicrm-form-processor-newsletter_subscribe.json](example/civicrm-form-processor-newsletter_subscribe.json)
@@ -46,6 +46,15 @@ Use the following steps to set up a _Newsletter Subscription_ form using the exa
 20. In WordPress, embed the Gravity Form in a new page.
 21. Open a new Web Browser window, not logged into the website. Go to the new page and submit the Gravity Form.
 22. In CiviCRM, confirm that the Contact was created and that the Contact was subscribed to the Group in CiviCRM.
+
+# Using Merge Tags for default field values
+
+When setting up your field in Gravity Forms, you can use a merge tag of the form `{civicrm_fp.$processor.$field}` in the **Default Value** section of your Field's Advanced settings.
+In the _Newsletter Subscription_ above for example, you could fill in the Email field with the current user's email address recorded in CiviCRM, you would use `{civicrm_fp.newsletter_subscribe.email}`, and set up the Retrieval of Defaults accordingly for the newsletter_subscribe Form Processor in CiviCRM.
+
+The "Retrieval criteria for default data" specified in the form processor will be mapped to URL parameters when your Gravity Form is displayed to your users, such that if you create a criterion named of `cid` to retrieve contact details by ID, you'd be able to specify contact ID _134_ with a request like:
+
+`https://example.org.au/newsletter_subscribe?cid=1234`
 
 # Processing form submissions as the logged-in user
 
