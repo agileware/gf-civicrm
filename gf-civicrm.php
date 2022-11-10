@@ -247,30 +247,13 @@ function editor_script() {
 			fieldSettings[field] += ', .civicrm_optiongroup_setting'
 		}
 
-		jQuery( document ).bind( 'gform_load_field_settings', function ( event, field, form ) {
+		jQuery( document ).bind( 'gform_load_field_settings', function ( event, field ) {
 			jQuery( '#civicrm_optiongroup_selector' ).val( field.civicrmOptionGroup )
 		} )
 
 		function SetCiviCRMOptionGroup( { value } ) {
 			SetFieldProperty( 'civicrmOptionGroup', value );
-
-			let { cssClass } = GetSelectedField();
-
-			if ( cssClass ) {
-				cssClass = cssClass.split( /\s+/ ).filter( entry => !entry.match( /^civicrm(?:_\w+)?__/ ) );
-			} else {
-				cssClass = [];
-			}
-
-			if ( value ) {
-				cssClass.push( value );
-			}
-
-			cssClass = cssClass.join( ' ' );
-
-			SetFieldProperty( 'cssClass', cssClass );
-			document.getElementById( 'field_css_class' ).value = cssClass;
-		}
+        }
     </script>
 	<?php
 }
