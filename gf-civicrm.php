@@ -70,9 +70,11 @@ function do_civicrm_replacement( $form, $context ) {
 						$options[] = [ 'value' => $value, 'label' => $label ];
 					}
 
-					// Record the default option from the Form Processor
-					$defaults       = civicrm_api3( 'FormProcessorDefaults', $matches['processor'] );
-					$default_option = $defaults[ $matches['field'] ] ?? null;
+					$default_option = fp_tag_default( [
+						$matches[0],
+						$matches['processor'],
+						$matches['field'],
+					], NULL );
 
 				} catch ( \CiviCRM_API3_Exception $e ) {
 					// Couldn't get form processor instance, don't try to set options
@@ -197,7 +199,13 @@ function civicrm_optiongroup_setting( $position, $form_id ) {
 					foreach ( $processor['inputs'] as $input ) {
 						$type = &$input['type']['name'];
 
-						if ( ( $type == 'OptionGroup' ) || ( $type == 'CustomOptionListType' ) || ( $type == 'YesNoOptionList' ) ) {
+						if ( in_array( $type, [
+							'OptionGroup',
+							'CustomOptionListType',
+							'YesNoOptionList',
+							'MailingGroup',
+                            'Tag'
+						] ) ) {
 							$mapped['options'][ $input['name'] ] = $input['title'];
 						}
 					}
@@ -267,10 +275,10 @@ add_action( 'gform_editor_js', 'GFCiviCRM\editor_script', 11, 0 );
  *
  * @return string
  */
-function fp_tag_default( $matches ) {
+function fp_tag_default( $matches, $fallback = '' ) {
 	static $defaults = [];
 
-    $result = '';
+	$result = $fallback;
 	[ , $processor, $field ] = $matches;
 
 	if ( ! civicrm_initialize() ) {
@@ -291,12 +299,12 @@ function fp_tag_default( $matches ) {
 
 			$defaults[ $processor ] = civicrm_api3( 'FormProcessorDefaults', $processor, $params );
 		} catch ( \CiviCRM_API3_Exception $e ) {
-			$defaults[ $processor ] = false;
+			$defaults[ $processor ] = FALSE;
 		}
 	}
 
-	if ( $defaults[ $processor ] ) {
-		$result = array_key_exists( $field, $defaults[ $processor ] ) ? $defaults[ $processor ][ $field ] : '';
+	if ( $defaults[ $processor ] && array_key_exists( $field, $defaults[ $processor ] ) ) {
+		$result = $defaults[ $processor ][ $field ];
 	}
 
 	return $result;
