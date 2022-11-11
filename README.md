@@ -40,7 +40,7 @@ Use the following steps to set up a _Newsletter Subscription_ form using the exa
     1. first_name
     2. last_name
     3. email
-17. In the Form Processor, edit the **Do Subscribe** action and select the CiviCRM Group that the Contact should be subscribed too for the **Configuration, Subscribe to mailing list**. This option must be set for the **Do Subscribe** action to succeed.
+17. In the Form Processor, edit the **Do Subscribe** action and select the CiviCRM Group that the Contact should be subscribed to for the **Configuration, Subscribe to mailing list**. This option must be set for the **Do Subscribe** action to succeed.
 18. Note that the Form Processor has the name, **newsletter_subscribe** which used in the Webhook, Request URL. This is how the Webhook is **connected** to this Form Processor.
 19. **Save** the Form Processor.
 20. In WordPress, embed the Gravity Form in a new page.
@@ -52,9 +52,31 @@ Use the following steps to set up a _Newsletter Subscription_ form using the exa
 When setting up your field in Gravity Forms, you can use a merge tag of the form `{civicrm_fp.$processor.$field}` in the **Default Value** section of your Field's Advanced settings.
 In the _Newsletter Subscription_ above for example, you could fill in the Email field with the current user's email address recorded in CiviCRM, you would use `{civicrm_fp.newsletter_subscribe.email}`, and set up the Retrieval of Defaults accordingly for the newsletter_subscribe Form Processor in CiviCRM.
 
-The "Retrieval criteria for default data" specified in the form processor will be mapped to URL parameters when your Gravity Form is displayed to your users, such that if you create a criterion named of `cid` to retrieve contact details by ID, you'd be able to specify contact ID _134_ with a request like:
+The "Retrieval criteria for default data" specified in the form processor will be mapped to URL parameters when your Gravity Form is displayed to your users, such that if you create a criterion named `cid` to retrieve contact details by ID, you'd be able to specify contact ID _1234_ with a request like:
 
 `https://example.org.au/newsletter_subscribe?cid=1234`
+
+# Using options defined in CiviCRM for choices in your form fields 
+
+For Gravity Forms fields that support setting choices (e.g. Drop Down, Checkboxes, Radio Buttons), you may use predefined option lists set in CiviCRM. These either can use Option Groups defined in CiviCRM directly or may be defined by your Form Processor (recommended):
+
+1. Edit your Form Processor and add an input of one of the supported types:
+  - Yes/No as Option List
+  - Option Group
+  - Custom Options
+  - Mailing Group
+  - Tags
+2. Save your Form Processor
+3. Edit your Gravity form and add one of these types of field:
+  - Checkboxes or Multi Select (under Advanced Fields) for multiple option selection
+  - Radio Buttons or Drop Down to allow selection of a single option
+3. Under the General settings for your field, open the CiviCRM Source selection.
+4. Locate your Form Processor in the option list headings, and under it, select the field you defined in step 1.
+5. Press the "Edit Choices" button, and select "show values" - this will allow the CiviCRM options to be mapped directly
+  Note that the Choices will not appear filled from CiviCRM until you save the form and reload - also, if you change any options here your changes will be replaced with options filled from CiviCRM, so if you need to make any changes to the available options, including order, it is important to make them in the *Form Processor* configuration
+6. Save the Form and either Preview or embed it to see the changes
+
+If you set defaults for the Form Processor input used as a "CiviCRM Source", these will be applied when the form is loaded, including any Retrieval criteria specified in the URL parameters.
 
 # Processing form submissions as the logged-in user
 
