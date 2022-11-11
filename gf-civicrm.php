@@ -368,12 +368,11 @@ function replace_merge_tags( $text, $form, $entry, $url_encode, $esc_html, $nl2b
 
 add_filter( 'gform_replace_merge_tags', 'GFCiviCRM\replace_merge_tags', 10, 7 );
 
+define( 'GF_CIVICRM_FIELDS_ADDON_VERSION', get_plugin_data(__FILE__)['Version'] );
 
-define( 'GF_CIVIRM_FIELDS_ADDON_VERSION', '1.0' );
+add_action( 'gform_loaded', 'GFCiviCRM\fields_addon_bootstrap', 5 );
 
-add_action( 'gform_loaded', 'GFCiviCRM\gf_civicrm_fields_addon_bootstrap', 5 );
-
-function gf_civicrm_fields_addon_bootstrap() {
+function fields_addon_bootstrap() {
 
     if ( ! method_exists( 'GFForms', 'include_addon_framework' ) ) {
       return;
