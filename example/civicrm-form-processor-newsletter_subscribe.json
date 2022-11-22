@@ -5,10 +5,16 @@
     "output_handler": "OutputAllActionOutput",
     "output_handler_configuration": [],
     "enable_default_data": "0",
-    "default_data_output_configuration": [],
+    "default_data_output_configuration": {
+        "email": "",
+        "first_name": "",
+        "last_name": ""
+    },
     "permission": "add contacts",
     "inputs": [
         {
+            "weight": "0",
+            "include_formatted_params": "1",
             "title": "Email",
             "name": "email",
             "type": "String",
@@ -18,6 +24,8 @@
             "validators": []
         },
         {
+            "weight": "1",
+            "include_formatted_params": "1",
             "title": "First Name",
             "name": "first_name",
             "type": "String",
@@ -27,6 +35,8 @@
             "validators": []
         },
         {
+            "weight": "2",
+            "include_formatted_params": "1",
             "title": "Last Name",
             "name": "last_name",
             "type": "String",
@@ -53,14 +63,13 @@
             "delay_configuration": ""
         },
         {
-            "name": "do_subscribe",
-            "title": "Do Subscribe",
-            "type": "MailingEventSubscribe",
+            "name": "add_to_group",
+            "title": "Add to group",
+            "type": "AddToGroup",
             "configuration": {
                 "group_id": "3"
             },
             "mapping": {
-                "email": "input.email",
                 "contact_id": "action.create_contact.contact_id"
             },
             "condition_configuration": "",
@@ -68,5 +77,6 @@
         }
     ],
     "default_data_inputs": [],
-    "default_data_actions": []
+    "default_data_actions": [],
+    "uploaded_source_file": "1"
 }
