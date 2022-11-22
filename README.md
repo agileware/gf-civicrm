@@ -16,12 +16,12 @@ Use the following steps to set up a _Newsletter Subscription_ form using the exa
 
 1. In WordPress, install and enable this plugin.
 2. On the CiviCRM Extensions page, install the following Extensions:
-   1. [Action Provider](https://lab.civicrm.org/extensions/action-provider)
-   2. [Form Processor](https://lab.civicrm.org/extensions/form-processor)
-   3. [API Key Management](https://lab.civicrm.org/extensions/apikey)
-3. In CiviCRM, locate the CiviCRM "System User" Contact. This is the user account used to execute CiviCRM cron and scheduled jobs. If you do not have such a user, then best to create one now as this will be used by default for processing the form submissions. This user must have a corresponding WordPress user account. 
+    1. [Action Provider](https://lab.civicrm.org/extensions/action-provider)
+    2. [Form Processor](https://lab.civicrm.org/extensions/form-processor)
+    3. [API Key Management](https://lab.civicrm.org/extensions/apikey)
+3. In CiviCRM, locate the CiviCRM "System User" Contact. This is the user account used to execute CiviCRM cron and scheduled jobs. If you do not have such a user, then best to create one now as this will be used by default for processing the form submissions. This user must have a corresponding WordPress user account.
 4. Open this CiviCRM Contact and click on the **API Key** tab.
-5. Generate a **User API Key** and copy the **Site API Key**. 
+5. Generate a **User API Key** and copy the **Site API Key**.
 6. In WordPress, open Gravity Forms and import the example Gravity Form, [gravityforms-newsletter_subscribe.json](example/gravityforms-newsletter_subscribe.json)
 7. Open the imported Gravity Form, the following form should be displayed. ![Gravity Form, Newsletter Subscribe](images/gravityforms-example.png)
 8. Click on **Webhooks**
@@ -40,7 +40,7 @@ Use the following steps to set up a _Newsletter Subscription_ form using the exa
     1. first_name
     2. last_name
     3. email
-17. In the Form Processor, edit the **Do Subscribe** action and select the CiviCRM Group that the Contact should be subscribed to for the **Configuration, Subscribe to mailing list**. This option must be set for the **Do Subscribe** action to succeed.
+17. In the Form Processor, edit the **Add to group** action and select the CiviCRM Group that the Contact should be subscribed to for the **Contact: Add to group**. This option must be set for the **Add to group** action to succeed.
 18. Note that the Form Processor has the name, **newsletter_subscribe** which used in the Webhook, Request URL. This is how the Webhook is **connected** to this Form Processor.
 19. **Save** the Form Processor.
 20. In WordPress, embed the Gravity Form in a new page.
@@ -56,24 +56,24 @@ The "Retrieval criteria for default data" specified in the form processor will b
 
 `https://example.org.au/newsletter_subscribe?cid=1234`
 
-# Using options defined in CiviCRM for choices in your form fields 
+# Using options defined in CiviCRM for choices in your form fields
 
 For Gravity Forms fields that support setting choices (e.g. Drop Down, Checkboxes, Radio Buttons), you may use predefined option lists set in CiviCRM. These either can use Option Groups defined in CiviCRM directly or may be defined by your Form Processor (recommended):
 
 1. Edit your Form Processor and add an input of one of the supported types:
-  - Yes/No as Option List
-  - Option Group
-  - Custom Options
-  - Mailing Group
-  - Tags
+- Yes/No as Option List
+- Option Group
+- Custom Options
+- Mailing Group
+- Tags
 2. Save your Form Processor
 3. Edit your Gravity form and add one of these types of field:
-  - Checkboxes or Multi Select (under Advanced Fields) for multiple option selection
-  - Radio Buttons or Drop Down to allow selection of a single option
+- Checkboxes or Multi Select (under Advanced Fields) for multiple option selection
+- Radio Buttons or Drop Down to allow selection of a single option
 3. Under the General settings for your field, open the CiviCRM Source selection.
 4. Locate your Form Processor in the option list headings, and under it, select the field you defined in step 1.
 5. Press the "Edit Choices" button, and select "show values" - this will allow the CiviCRM options to be mapped directly
-  Note that the Choices will not appear filled from CiviCRM until you save the form and reload - also, if you change any options here your changes will be replaced with options filled from CiviCRM, so if you need to make any changes to the available options, including order, it is important to make them in the *Form Processor* configuration
+   Note that the Choices will not appear filled from CiviCRM until you save the form and reload - also, if you change any options here your changes will be replaced with options filled from CiviCRM, so if you need to make any changes to the available options, including order, it is important to make them in the *Form Processor* configuration
 6. Save the Form and either Preview or embed it to see the changes
 
 If you set defaults for the Form Processor input used as a "CiviCRM Source", these will be applied when the form is loaded, including any Retrieval criteria specified in the URL parameters.
@@ -90,6 +90,8 @@ If the user is not logged into the website submits the form, then the `{civicrm_
 
 To trouble-shoot this integration, enable the Gravity Forms Logging on the page `/wp-admin/admin.php?page=gf_settings&subview=settings` and then check the Web Hooks logs when the Gravity Form is submitted. Logs are available on this page, `/wp-admin/admin.php?page=gf_settings&subview=gravityformslogging`
 This should help you identify the cause of most issues integrating the Gravity Form and CiviCRM.
+
+CiviCRM expects permalink settings to be set to "Post name" by default in order to address the `wp-json` directory. Enable this setting on the page `/wp-admin/options-permalink.php` if it is not set already.
 
 # License
 
