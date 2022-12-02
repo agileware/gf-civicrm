@@ -5,7 +5,7 @@
  * Description: Extends Gravity Forms to get option lists and defaults from linked CiviCRM Form Processors
  * Author: Agileware
  * Author URI: https://agileware.com.au
- * Version: 1.2.0
+ * Version: 1.2.1
  * Text Domain: gf-civicrm
  *
  * Gravity Forms CiviCRM Integration is free software: you can redistribute it and/or modify
@@ -306,6 +306,11 @@ function fp_tag_default( $matches, $fallback = '' ) {
 	if ( $defaults[ $processor ] && array_key_exists( $field, $defaults[ $processor ] ) ) {
 		$result = $defaults[ $processor ][ $field ];
 	}
+
+    // GFCV-20 Resolve to first value if array
+    while(is_array($result)) {
+        $result = reset($result);
+    }
 
 	return $result;
 }
