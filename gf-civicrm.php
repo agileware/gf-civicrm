@@ -307,6 +307,11 @@ function fp_tag_default( $matches, $fallback = '' ) {
 		$result = $defaults[ $processor ][ $field ];
 	}
 
+    // GFCV-20 Resolve to first value if array
+    while(is_array($result)) {
+        $result = reset($result);
+    }
+
 	return $result;
 }
 
