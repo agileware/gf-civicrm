@@ -21,7 +21,12 @@
 
 namespace GFCiviCRM;
 
-use Civi\Api4\{OptionValue, OptionGroup, Contact};
+use Civi\Api4\{
+	OptionValue,
+	OptionGroup,
+	Contact
+};
+use GFAddOn;
 
 const BEFORE_CHOICES_SETTING = 1350;
 
@@ -373,17 +378,22 @@ function replace_merge_tags( $text, $form, $entry, $url_encode, $esc_html, $nl2b
 
 add_filter( 'gform_replace_merge_tags', 'GFCiviCRM\replace_merge_tags', 10, 7 );
 
-define( 'GF_CIVICRM_FIELDS_ADDON_VERSION', get_plugin_data(__FILE__)['Version'] );
+define( 'GF_CIVICRM_ADDON_VERSION', get_plugin_data(__FILE__)['Version'] );
 
-add_action( 'gform_loaded', 'GFCiviCRM\fields_addon_bootstrap', 5 );
+add_action( 'gform_loaded', 'GFCiviCRM\addon_bootstrap', 15 );
 
-function fields_addon_bootstrap() {
+function addon_bootstrap() {
 
-    if ( ! method_exists( 'GFForms', 'include_addon_framework' ) ) {
-      return;
-    }
+	if ( ! method_exists( 'GFForms', 'include_addon_framework' ) ) {
+		return;
+	}
 
-    require_once('class-gf-civicrm-fields.php');
+	require_once( 'class-gf-civicrm-fields.php' );
+	GFAddOn::register( 'GFCiviCRM\FieldsAddOn' );
 
-    \GFAddOn::register( 'GFCiviCRMFieldsAddOn' );
+	if ( class_exists( 'webaware\gfewaypro\AddOn' ) ) {
+		require_once( 'class-ewayproextras.php' );
+
+		GFAddOn::register( 'GFCiviCRM\eWAYProExtras', 'webaware\gfewaypro\AddOn');
+	}
 }

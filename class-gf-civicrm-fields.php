@@ -1,10 +1,14 @@
 <?php
 
+namespace GFCiviCRM;
+
+use GFForms, GFAddon;
+
 GFForms::include_addon_framework();
 
-class GFCiviCRMFieldsAddOn extends GFAddOn {
+class FieldsAddOn extends GFAddOn {
 
-  protected $_version = GF_CIVICRM_FIELDS_ADDON_VERSION;
+  protected $_version = GF_CIVICRM_ADDON_VERSION;
 
   protected $_min_gravityforms_version = '1.9';
 
