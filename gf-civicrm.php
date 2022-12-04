@@ -44,7 +44,7 @@ function do_civicrm_replacement( $form, $context ) {
 	static $civi_fp_fields;
 	foreach ( $form['fields'] as &$field ) {
 		if ( property_exists( $field, 'choices' ) && property_exists( $field, 'civicrmOptionGroup' ) &&
-             preg_match( '{(?:^|\s) civicrm (?: __ (?<option_group>\S+) | _fp__ (?<processor>\S*?) __ (?<field> \S*))}x', $field->civicrmOptionGroup, $matches ) ) {
+		     preg_match( '{(?:^|\s) civicrm (?: __ (?<option_group>\S+) | _fp__ (?<processor>\S*?) __ (?<field> \S*))}x', $field->civicrmOptionGroup, $matches ) ) {
 			if ( ! civicrm_initialize() ) {
 				break;
 			}
@@ -59,7 +59,7 @@ function do_civicrm_replacement( $form, $context ) {
 				$options = OptionValue::get( false )
 				                      ->addSelect( 'value', 'label', 'is_default' )
 				                      ->addWhere( 'option_group_id:name', '=', $option_group )
-				                      ->addWhere( 'is_active', '=', TRUE )
+				                      ->addWhere( 'is_active', '=', true )
 				                      ->addOrderBy( 'weight', 'ASC' )
 				                      ->execute();
 			} elseif ( $matches['processor'] && $matches['field'] ) {
@@ -79,7 +79,7 @@ function do_civicrm_replacement( $form, $context ) {
 						$matches[0],
 						$matches['processor'],
 						$matches['field'],
-					], NULL );
+					], null );
 
 				} catch ( \CiviCRM_API3_Exception $e ) {
 					// Couldn't get form processor instance, don't try to set options
@@ -103,15 +103,15 @@ function do_civicrm_replacement( $form, $context ) {
 			}
 
 			if ( property_exists( $field, 'inputs' ) ) {
-                if($context === 'pre_render') {
-	                $i             = 1;
-	                $field->inputs = array_map( function ( $choice ) use ( &$i, $field ) {
-		                return [
-			                'id'    => $field->id . '.' . $i ++,
-			                'label' => $choice['text'],
-		                ];
-	                }, $field->choices );
-                }
+				if ( $context === 'pre_render' ) {
+					$i             = 1;
+					$field->inputs = array_map( function ( $choice ) use ( &$i, $field ) {
+						return [
+							'id'    => $field->id . '.' . $i ++,
+							'label' => $choice['text'],
+						];
+					}, $field->choices );
+				}
 			}
 
 		}
@@ -121,15 +121,16 @@ function do_civicrm_replacement( $form, $context ) {
 	return $form;
 }
 
-function pre_render ( $form ) {
+function pre_render( $form ) {
 	return do_civicrm_replacement( $form, 'pre_render' );
-};
+}
 
-add_filter( 'gform_pre_render', 'GFCiviCRM\pre_render');
-add_filter( '_disabled_gform_pre_process', function( $form ) {
-    remove_filter( 'gform_pre_render', 'GFCiviCRM\pre_render' );
-    return $form;
-});
+add_filter( 'gform_pre_render', 'GFCiviCRM\pre_render' );
+add_filter( '_disabled_gform_pre_process', function ( $form ) {
+	remove_filter( 'gform_pre_render', 'GFCiviCRM\pre_render' );
+
+	return $form;
+} );
 
 add_filter( 'gform_pre_validation', function ( $form ) {
 	return do_civicrm_replacement( $form, 'pre_validation' );
@@ -198,7 +199,7 @@ function civicrm_optiongroup_setting( $position, $form_id ) {
 					$mapped = [
 						'name'    => $processor['name'],
 						'title'   => $processor['title'],
-						'options' => []
+						'options' => [],
 					];
 
 					foreach ( $processor['inputs'] as $input ) {
@@ -209,7 +210,7 @@ function civicrm_optiongroup_setting( $position, $form_id ) {
 							'CustomOptionListType',
 							'YesNoOptionList',
 							'MailingGroup',
-                            'Tag'
+							'Tag',
 						] ) ) {
 							$mapped['options'][ $input['name'] ] = $input['title'];
 						}
@@ -238,7 +239,7 @@ function civicrm_optiongroup_setting( $position, $form_id ) {
 					<?php endforeach; ?>
                     <optgroup label="Option Groups">
 						<?php foreach ( $option_groups as $group ) {
-							echo "<option value=\"civicrm__{$group['name']}\">" . sprintf(__('%1$s (ID: %2$u)', 'gf-civicrm'), $group['title'], $group['id']) . "</option>";
+							echo "<option value=\"civicrm__{$group['name']}\">" . sprintf( __( '%1$s (ID: %2$u)', 'gf-civicrm' ), $group['title'], $group['id'] ) . "</option>";
 						} ?>
                     </optgroup>
                 </select>
@@ -256,16 +257,16 @@ add_action( 'gform_field_standard_settings', 'GFCiviCRM\civicrm_optiongroup_sett
 function editor_script() {
 	?>
     <script type="text/javascript">
-		for ( let field of [ 'select', 'multiselect', 'checkbox', 'radio' ] ) {
-			fieldSettings[field] += ', .civicrm_optiongroup_setting'
-		}
+        for (let field of ['select', 'multiselect', 'checkbox', 'radio']) {
+            fieldSettings[field] += ', .civicrm_optiongroup_setting'
+        }
 
-		jQuery( document ).bind( 'gform_load_field_settings', function ( event, field ) {
-			jQuery( '#civicrm_optiongroup_selector' ).val( field.civicrmOptionGroup )
-		} )
+        jQuery(document).bind('gform_load_field_settings', function (event, field) {
+            jQuery('#civicrm_optiongroup_selector').val(field.civicrmOptionGroup)
+        })
 
-		function SetCiviCRMOptionGroup( { value } ) {
-			SetFieldProperty( 'civicrmOptionGroup', value );
+        function SetCiviCRMOptionGroup({value}) {
+            SetFieldProperty('civicrmOptionGroup', value);
         }
     </script>
 	<?php
@@ -292,11 +293,11 @@ function fp_tag_default( $matches, $fallback = '' ) {
 
 	if ( ! isset( $defaults[ $processor ] ) ) {
 		try {
-            // Fetch Form Processor options directly from the GET parameters.
-            $params = [ 'check_permissions' => 1 ];
+			// Fetch Form Processor options directly from the GET parameters.
+			$params = [ 'check_permissions' => 1 ];
 
 			$fields = civicrm_api3( 'FormProcessorDefaults', 'getfields', [ 'action' => $processor ] );
-			foreach ( array_keys($fields['values']) as $key) {
+			foreach ( array_keys( $fields['values'] ) as $key ) {
 				if ( ! empty( $_GET[ $key ] ) ) {
 					$params[ $key ] = $_GET[ $key ];
 				}
@@ -304,7 +305,7 @@ function fp_tag_default( $matches, $fallback = '' ) {
 
 			$defaults[ $processor ] = civicrm_api3( 'FormProcessorDefaults', $processor, $params );
 		} catch ( \CiviCRM_API3_Exception $e ) {
-			$defaults[ $processor ] = FALSE;
+			$defaults[ $processor ] = false;
 		}
 	}
 
@@ -312,10 +313,10 @@ function fp_tag_default( $matches, $fallback = '' ) {
 		$result = $defaults[ $processor ][ $field ];
 	}
 
-    // GFCV-20 Resolve to first value if array
-    while(is_array($result)) {
-        $result = reset($result);
-    }
+	// GFCV-20 Resolve to first value if array
+	while ( is_array( $result ) ) {
+		$result = reset( $result );
+	}
 
 	return $result;
 }
@@ -333,22 +334,26 @@ function get_api_key() {
 		return null;
 	}
 
-    // Get the existing API key if there is one.
+	// Get the existing API key if there is one.
 	$apiKey = ( Contact::get( false )
 	                   ->addSelect( 'api_key' )
 	                   ->addWhere( 'id', '=', $contactID )
 	                   ->execute() )[0]['api_key'];
 
 	if ( ! $apiKey ) {
-        // Otherwise generate and save a key as URL-safe random base64 - 18 bytes = 24 characters
-		$apiKey = str_replace( [ '+', '/', '=' ], [ '-', '_', '' ], base64_encode( random_bytes( 18 ) ) );
+		// Otherwise generate and save a key as URL-safe random base64 - 18 bytes = 24 characters
+		$apiKey = str_replace( [ '+', '/', '=' ], [
+			'-',
+			'_',
+			'',
+		], base64_encode( random_bytes( 18 ) ) );
 		Contact::update( false )
 		       ->addValue( 'api_key', $apiKey )
 		       ->addWhere( 'id', '=', $contactID )
 		       ->execute();
 	}
 
-    return $apiKey;
+	return $apiKey;
 }
 
 /**
@@ -378,7 +383,7 @@ function replace_merge_tags( $text, $form, $entry, $url_encode, $esc_html, $nl2b
 
 add_filter( 'gform_replace_merge_tags', 'GFCiviCRM\replace_merge_tags', 10, 7 );
 
-define( 'GF_CIVICRM_ADDON_VERSION', get_plugin_data(__FILE__)['Version'] );
+define( 'GF_CIVICRM_ADDON_VERSION', get_plugin_data( __FILE__ )['Version'] );
 
 add_action( 'gform_loaded', 'GFCiviCRM\addon_bootstrap', 15 );
 
@@ -388,12 +393,13 @@ function addon_bootstrap() {
 		return;
 	}
 
+	// Register Add-On for CiviCRM additional fields
 	require_once( 'class-gf-civicrm-fields.php' );
 	GFAddOn::register( 'GFCiviCRM\FieldsAddOn' );
 
+	// Override "Eway Payments Pro" Add-On if present to allow for masked card and expiry processing
 	if ( class_exists( 'webaware\gfewaypro\AddOn' ) ) {
 		require_once( 'class-ewayproextras.php' );
-
-		GFAddOn::register( 'GFCiviCRM\eWAYProExtras', 'webaware\gfewaypro\AddOn');
+		GFAddOn::register( 'GFCiviCRM\eWAYProExtras', 'webaware\gfewaypro\AddOn' );
 	}
 }
