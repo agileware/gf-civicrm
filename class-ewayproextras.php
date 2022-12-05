@@ -5,7 +5,9 @@ namespace GFCiviCRM;
 use GFAddOn, GFForms;
 use Civi\Api4\UFMatch;
 use Civi\Api4\PaymentToken;
+use GFCiviCRM\eWAYProExtras\PaymentAPI;
 use webaware\gfewaypro\AddOn as GFeWAYProAddon;
+use webaware\gfewaypro\Credentials;
 use WP_User;
 
 GFForms::include_addon_framework();
@@ -41,6 +43,30 @@ class eWAYProExtras extends GFeWAYProAddon {
 		$this->_full_path   = __FILE__;
 		$this->_title       .= ' with CiviCRM';
 		$this->_short_title .= ' with CiviCRM';
+	}
+
+	protected function getPaymentRequest( $formData, $feed, $form, $entry = false ) {
+		$requestor = parent::getPaymentRequest( $formData, $feed, $form, $entry );
+
+		if ((($feed['meta']['rememberCustomer'] ?? 'off') !== 'off') &&
+		    (($feed['meta']['feedMethod'] ?? null) === 'shared')) {
+			$requestor->saveCustomer = true;
+		}
+
+		return $requestor;
+	}
+
+	/**
+	 * Overrides "requestor" PaymentAPI object with our own extended version
+	 *
+	 * @param $feed
+	 *
+	 * @return PaymentAPI
+	 */
+	public function getPaymentRequestor( $feed ) {
+		$creds = new Credentials( $this, $feed );
+
+		return new PaymentAPI($creds->apiKey, $creds->password, $creds->customerID, $creds->useTest);
 	}
 
 	/**

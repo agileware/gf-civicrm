@@ -399,6 +399,7 @@ function addon_bootstrap() {
 
 	// Override "Eway Payments Pro" Add-On if present to allow for masked card and expiry processing
 	if ( class_exists( 'webaware\gfewaypro\AddOn' ) ) {
+        require_once( 'class-ewayproextras-paymentapi.php' );
 		require_once( 'class-ewayproextras.php' );
 		GFAddOn::register( 'GFCiviCRM\eWAYProExtras', 'webaware\gfewaypro\AddOn' );
 	}
