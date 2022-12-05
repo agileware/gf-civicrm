@@ -74,7 +74,7 @@ function do_civicrm_replacement( $form, $context ) {
 						$matches[0],
 						$matches['processor'],
 						$matches['field'],
-					], NULL );
+					], null, true );
 
 				} catch ( \CiviCRM_API3_Exception $e ) {
 					// Couldn't get form processor instance, don't try to set options
@@ -275,7 +275,7 @@ add_action( 'gform_editor_js', 'GFCiviCRM\editor_script', 11, 0 );
  *
  * @return string
  */
-function fp_tag_default( $matches, $fallback = '' ) {
+function fp_tag_default( $matches, $fallback = '', $multiple = false ) {
 	static $defaults = [];
 
 	$result = $fallback;
@@ -307,11 +307,14 @@ function fp_tag_default( $matches, $fallback = '' ) {
 		$result = $defaults[ $processor ][ $field ];
 	}
 
-    // GFCV-20 Resolve to first value if array
-    while(is_array($result)) {
-        $result = reset($result);
+    if( $multiple ) {
+        return $result;
     }
 
+	// GFCV-20 Resolve to first value if array
+	while( is_array($result) ) {
+		$result = reset($result);
+	}
 	return $result;
 }
 
