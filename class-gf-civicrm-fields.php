@@ -51,6 +51,7 @@ class FieldsAddOn extends GFAddOn {
     // Add the CiviCRM Group Contact Select field
     if ($this->is_gravityforms_supported() && class_exists('GF_Field')) {
       require_once('includes/class-gf-field-group-contact-select.php');
+	  require_once('includes/class-civicrm-payment-token.php');
     }
   }
 
@@ -63,6 +64,10 @@ class FieldsAddOn extends GFAddOn {
       'field_standard_settings',
     ], 10, 2);
 
+	add_action('gform_field_standard_settings', [
+	  'GFCiviCRM\CiviCRM_Payment_Token',
+	  'field_standard_settings',
+	], 10, 2);
   }
 
   /**
@@ -78,7 +83,7 @@ class FieldsAddOn extends GFAddOn {
         'version' => $this->_version,
         'deps'    => ['jquery'],
         'enqueue' => [
-          ['field_types' => ['group_contact_select']],
+          ['field_types' => ['group_contact_select', 'civicrm_payment_token']],
         ],
       ],
 
@@ -99,12 +104,11 @@ class FieldsAddOn extends GFAddOn {
         'src'     => $this->get_base_url() . '/css/gf-civicrm-fields.css',
         'version' => $this->_version,
         'enqueue' => [
-          ['field_types' => ['group_contact_select']],
+          ['field_types' => ['group_contact_select', 'civicrm_payment_token']],
         ],
       ],
     ];
 
     return array_merge(parent::styles(), $styles);
   }
-
 }
