@@ -9,7 +9,6 @@ use GF_Field;
 use GF_Fields;
 use GFCommon;
 use RGFormsModel;
-use webaware\gfewaypro\FieldCustomerTokens;
 
 if ( ! class_exists( 'GFForms' ) ) {
 	die();
@@ -22,12 +21,10 @@ class CiviCRM_Payment_Token extends GF_Field {
 	 */
 	public $type = 'civicrm_payment_token';
 
-    public $inputType = FieldCustomerTokens::GFIELD_TYPE;
-
 	/**
-	 * @var string $civicrm_payment_processor The Payment Token selected
+	 * @var $civicrm_payment_processor mixed The processor selected for payment tokens
 	 */
-	protected $civicrm_payment_processor;
+	public $civicrm_payment_processor;
 
 	/**
 	 * Return the field title, for use in the form editor.
@@ -84,7 +81,12 @@ class CiviCRM_Payment_Token extends GF_Field {
 					<?php esc_html_e( 'Payment Processor', 'gf-civicrm' ); ?>
                 </label>
                 <select id="civicrm_payment_processor" onchange="SetCiviCRMPaymentProcessorSetting(this.value);">
-					<?php echo array_reduce( $payment_processors, fn( $result, $processor ) => $result . sprintf( '<option value="%1$u">%2$s (ID: %1$u)</option>', $processor['id'], $processor['title'] ), '' ); ?>
+                    <option value=''><?php esc_html_e('Select one', 'gf-civicrm'); ?></option>
+					<?php echo array_reduce(
+                            $payment_processors,
+                            fn( $result, $processor ) => $result . sprintf( '<option value="%1$u">%2$s (ID: %1$u)</option>', $processor['id'], $processor['title']),
+                            ''
+                    ); ?>
                 </select>
             </li>
 			<?php
@@ -231,10 +233,15 @@ class CiviCRM_Payment_Token extends GF_Field {
 			                              ->addOrderBy( 'expiry_date', 'DESC' )
 			                              ->execute();
 
-			// Initialise the choices field if not already set
-			if ( empty( $field->choices[0]['value'] ) ) {
-				$field->choices = [];
-			}
+            $field->choices = [];
+
+            if( !( $this->isRequired ?? false ) ) {
+                $field->choices[] = [
+                    'text' => esc_html__('Add new card', 'gf-civicrm'),
+                    'value' => '',
+                    'isSelected' => false,
+                ];
+            }
 
 			foreach ( $payment_tokens as $payment_token ) {
 				$field->choices[] = [
@@ -244,7 +251,7 @@ class CiviCRM_Payment_Token extends GF_Field {
 				];
 			}
 		} catch ( CRM_Core_Exception $e ) {
-			Civi::log()->error( 'Error etrieving Payment Tokens: ' . $e->getMessage() );
+			Civi::log()->error( 'Error retrieving Payment Tokens: ' . $e->getMessage() );
 
 			return $empty_option;
 		}
@@ -349,30 +356,6 @@ class CiviCRM_Payment_Token extends GF_Field {
 		$value = rgar( $entry, $input_id );
 
 		return $is_csv ? $value : GFCommon::selection_display( $value, $this, rgar( $entry, 'currency' ), $use_text );
-	}
-
-	/**
-	 * get the field value on form submit
-	 *
-	 * @param array $field_values
-	 * @param bool $get_from_post_global_var
-	 *
-	 * @return array|string
-	 */
-	public function get_value_submission($field_values, $get_from_post_global_var = true) {
-		$id = $this->id;
-
-        $token_id = $this->get_input_value_submission("input_{$id}", $this->inputName, $field_values, $get_from_post_global_var);
-
-        $token = PaymentToken::get(false)
-            ->addWhere('id', '=', $token_id)
-            ->execute()->first();
-
-        $value[$id . '.1'] = $token['token'];
-        $value[$id . '.2'] = '';
-        $value[$id . '.3'] = '1';
-
-		return $value;
 	}
 
 	/**
