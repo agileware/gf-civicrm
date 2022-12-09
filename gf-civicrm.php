@@ -388,5 +388,5 @@ function fields_addon_bootstrap() {
 
     require_once('class-gf-civicrm-fields.php');
 
-    \GFAddOn::register( 'GFCiviCRMFieldsAddOn' );
+    \GFAddOn::register( 'GFCiviCRM\FieldsAddOn' );
 }
