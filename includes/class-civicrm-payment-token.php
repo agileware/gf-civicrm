@@ -225,11 +225,12 @@ class CiviCRM_Payment_Token extends GF_Field {
 
 		try {
 			// Fetch the payment tokens for the selector processor
-
-			$payment_tokens = PaymentToken::get( )
+            // No apparent permissions for payment token, permissions check seems to fail without admin
+            // contact_id = user_contact_id should be sufficient security.
+			$payment_tokens = PaymentToken::get( false )
 			                              ->addSelect( 'id', 'masked_account_number', 'expiry_date', 'token' )
 			                              ->addWhere( 'payment_processor_id', '=', $field['civicrm_payment_processor'] )
-			                              //->addWhere( 'contact_id', '=', 'user_contact_id' )
+			                              ->addWhere( 'contact_id', '=', 'user_contact_id' )
 			                              ->addOrderBy( 'expiry_date', 'DESC' )
 			                              ->execute();
 
