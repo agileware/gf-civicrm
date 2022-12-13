@@ -107,15 +107,13 @@ class eWAYProExtras extends GFeWAYProAddon {
 	 */
 	public function add_card_meta( $entry, $original_entry ) {
 		// This hook should only during the post phase of the
-		if ( empty( $entry['eway_token'] ) || ( $entry['eway_token'] === $original_entry['eway_token'] ) ) {
+		if ( empty( $entry['eway_token'] ) || empty( $this->customerTokenInfo) ) {
 			return $entry;
 		}
 
-		if ( $this->customerTokenInfo ) {
-			$cd                   = $this->customerTokenInfo->CardDetails;
-			$entry['eway_card']   = $cd->Number;
-			$entry['eway_expiry'] = $cd->ExpiryMonth . '/' . $cd->ExpiryYear;
-		}
+		$cd                   = $this->customerTokenInfo->CardDetails;
+		$entry['eway_card']   = $cd->Number;
+		$entry['eway_expiry'] = $cd->ExpiryMonth . '/' . $cd->ExpiryYear;
 
 		return $entry;
 	}
