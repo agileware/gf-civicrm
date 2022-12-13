@@ -97,6 +97,14 @@ class eWAYProExtras extends GFeWAYProAddon {
 		return $entry_meta;
 	}
 
+	public function processDelayed( $feed, $entry, $form ) {
+		if ( $entry['eway_token'] && ! $entry['eway_card'] ) {
+			$entry = $this->add_card_meta( $entry );
+		}
+
+		parent::processDelayed( $feed, $entry, $form );
+	}
+
 	/**
 	 * Adds card info meta to the entry if available and token is changed.
 	 *
@@ -105,9 +113,9 @@ class eWAYProExtras extends GFeWAYProAddon {
 	 *
 	 * @return mixed
 	 */
-	public function add_card_meta( $entry, $original_entry ) {
+	public function add_card_meta( $entry, $original_entry = [] ) {
 		// This hook should only during the post phase of the
-		if ( empty( $entry['eway_token'] ) || empty( $this->customerTokenInfo) ) {
+		if ( empty( $entry['eway_token'] ) || empty( $this->customerTokenInfo ) ) {
 			return $entry;
 		}
 
