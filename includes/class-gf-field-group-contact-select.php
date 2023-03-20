@@ -45,7 +45,7 @@ class GF_Field_Group_Contact_Select extends GF_Field {
    *
    */
 
-  public function field_standard_settings(int $position, int $form_id) {
+  public static function field_standard_settings(int $position, int $form_id) {
 
     // BEFORE_CHOICES_SETTING determines the position of the field settings on the form
     if ($position != BEFORE_CHOICES_SETTING) return;

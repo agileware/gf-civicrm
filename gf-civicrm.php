@@ -5,7 +5,7 @@
  * Description: Extends Gravity Forms to get option lists and defaults from linked CiviCRM Form Processors
  * Author: Agileware
  * Author URI: https://agileware.com.au
- * Version: 1.2.2
+ * Version: 1.2.3
  * Text Domain: gf-civicrm
  *
  * Gravity Forms CiviCRM Integration is free software: you can redistribute it and/or modify
