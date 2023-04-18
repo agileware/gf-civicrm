@@ -5,7 +5,7 @@
  * Description: Extends Gravity Forms to get option lists and defaults from linked CiviCRM Form Processors
  * Author: Agileware
  * Author URI: https://agileware.com.au
- * Version: 1.3.0
+ * Version: 1.3.1
  * Text Domain: gf-civicrm
  *
  * Gravity Forms CiviCRM Integration is free software: you can redistribute it and/or modify
@@ -120,7 +120,7 @@ function pre_render ( $form ) {
 	return do_civicrm_replacement( $form, 'pre_render' );
 };
 
-add_filter( 'gform_pre_render', 'GFCiviCRM\pre_render');
+add_filter( 'gform_pre_render', 'GFCiviCRM\pre_render', 10, 1 );
 add_filter( '_disabled_gform_pre_process', function( $form ) {
     remove_filter( 'gform_pre_render', 'GFCiviCRM\pre_render' );
     return $form;
@@ -155,7 +155,7 @@ function webhooks_request_data( $request_data, $feed, $entry, $form ) {
 			}
 		}
 		foreach ( $feed['meta']['fieldValues'] as $field_value ) {
-			if ( ( ! empty( $field_value['custom_key'] ) ) && ( $value = $json_decoded[ $field_value['value'] ] ) ) {
+			if ( ( ! empty( $field_value['custom_key'] ) ) && ( $value = $json_decoded[ $field_value['value'] ] ?? null) ) {
 				$request_data[ $field_value['custom_key'] ] = $value;
 			}
 		}

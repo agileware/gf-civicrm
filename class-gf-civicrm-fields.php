@@ -69,7 +69,7 @@ class FieldsAddOn extends GFAddOn {
 	public function init_frontend() {
 		parent::init_frontend();
 
-		add_action( 'gform_pre_render', [ $this, 'maybe_authenticate' ] );
+		add_action( 'gform_pre_render', [ $this, 'maybe_authenticate' ], 9, 1 );
 	}
 
 	public function maybe_authenticate( $form ) {
