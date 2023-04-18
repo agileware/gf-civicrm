@@ -73,9 +73,9 @@ class FieldsAddOn extends GFAddOn {
 	}
 
 	public function maybe_authenticate( $form ) {
-		$settings = $this->get_form_settings( $form );
+		$settings = $this->get_form_settings( $form ) ?: [];
 
-		$auth_checksum = $settings['civicrm_auth_checksum'];
+		$auth_checksum = $settings['civicrm_auth_checksum'] ?? false;
 
 		if ( ! $auth_checksum || ! civicrm_initialize() ) {
 			return $form;
