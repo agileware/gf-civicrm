@@ -144,7 +144,19 @@ add_filter( 'gform_admin_pre_render', function ( $form ) {
 	return do_civicrm_replacement( $form, 'admin_pre_render' );
 } );
 
-function fix_checkbox_values( \GF_Field $field, $entry, $input_id = '', $use_text = FALSE, $is_csv = FALSE ) {
+
+/**
+ * Replaces comma separated values for multiselect with an actual array for JSON encoding
+ *
+ * @param \GF_Field $field
+ * @param $entry
+ * @param $input_id
+ * @param $use_text
+ * @param $is_csv
+ *
+ * @return array
+ */
+function fix_multi_values( \GF_Field $field, $entry, $input_id = '', $use_text = FALSE, $is_csv = FALSE ) {
 	$selected = [];
 
 	if ( empty( $input_id ) || absint( $input_id ) == $input_id ) {
@@ -180,12 +192,17 @@ function webhooks_request_data( $request_data, $feed, $entry, $form ) {
 	if ( $feed['meta']['requestFormat'] === 'json' ) {
 		$json_decoded = [];
 
+		$multi_json = (bool) FieldsAddOn::get_instance()->get_plugin_setting( 'civicrm_multi_json' );
+
 		/** @var \GF_Field $field */
 		foreach ( $form['fields'] as $field ) {
 			if ( property_exists( $field, 'storageType' ) && $field->storageType == 'json' ) {
 				$json_decoded[ $field['id'] ] = json_decode( $entry[ $field['id'] ] );
-			} elseif ( ( is_a( $field, 'GF_Field_Checkbox' ) || is_a( $field, 'GF_Field_MultiSelect' ) ) && ! empty( $field->adminLabel ) ) {
-				$json_decoded[ $field->id ] = fix_checkbox_values( $field, $entry );
+			} elseif (
+				! empty( $multi_json ) &&  // JSON encoding selected in settings
+				( is_a( $field, 'GF_Field_Checkbox' ) || is_a( $field, 'GF_Field_MultiSelect' ) ) // Multi-value field
+			) {
+				$json_decoded[ $field->id ] = fix_multi_values( $field, $entry );
 			}
 		}
 		foreach ( $feed['meta']['fieldValues'] as $field_value ) {
