@@ -21,10 +21,10 @@ class FieldsAddOn extends GFAddOn {
 
   protected $_title = 'Gravity Forms CiviCRM Add-On';
 
-  protected $_short_title = 'CiviCRM Add-On';
+  protected $_short_title = 'CiviCRM';
 
   /**
-   * @var object $_instance If available, contains an instance of this class.
+   * @var \GFCiviCRM\FieldsAddOn $_instance If available, contains an instance of this class.
    */
   private static $_instance = NULL;
 
@@ -32,7 +32,7 @@ class FieldsAddOn extends GFAddOn {
    * Returns an instance of this class, and stores it in the $_instance
    * property.
    *
-   * @return object $_instance An instance of this class.
+   * @return \GFCiviCRM\FieldsAddOn $_instance An instance of this class.
    */
   public static function get_instance() {
     if (self::$_instance == NULL) {
@@ -181,7 +181,25 @@ class FieldsAddOn extends GFAddOn {
 			[
 				'title'  => esc_html__( 'CiviCRM Settings', 'gf-civicrm' ),
 				'fields' => &$fields,
-			]
+			],
 		];
+	}
+
+	public function plugin_settings_fields() {
+		return [ [
+			'title'       => esc_html__( 'CiviCRM Settings', 'gf-civicrm' ),
+			'description' => esc_html__( 'Global settings for CiviCRM add-on', 'gf-civicrm' ),
+			'fields'      => [ [
+				'type'          => 'checkbox',
+				'name'          => 'gf_civicrm_flags',
+				'default_value' => [ 'civicrm_multi_json' ],
+				'choices' => [
+					[
+						'label'   => esc_html__( 'Use JSON encoding for Checkbox and Multiselect values in webhooks (recommended)', 'gf_civicrm' ),
+						'name'    => 'civicrm_multi_json',
+					],
+				],
+			] ],
+		] ];
 	}
 }
