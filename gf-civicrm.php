@@ -184,7 +184,7 @@ function webhooks_request_data( $request_data, $feed, $entry, $form ) {
 		foreach ( $form['fields'] as $field ) {
 			if ( property_exists( $field, 'storageType' ) && $field->storageType == 'json' ) {
 				$json_decoded[ $field['id'] ] = json_decode( $entry[ $field['id'] ] );
-			} elseif ( is_a( $field, 'GF_Field_Checkbox' ) && ! empty( $field->adminLabel ) ) {
+			} elseif ( ( is_a( $field, 'GF_Field_Checkbox' ) || is_a( $field, 'GF_Field_MultiSelect' ) ) && ! empty( $field->adminLabel ) ) {
 				$json_decoded[ $field->id ] = fix_checkbox_values( $field, $entry );
 			}
 		}
