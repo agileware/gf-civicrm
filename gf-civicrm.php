@@ -94,7 +94,7 @@ function do_civicrm_replacement( $form, $context ) {
 				];
 			}, (array) $options );
 
-			if ( ( $context === 'pre_render' ) && ( ! $field->isRequired ) && ( $field->type != 'multiselect' ) ) {
+			if ( ( $context === 'pre_render' ) && ( ! $field->isRequired ) && ( $field->type != 'multiselect' ) && ( $field->type != 'checkbox' ) ) {
 				array_unshift( $field->choices, [
 					'text'       => __( '- None -', 'gf-civicrm-formprocessor' ),
 					'value'      => NULL,
