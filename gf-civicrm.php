@@ -44,16 +44,15 @@ function do_civicrm_replacement( $form, $context ) {
 	static $civi_fp_fields;
 	foreach ( $form['fields'] as &$field ) {
 		if ( property_exists( $field, 'choices' ) && property_exists( $field, 'civicrmOptionGroup' ) &&
-		     preg_match( '{(?:^|\s) civicrm (?: __ (?<option_group>\S+) | _fp__ (?<processor>\S*?) __ (?<field> \S*))}x', $field->civicrmOptionGroup, $matches ) ) {
+		     preg_match( '{(?:^|\s) civicrm (?: __ (?<option_group>\S+) | _fp__ (?<processor>\S*?) __ (?<field_name> \S*))}x', $field->civicrmOptionGroup, $matches ) ) {
 			if ( ! civicrm_initialize() ) {
 				break;
 			}
 
-			$option_group = $matches['option_group'];
+			[ 'option_group' => $option_group, 'processor' => $processor, 'field_name' => $field_name ] = $matches;
 
 			$options        = [];
 			$default_option = NULL;
-
 
 			if ( $option_group ) {
 				$options = OptionValue::get( FALSE )
@@ -62,37 +61,43 @@ function do_civicrm_replacement( $form, $context ) {
 				                      ->addWhere( 'is_active', '=', TRUE )
 				                      ->addOrderBy( 'weight', 'ASC' )
 				                      ->execute();
-			} elseif ( $matches['processor'] && $matches['field'] ) {
+			} elseif ( $processor && $field_name ) {
 				try {
-					if ( ! isset( $civi_fp_fields[ $matches['processor'] ] ) ) {
-						$civi_fp_fields[ $matches['processor'] ] = civicrm_api3(
-							                                           'FormProcessor',
-							                                           'getfields',
-							                                           [ 'action' => $matches['processor'] ] )['values'] ?? [];
-					}
-
-					foreach ( $civi_fp_fields[ $matches['processor'] ][ $matches['field'] ]['options'] ?? [] as $value => $label ) {
-						$options[] = [ 'value' => $value, 'label' => $label ];
+					if ( ! isset( $civi_fp_fields[ $processor ] ) ) {
+						$civi_fp_fields[ $processor ] = civicrm_api3( 'FormProcessor', 'getfields', [ 'action' => $processor ] )['values'] ?? [];
 					}
 
 					$default_option = fp_tag_default( [
-						$matches[0],
-						$matches['processor'],
-						$matches['field'],
+						$field->civicrmOptionGroup,
+						$processor,
+						$field_name,
 					], NULL, TRUE );
+
+					$field->choices = [];
+					if ( $field->type == 'checkbox' ) {
+						$field->inputs = [];
+					}
+					$i = 0;
+
+					foreach ( $civi_fp_fields[ $processor ][ $field_name ]['options'] ?? [] as $value => $label ) {
+						$field->choices[] = [
+							'text'       => $label,
+							'value'      => $value,
+							'isSelected' => ( ( is_array( $default_option ) && in_array( $value, $default_option ) ) || ( $value == $default_option ) ),
+						];
+						if ( $field->type == 'checkbox' ) {
+							$field->inputs[] = [
+								// Avoid multiples of 10, allegedly these are problematic
+								'id'    => $field->id . '.' . ( ++$i % 10? $i : ++$i ),
+								'label' => $label,
+							];
+						}
+					}
 
 				} catch ( CiviCRM_API3_Exception $e ) {
 					// Couldn't get form processor instance, don't try to set options
 				}
 			}
-
-			$field->choices = array_map( function ( $option_value ) use ( $default_option ) {
-				return [
-					'text'       => $option_value['label'],
-					'value'      => $option_value['value'],
-					'isSelected' => ( ( is_array( $default_option ) && in_array( $option_value['value'], $default_option ) ) || ( $option_value['value'] == $default_option ) || $option_value['is_default'] ),
-				];
-			}, (array) $options );
 
 			if ( ( $context === 'pre_render' ) && ( ! $field->isRequired ) && ( $field->type != 'multiselect' ) && ( $field->type != 'checkbox' ) ) {
 				array_unshift( $field->choices, [
@@ -101,19 +106,6 @@ function do_civicrm_replacement( $form, $context ) {
 					'isSelected' => ! $default_option,
 				] );
 			}
-
-			if ( property_exists( $field, 'inputs' ) ) {
-				if ( $context === 'pre_render' ) {
-					$i             = 1;
-					$field->inputs = array_map( function ( $choice ) use ( &$i, $field ) {
-						return [
-							'id'    => $field->id . '.' . $i ++,
-							'label' => $choice['text'],
-						];
-					}, $field->choices );
-				}
-			}
-
 		}
 
 	}
@@ -124,8 +116,6 @@ function do_civicrm_replacement( $form, $context ) {
 function pre_render( $form ) {
 	return do_civicrm_replacement( $form, 'pre_render' );
 }
-
-;
 
 add_filter( 'gform_pre_render', 'GFCiviCRM\pre_render', 10, 1 );
 add_filter( '_disabled_gform_pre_process', function ( $form ) {
@@ -170,8 +160,6 @@ function fix_multi_values( \GF_Field $field, $entry, $input_id = '', $use_text =
 			}
 
 		}
-
-
 	}
 
 	return $selected;
@@ -189,6 +177,9 @@ function fix_multi_values( \GF_Field $field, $entry, $input_id = '', $use_text =
  * @return array
  */
 function webhooks_request_data( $request_data, $feed, $entry, $form ) {
+	// Form hooks don't seem to be called during webform request, so do it ourselves
+	$form = do_civicrm_replacement( $form, 'webhook_request_data' );
+
 	if ( $feed['meta']['requestFormat'] === 'json' ) {
 		$json_decoded = [];
 
