@@ -437,3 +437,13 @@ function fields_addon_bootstrap() {
 
 	GFAddOn::register( 'GFCiviCRM\FieldsAddOn' );
 }
+
+// Ensure that other WordPress plugins have not lowered the curl timeout which impacts Gravity Forms webhook requests
+function webhooks_request_args( $request_args, $feed, $entry, $form ) {
+    // Set timeout to 10 seconds
+	$request_args['timeout'] = 10000;
+
+	return $request_args;
+}
+
+add_filter( 'gform_webhooks_request_args', 'GFCiviCRM\webhooks_request_args', 10, 4 );
