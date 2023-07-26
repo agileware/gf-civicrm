@@ -104,7 +104,7 @@ class GF_Field_Group_Contact_Select extends GF_Field {
     );
 
     // Saves the selected value for the field
-    $js .= "function SetCiviCRMGroupSetting(value) {SetFieldProperty('civicrm_group', value);}" . PHP_EOL;
+    $js .= "function SetCiviCRMGroupSetting(value) { SetFieldProperty('civicrm_group', value); }" . PHP_EOL;
 
     return $js;
   }

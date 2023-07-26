@@ -3,7 +3,7 @@
 namespace GFCiviCRM;
 
 use Civi\Api4\Contact;
-use GFForms, GFAddon;
+use GFForms, GFAddon, GFAPI;
 
 GFForms::include_addon_framework();
 
@@ -52,6 +52,7 @@ class FieldsAddOn extends GFAddOn {
     // Add the CiviCRM Group Contact Select field
     if ($this->is_gravityforms_supported() && class_exists('GF_Field')) {
       require_once('includes/class-gf-field-group-contact-select.php');
+      require_once('includes/class-civicrm-payment-token.php');
     }
   }
 
@@ -64,12 +65,52 @@ class FieldsAddOn extends GFAddOn {
       'field_standard_settings',
     ], 10, 2);
 
+    add_action('gform_field_standard_settings', [
+      'GFCiviCRM\CiviCRM_Payment_Token',
+      'field_standard_settings',
+    ], 10, 2);
   }
 
 	public function init_frontend() {
 		parent::init_frontend();
 
 		add_action( 'gform_pre_render', [ $this, 'maybe_authenticate' ], 9, 1 );
+	}
+
+	public function init() {
+		parent::init();
+
+		add_filter('gform_is_delayed_pre_process_feed', [$this, 'switchIsDelayed'], 10, 4);
+	}
+
+	protected function hasPaymentAddon( $form_id ) {
+		static $payment_feed_slugs = [];
+		$feeds = $processed_feeds = GFAPI::get_feeds( NULL, $form_id );
+
+		if ( empty($payment_feed_slugs) ) {
+			foreach(GFAddon::get_registered_addons( TRUE ) as $feed_instance) {
+				if ( $feed_instance instanceof \GFPaymentAddOn ) {
+					$payment_feed_slugs[ $feed_instance->get_slug() ] = TRUE;
+				}
+			}
+		}
+
+		foreach($feeds as $feed) {
+			if(array_key_exists($feed['addon_slug'], $payment_feed_slugs)) {
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	public function switchIsDelayed($is_delayed, $form, $entry, $addon_slug) {
+		if ( !$is_delayed
+		     && $addon_slug === 'gravityformswebhooks'
+		     && $this->hasPaymentAddOn($form['id']) ) {
+			$is_delayed = true;
+		}
+		return $is_delayed;
 	}
 
 	public function maybe_authenticate( $form ) {
@@ -129,7 +170,7 @@ class FieldsAddOn extends GFAddOn {
         'version' => $this->_version,
         'deps'    => ['jquery'],
         'enqueue' => [
-          ['field_types' => ['group_contact_select']],
+          ['field_types' => ['group_contact_select', 'civicrm_payment_token']],
         ],
       ],
 
@@ -150,7 +191,7 @@ class FieldsAddOn extends GFAddOn {
         'src'     => $this->get_base_url() . '/css/gf-civicrm-fields.css',
         'version' => $this->_version,
         'enqueue' => [
-          ['field_types' => ['group_contact_select']],
+          ['field_types' => ['group_contact_select', 'civicrm_payment_token']],
         ],
       ],
     ];
