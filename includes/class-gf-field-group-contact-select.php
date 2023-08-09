@@ -61,6 +61,14 @@ class GF_Field_Group_Contact_Select extends GF_Field {
                                 ->addOrderBy('title', 'ASC')
                                 ->execute();
 
+      if(class_exists('\Civi\Api4\SavedSearch')) {
+	      $savedSearches = \Civi\Api4\SavedSearch::get( false )
+	                                             ->addSelect( 'id', 'label' )
+	                                             ->addWhere( 'api_entity', '=', 'Contact' )
+	                                             ->addWhere( 'is_current', '=', true )
+	                                             ->execute();
+      }
+
       // This class: group_contact_select_setting must be added to the get_form_editor_field_settings array to be displayed for this field.
       // JS onchange function required to store the selected value when the form is saved. See get_form_editor_inline_script_on_page_render
       ?>
@@ -77,6 +85,13 @@ class GF_Field_Group_Contact_Select extends GF_Field {
             }
             ?>
           </optgroup>
+          <?php if($savedSearches && ($savedSearches->count() > 0)): ?>
+            <optgroup label="<?php esc_html_e('Saved Searches', 'gf-civicrm'); ?>">
+                <?php foreach($savedSearches as $search) {
+                    echo "<option value=\"ss:{$search['id']}\">{$search['label']} (Search ID: {$search['id']})</option>";
+                } ?>
+            </optgroup>
+          <?php endif;?>
         </select>
       </li>
       <?php
@@ -216,12 +231,30 @@ class GF_Field_Group_Contact_Select extends GF_Field {
       // Fetch the contacts for the selected group
       // TODO It would be nice to be able to define which name column to use for contacts: display_name, sort_name, first name and last name etc.
 
-      $groupContacts = \Civi\Api4\Contact::get(FALSE)
-                                         ->addSelect('id', 'sort_name')
-                                         ->addWhere('groups', 'IN', $field['civicrm_group'])
-                                         ->addWhere('is_deleted', '=', FALSE)
-                                         ->addOrderBy('sort_name', 'ASC')
-                                         ->execute();
+      if( preg_match('/^ss:(?<id>\d+)$/', $field['civicrm_group'], $m) ) {
+        // Group is actually a saved search, use saved search parameters
+        $savedSearch = \Civi\Api4\SavedSearch::get( FALSE )
+          ->addWhere('id', '=', $m['id'])
+          ->execute()
+          ->first();
+
+        $api_params                     = $savedSearch['api_params'];
+        $api_params['checkPermissions'] = false;
+        $api_params['select']           = [ 'id', 'sort_name' ];
+        $api_params['orderBy']          = array_merge(
+          [ 'sort_name' => 'ASC' ],
+          $api_params['orderBy'] ?? []
+        );
+        $groupContacts                  = civicrm_api4( 'Contact', 'get', $api_params );
+      }
+      else {
+        $groupContacts = \Civi\Api4\Contact::get( false )
+                                           ->addSelect( 'id', 'sort_name' )
+                                           ->addWhere( 'groups', 'IN', $field['civicrm_group'] )
+                                           ->addWhere( 'is_deleted', '=', false )
+                                           ->addOrderBy( 'sort_name', 'ASC' )
+                                           ->execute();
+      }
 
       // Initialise the choices field if not already set
       if (empty($field->choices[0]['value'])) {
