@@ -83,20 +83,21 @@ class FieldsAddOn extends GFAddOn {
 		add_filter('gform_is_delayed_pre_process_feed', [$this, 'switchIsDelayed'], 10, 4);
 	}
 
-	protected function hasPaymentAddon( $form_id ) {
+	protected function hasPaymentAddon( $form, $entry ) {
 		static $payment_feed_slugs = [];
-		$feeds = $processed_feeds = GFAPI::get_feeds( NULL, $form_id );
+		$feeds = GFAPI::get_feeds( NULL, $form['id'] );
 
 		if ( empty($payment_feed_slugs) ) {
 			foreach(GFAddon::get_registered_addons( TRUE ) as $feed_instance) {
 				if ( $feed_instance instanceof \GFPaymentAddOn ) {
-					$payment_feed_slugs[ $feed_instance->get_slug() ] = TRUE;
+					$payment_feed_slugs[ $feed_instance->get_slug() ] = $feed_instance;
 				}
 			}
 		}
 
-		foreach($feeds as $feed) {
-			if(array_key_exists($feed['addon_slug'], $payment_feed_slugs)) {
+		foreach ( $feeds as $feed ) {
+			if ( array_key_exists( $feed['addon_slug'], $payment_feed_slugs ) &&
+			     $payment_feed_slugs[ $feed['addon_slug'] ]->is_feed_condition_met( $feed, $form, $entry ) ) {
 				return true;
 			}
 		}
@@ -105,9 +106,9 @@ class FieldsAddOn extends GFAddOn {
 	}
 
 	public function switchIsDelayed($is_delayed, $form, $entry, $addon_slug) {
-		if ( !$is_delayed
-		     && $addon_slug === 'gravityformswebhooks'
-		     && $this->hasPaymentAddOn($form['id']) ) {
+		if ( !$is_delayed &&
+		     ( $addon_slug === 'gravityformswebhooks' ) &&
+		     $this->hasPaymentAddOn( $form, $entry ) ) {
 			$is_delayed = true;
 		}
 		return $is_delayed;
