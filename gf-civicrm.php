@@ -5,7 +5,7 @@
  * Description: Extends Gravity Forms to get option lists and defaults from linked CiviCRM Form Processors
  * Author: Agileware
  * Author URI: https://agileware.com.au
- * Version: 1.6.2
+ * Version: 1.7.0
  * Text Domain: gf-civicrm
  *
  * Gravity Forms CiviCRM Integration is free software: you can redistribute it and/or modify
@@ -111,6 +111,28 @@ function do_civicrm_replacement( $form, $context ) {
 	}
 
 	return $form;
+}
+
+function compose_merge_tags ( $merge_tags ) {
+	try {
+		foreach (
+			civicrm_api3( 'FormProcessorInstance', 'get', [ 'sequential' => 1 ] )['values']
+			as ['inputs' => $inputs, 'name' => $pname, 'title' => $ptitle]
+		) {
+			foreach ( $inputs as ['name' => $iname, 'title' => $ititle] ) {
+				$merge_tags[] = [
+					'label' => sprintf( __( '%s / %s', 'gf-civicrm' ), $ptitle, $ititle ),
+					'tag'   => "{civicrm_fp.{$pname}.{$iname}}",
+				];
+			}
+		}
+	}
+	catch(\CRM_Core_Exception $e) {
+		// ...
+	}
+
+
+	return $merge_tags;
 }
 
 function pre_render( $form ) {
@@ -421,9 +443,13 @@ function replace_merge_tags( $text, $form, $entry, $url_encode, $esc_html, $nl2b
 	);
 }
 
+add_filter( 'gform_custom_merge_tags', 'GFCiviCRM\compose_merge_tags', 10, 1 );
+
 add_filter( 'gform_replace_merge_tags', 'GFCiviCRM\replace_merge_tags', 10, 7 );
 
 define( 'GF_CIVICRM_FIELDS_ADDON_VERSION', get_file_data( __FILE__, [ 'Version' => 'Version' ] )['Version'] );
+
+add_filter( 'admin_enqueue_scripts', fn() => wp_enqueue_script( 'gf-civicrm-merge-tags', plugin_dir_url(__FILE__) . 'js/gf-civicrm-merge-tags.js', [ 'wp-i18n' ], GF_CIVICRM_FIELDS_ADDON_VERSION ));
 
 add_action( 'gform_loaded', 'GFCiviCRM\fields_addon_bootstrap', 5 );
 
