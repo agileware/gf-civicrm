@@ -50,6 +50,7 @@ Use the following steps to set up a _Newsletter Subscription_ form using the exa
 # Using Merge Tags for default field values
 
 When setting up your field in Gravity Forms, you can use a merge tag of the form `{civicrm_fp.$processor.$field}` in the **Default Value** section of your Field's Advanced settings.
+
 In the _Newsletter Subscription_ above for example, you could fill in the Email field with the current user's email address recorded in CiviCRM, you would use `{civicrm_fp.newsletter_subscribe.email}`, and set up the Retrieval of Defaults accordingly for the newsletter_subscribe Form Processor in CiviCRM.
 
 The "Retrieval criteria for default data" specified in the form processor will be mapped to URL parameters when your Gravity Form is displayed to your users, such that if you create a criterion named `cid` to retrieve contact details by ID, you'd be able to specify contact ID _1234_ with a request like:
@@ -92,6 +93,8 @@ To trouble-shoot this integration, enable the Gravity Forms Logging on the page 
 This should help you identify the cause of most issues integrating the Gravity Form and CiviCRM.
 
 CiviCRM expects permalink settings to be set to "Post name" by default in order to address the `wp-json` directory. Enable this setting on the page `/wp-admin/options-permalink.php` if it is not set already.
+
+If you are a Web Developer and know how to set up and use [PHP Xdebug](https://xdebug.org/), it is useful to debug the Form Processor called by the Web Hook by appending &XDEBUG_SESSION=1 to the Web Hook URL in the Gravity Forms, Webhooks Feeds. This will trigger the Xdebug session to start.
 
 # License
 
