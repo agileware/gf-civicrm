@@ -428,6 +428,9 @@ add_action( 'gform_field_standard_settings', 'GFCiviCRM\civicrm_optiongroup_sett
  */
 function editor_script() {
 	?>
+	<script src="<?= plugin_dir_url( __FILE__ ) . 'js/gf-civicrm-merge-tags.js?ver=' . GF_CIVICRM_FIELDS_ADDON_VERSION; ?>"></script>
+	<script src="<?= plugin_dir_url( __FILE__ ) . 'js/gf-civicrm-fields.js?ver=' . GF_CIVICRM_FIELDS_ADDON_VERSION; ?>"></script>
+
 	<script type="text/javascript">
       for (let field of ['select', 'multiselect', 'checkbox', 'radio']) {
         fieldSettings[field] += ', .civicrm_optiongroup_setting'
@@ -610,7 +613,7 @@ add_filter( 'gform_replace_merge_tags', 'GFCiviCRM\replace_merge_tags', 10, 7 );
 
 define( 'GF_CIVICRM_FIELDS_ADDON_VERSION', get_file_data( __FILE__, [ 'Version' => 'Version' ] )['Version'] );
 
-add_filter( 'admin_enqueue_scripts', fn() => wp_enqueue_script( 'gf-civicrm-merge-tags', plugin_dir_url(__FILE__) . 'js/gf-civicrm-merge-tags.js', [ 'wp-i18n' ], GF_CIVICRM_FIELDS_ADDON_VERSION ));
+
 
 add_action( 'gform_loaded', 'GFCiviCRM\fields_addon_bootstrap', 5 );
 
