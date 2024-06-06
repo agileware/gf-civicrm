@@ -628,6 +628,33 @@ function fields_addon_bootstrap() {
 	GFAddOn::register( 'GFCiviCRM\FieldsAddOn' );
 }
 
+/**
+ * Replace the default countries list with CiviCRM's list.
+ *
+ * @param array $choices
+ *
+ */
+add_filter( 'gform_countries', 'GFCiviCRM\address_replace_countries_list' );
+function address_replace_countries_list( $choices ) {
+	$replace = array();
+
+	try {
+		$countries = \Civi\Api4\Country::get(TRUE)
+			->addSelect('name', 'iso_code')
+			->execute();
+
+		foreach ($countries as $country) {
+			$replace[] = __( $country["name"], 'gf-civicrm-formprocessor' );
+		}
+	} catch ( \CRM_Core_Exception $e ) {
+		// Could not retrieve CiviCRM countries list
+		// Default to the original set of choices
+		return $choices;
+	}
+
+	return $replace;
+}
+
 // Ensure that other WordPress plugins have not lowered the curl timeout which impacts Gravity Forms webhook requests
 function webhooks_request_args( $request_args, $feed, $entry, $form ) {
     // Set timeout to 10 seconds
