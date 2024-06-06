@@ -23,7 +23,7 @@ namespace GFCiviCRM;
 
 use Civi\Api4\{OptionValue, OptionGroup, Contact};
 use CiviCRM_API3_Exception;
-
+use CRM_Core_Exception;
 use GFCommon;
 use GFAddon;
 use function rgar;
@@ -465,6 +465,129 @@ function fields_addon_bootstrap() {
 	require_once( 'class-gf-civicrm-fields.php' );
 
 	GFAddOn::register( 'GFCiviCRM\FieldsAddOn' );
+}
+
+/**
+ * Validate address inputs according to CiviCRM rules.
+ *
+ * @param array $result
+ * @param string|array $value
+ * @param \GF_Form $form
+ * @param \GF_Field $field
+ *
+ */
+add_filter( 'gform_field_validation', 'GFCiviCRM\address_validation', 10, 4 );
+function address_validation( $result, $value, $form, $field ) {
+    // Validate input before attempting to enter into CiviCRM
+    if ( 'address' === $field->type ) {
+		// GF Address fields have set input ids for each inner field
+		$address_field_keys = array(
+			'street_address' 		 => '.1',
+			'supplemental_address_1' => '.2',
+			'city' 					 => '.3',
+			'state_province_id' 	 => '.4',
+			'postal_code' 			 => '.5',
+			'country_id' 			 => '.6',
+		);
+
+		// Field labels for error messaging
+		// Keys should correspond to the ids as seen in $address_field_keys
+		$field_labels = array();
+		$field_labels[] = $field['label']; // Address field label
+		foreach ( $field['inputs'] as $address_field_key => $address_field_value ) {
+			$field_labels[$address_field_key + 1] = isset( $address_field_value['customLabel'] ) ? $address_field_value['customLabel'] : $address_field_value['label'];
+		}
+
+		$error_messages = "";
+
+		// Get input values
+		$street   = rgar( $value, $field->id . $address_field_keys['street_address'] );
+        $street2  = rgar( $value, $field->id . $address_field_keys['supplemental_address_1'] );
+        $city     = rgar( $value, $field->id . $address_field_keys['city'] );
+        $state    = rgar( $value, $field->id . $address_field_keys['state_province_id'] );
+        $postcode = rgar( $value, $field->id . $address_field_keys['postal_code'] );
+        $country  = rgar( $value, $field->id . $address_field_keys['country_id'] );
+
+		// Get country_id and state_id
+		$country_id = null;
+		$state_id = null;
+
+		try {
+			$country_id = civicrm_api3('Country', 'getvalue', [
+				'return' => "id",
+				'name' => $country,
+			  ]);
+		}
+		catch ( \CRM_Core_Exception $e ) {
+			// No country ID found
+			$result['is_valid'] = false;
+			$error_messages .= '<li>' . __( 'Invalid '. $field_labels[6] . '.', 'gf-civicrm-formprocessor' ) . '</li>';
+		}
+
+		// State depends on country_id being valid
+		if ( !is_null($country_id) ) {
+			$is_abbrev = false;
+
+			// Check for abbreviation. If none found, check for state name.
+			try {
+				$state_id = civicrm_api3('StateProvince', 'getvalue', [
+					'return' => "id",
+					'abbreviation' => $state,
+					'country_id' => $country_id,
+				  ]);
+
+				$is_abbrev = true;
+			}
+			catch ( \CRM_Core_Exception $e ) {
+				// Do nothing yet
+			}
+
+			if ( !$is_abbrev || is_null( $state_id ) ) {
+				try {
+					$state_id = civicrm_api3('StateProvince', 'getvalue', [
+						'return' => "id",
+						'name' => $state,
+						'country_id' => $country_id,
+					  ]);
+				} catch ( \CRM_Core_Exception $e ) {
+					// No state_id found
+					$result['is_valid'] = false;
+					$error_messages .= '<li>' . __( 'Invalid '. $field_labels[4] . '.', 'gf-civicrm-formprocessor' ) . '</li>';
+				}
+			}
+		}
+
+		// Validate the whole address
+		$validate = civicrm_api3('Address', 'validate', [
+			'action' 					=> "create",
+			'contact_id' 				=> 1, // any contact
+			'location_type_id' 			=> 5, // Billing location_type_id is always 5
+			'street_address' 			=> $street,
+			'supplemental_address_1' 	=> $street2,
+			'city' 						=> $city,
+			'state_province_id' 		=> $state_id,
+			'postal_code' 				=> $postcode,
+			'country_id' 				=> $country_id,
+		]);
+
+		// Build the error message
+		if ( isset( $validate['values'] ) && count( $validate['values'][0] ) > 0 ) {
+			foreach( $validate['values'][0] as $field_id => $error ){
+				$field->set_input_validation_state( $address_field_keys[$field_id], false );
+				$result['is_valid'] = false;
+				$error_messages .= '<li>' . $error['message'] . '</li>';
+			}
+		}
+
+		// Output error messages
+		if ( !$result['is_valid'] ) {
+			$result['message']  = empty( $field->errorMessage ) 
+				? 'Invalid inputs found in ' . $field_labels[0] . '. Please review the following fields before submission:<ul>' . $error_messages . '</ul>'
+				: $field->errorMessage;
+		}
+    }
+
+    return $result;
 }
 
 // Ensure that other WordPress plugins have not lowered the curl timeout which impacts Gravity Forms webhook requests
