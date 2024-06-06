@@ -514,11 +514,10 @@ function address_validation( $result, $value, $form, $field ) {
 
 		try {
 			$country_id = civicrm_api3('Country', 'getvalue', [
-				'return' => "id",
-				'name' => $country,
+				'return'	=> "id",
+				'name'		=> $country,
 			  ]);
-		}
-		catch ( \CRM_Core_Exception $e ) {
+		} catch ( \CRM_Core_Exception $e ) {
 			// No country ID found
 			$result['is_valid'] = false;
 			$error_messages .= '<li>' . __( 'Invalid '. $field_labels[6] . '.', 'gf-civicrm-formprocessor' ) . '</li>';
@@ -531,23 +530,22 @@ function address_validation( $result, $value, $form, $field ) {
 			// Check for abbreviation. If none found, check for state name.
 			try {
 				$state_id = civicrm_api3('StateProvince', 'getvalue', [
-					'return' => "id",
-					'abbreviation' => $state,
-					'country_id' => $country_id,
+					'return'		=> "id",
+					'abbreviation'	=> $state,
+					'country_id'	=> $country_id,
 				  ]);
 
 				$is_abbrev = true;
-			}
-			catch ( \CRM_Core_Exception $e ) {
+			} catch ( \CRM_Core_Exception $e ) {
 				// Do nothing yet
 			}
 
 			if ( !$is_abbrev || is_null( $state_id ) ) {
 				try {
 					$state_id = civicrm_api3('StateProvince', 'getvalue', [
-						'return' => "id",
-						'name' => $state,
-						'country_id' => $country_id,
+						'return'		=> "id",
+						'name'			=> $state,
+						'country_id'	=> $country_id,
 					  ]);
 				} catch ( \CRM_Core_Exception $e ) {
 					// No state_id found
