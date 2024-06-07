@@ -608,7 +608,7 @@ function address_replace_countries_list( $choices ) {
 		}
 	} catch ( \CRM_Core_Exception $e ) {
 		// Could not retrieve CiviCRM countries list
-		// Default to the original set of choices
+		// Fallback to the original set of choices
 		return $choices;
 	}
 
