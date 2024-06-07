@@ -30,6 +30,8 @@ use function rgar;
 
 const BEFORE_CHOICES_SETTING = 1350;
 
+define( 'GF_CIVICRM_PLUGIN_PATH', plugin_dir_path( __FILE__ ) );
+
 /**
  * Replace choices in Gravity Forms with CiviCRM data
  *
