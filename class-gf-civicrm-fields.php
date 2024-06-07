@@ -23,6 +23,8 @@ class FieldsAddOn extends GFAddOn {
 
   protected $_short_title = 'CiviCRM';
 
+  private $gf_civicrm_address_field;
+
   /**
    * @var \GFCiviCRM\FieldsAddOn $_instance If available, contains an instance of this class.
    */
@@ -80,7 +82,13 @@ class FieldsAddOn extends GFAddOn {
 	public function init() {
 		parent::init();
 
-		add_filter('gform_is_delayed_pre_process_feed', [$this, 'switchIsDelayed'], 10, 4);
+		if ( $this->is_gravityforms_supported() && class_exists('GF_Field') ) {
+			require_once( 'includes/class-gf-field-civicrm-address-field.php' );
+			$this->gf_civicrm_address_field = new \GF_FIELD_CIVICRM_ADDRESS_FIELD();
+		}
+
+		add_filter( 'gform_is_delayed_pre_process_feed', [$this, 'switchIsDelayed'], 10, 4 );
+		
 	}
 
 	protected function hasPaymentAddon( $form, $entry ) {
@@ -175,12 +183,13 @@ class FieldsAddOn extends GFAddOn {
         ],
       ],
 	  [
-		'handle'  => 'gf_civicrm_address_fields',
-        'src'     => $this->get_base_url() . '/js/gf-civicrm-address-fields.js',
-        'version' => $this->_version,
-        'deps'    => ['jquery'],
-        'enqueue' => [
-          ['field_types' => ['address']],
+		'handle'  	=> 'gf_civicrm_address_fields',
+        'src'		=> $this->get_base_url() . '/js/gf-civicrm-address-fields.js',
+        'version'	=> $this->_version,
+        'deps'		=> ['jquery'],
+		'in_footer'	=> true,
+        'enqueue' 	=> [
+		  [$this->gf_civicrm_address_field, 'applyGFCiviCRMAddressField']
         ],
       ],
 
