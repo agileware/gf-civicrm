@@ -174,6 +174,15 @@ class FieldsAddOn extends GFAddOn {
           ['field_types' => ['group_contact_select', 'civicrm_payment_token']],
         ],
       ],
+	  [
+		'handle'  => 'gf_civicrm_address_fields',
+        'src'     => $this->get_base_url() . '/js/gf-civicrm-address-fields.js',
+        'version' => $this->_version,
+        'deps'    => ['jquery'],
+        'enqueue' => [
+          ['field_types' => ['address']],
+        ],
+      ],
 
     ];
 
