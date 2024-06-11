@@ -83,8 +83,8 @@ class FieldsAddOn extends GFAddOn {
 		parent::init();
 
 		if ( $this->is_gravityforms_supported() && class_exists('GF_Field') ) {
-			require_once( 'includes/class-gf-field-civicrm-address-field.php' );
-			$this->gf_civicrm_address_field = new \GF_FIELD_CIVICRM_ADDRESS_FIELD();
+			require_once( 'includes/class-gf-civicrm-address-field.php' );
+			$this->gf_civicrm_address_field = new \GF_CiviCRM_Address_Field();
 		}
 
 		add_filter( 'gform_is_delayed_pre_process_feed', [$this, 'switchIsDelayed'], 10, 4 );
@@ -186,7 +186,7 @@ class FieldsAddOn extends GFAddOn {
 		'handle'  	=> 'gf_civicrm_address_fields',
         'src'		=> $this->get_base_url() . '/js/gf-civicrm-address-fields.js',
         'version'	=> $this->_version,
-        'deps'		=> ['jquery'],
+        'deps'		=> ['jquery', 'wp-util'],
 		'in_footer'	=> true,
         'enqueue' 	=> [
 		  [$this->gf_civicrm_address_field, 'applyGFCiviCRMAddressField']
