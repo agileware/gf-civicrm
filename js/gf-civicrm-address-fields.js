@@ -127,7 +127,7 @@
         }
         
         const country = country_select.value;
-        const field = gf_civicrm_address_fields.fields[state_input.id];
+        const field = gf_civicrm_address_fields.fields.inputs[state_input.id];
 
         // Record initial state of autocomplete and selected Aria attributes
         if (field) {
@@ -154,7 +154,7 @@
             state: input.value
         };
 
-        const field = gf_civicrm_address_fields.fields[data.field_id];
+        const field = gf_civicrm_address_fields.fields.inputs[data.field_id];
 
         if (field) {
             data.autocomplete = field.autocomplete;
@@ -162,8 +162,8 @@
             data.describedby = field.describedby;
         }
 
-        if (data.field_id in gf_civicrm_address_fields.fields) {
-            data.placeholder = gf_civicrm_address_fields.fields[data.field_id].placeholder;
+        if (data.field_id in gf_civicrm_address_fields.fields.inputs) {
+            data.placeholder = gf_civicrm_address_fields.fields.inputs[data.field_id].placeholder;
         }
 
         if (states !== undefined) {
