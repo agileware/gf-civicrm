@@ -179,7 +179,7 @@ class FieldsAddOn extends GFAddOn {
         'version' => $this->_version,
         'deps'    => ['jquery'],
         'enqueue' => [
-          ['field_types' => ['group_contact_select', 'civicrm_payment_token']],
+          ['field_types' => ['group_contact_select', 'civicrm_payment_token', 'address']],
         ],
       ],
 	  [
