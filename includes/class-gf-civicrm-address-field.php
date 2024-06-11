@@ -4,7 +4,6 @@
  * Refs gf-address-enhanced
  * 
  * @TODO:
- * 		- Check for address types (International, United States, Canadian)
  * 		- Test auto-complete
  * 		- Placeholder values
  */
@@ -18,6 +17,7 @@ if ( ! class_exists( 'GFForms' ) ) {
 
 class GF_CiviCRM_Address_Field {
 	private $field_settings = [];
+	private $address_type = null;
 
 	public function __construct() {
 		add_filter('gform_field_css_class', [$this, 'applyAddressField'], 10, 3);
@@ -70,7 +70,9 @@ class GF_CiviCRM_Address_Field {
 				$this->field_settings['inputs']["input_{$form_id}_{$field->id}_{$subfield_id}"] = [
 					'placeholder'	=> $placeholder,
 				];
-			}			
+			}	
+			
+			$this->address_type = $field->addressType;
 		}
 
 		return $classes;
@@ -110,13 +112,38 @@ class GF_CiviCRM_Address_Field {
 		}
 
 		// Get Countries and their States/Provinces from CiviCRM
-		$countries = \Civi\Api4\Country::get(TRUE)
-			->addSelect('id', 'name', 'iso_code', 'state_province.id', 'state_province.name', 'state_province.abbreviation', 'state_province.country_id')
-			->addJoin('StateProvince AS state_province', 'INNER')
-			->addOrderBy('name', 'ASC')
-			->addOrderBy('state_province.name', 'ASC')
-			->execute();
+		$countries = [];
+		if ( $this->address_type == 'us' ) {
+			$countries = \Civi\Api4\Country::get(TRUE)
+				->addSelect('id', 'name', 'iso_code', 'state_province.id', 'state_province.name', 'state_province.abbreviation', 'state_province.country_id')
+				->addJoin('StateProvince AS state_province', 'INNER')
+				->addWhere('id', '=', 1228) // US country_id in CiviCRM
+				->addOrderBy('name', 'ASC')
+				->addOrderBy('state_province.name', 'ASC')
+				->execute();
+		} else if (  $this->address_type == 'canadian' ) {
+			$countries = \Civi\Api4\Country::get(TRUE)
+				->addSelect('id', 'name', 'iso_code', 'state_province.id', 'state_province.name', 'state_province.abbreviation', 'state_province.country_id')
+				->addJoin('StateProvince AS state_province', 'INNER')
+				->addWhere('id', '=', 1039) // Canada country_id in CiviCRM
+				->addOrderBy('name', 'ASC')
+				->addOrderBy('state_province.name', 'ASC')
+				->execute();
+		} else {
+			// Default to international
+			$countries = \Civi\Api4\Country::get(TRUE)
+				->addSelect('id', 'name', 'iso_code', 'state_province.id', 'state_province.name', 'state_province.abbreviation', 'state_province.country_id')
+				->addJoin('StateProvince AS state_province', 'INNER')
+				->addOrderBy('name', 'ASC')
+				->addOrderBy('state_province.name', 'ASC')
+				->execute();
+		}
 		
+		// Exit early if we didn't get any countries and their states
+		if ( empty($countries) ) {
+			return;
+		}
+
 		// Compile the list of states_data and labels
 		foreach ($countries as $country) {
 			$state_abbreviation = __( $country['state_province.abbreviation'], 'gf-civicrm-formprocessor' );
