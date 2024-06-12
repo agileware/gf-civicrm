@@ -522,13 +522,16 @@ function address_validation( $result, $value, $form, $field ) {
 				'name'		=> $country,
 			  ]);
 		} catch ( \CRM_Core_Exception $e ) {
-			// No country ID found
-			$result['is_valid'] = false;
-			$error_messages .= '<li>' . __( 'Invalid '. $field_labels[6] . '.', 'gf-civicrm-formprocessor' ) . '</li>';
+			// Only throw a validation error if the field is required
+			if ( $field->isRequired ) {
+				// No country ID found
+				$result['is_valid'] = false;
+				$error_messages .= '<li>' . __( 'Invalid '. $field_labels[6] . '.', 'gf-civicrm-formprocessor' ) . '</li>';
+			}
 		}
 
 		// State depends on country_id being valid
-		if ( !is_null($country_id) ) {
+		if ( !is_null($country_id) && !empty($state) ) {
 			$is_abbrev = false;
 
 			// Check for abbreviation. If none found, check for state name.
@@ -552,9 +555,12 @@ function address_validation( $result, $value, $form, $field ) {
 						'country_id'	=> $country_id,
 					  ]);
 				} catch ( \CRM_Core_Exception $e ) {
-					// No state_id found
-					$result['is_valid'] = false;
-					$error_messages .= '<li>' . __( 'Invalid '. $field_labels[4] . '.', 'gf-civicrm-formprocessor' ) . '</li>';
+					// Only throw a validation error if the field is required
+					if ( $field->isRequired ) {
+						// No state_id found
+						$result['is_valid'] = false;
+						$error_messages .= '<li>' . __( 'Invalid '. $field_labels[4] . '.', 'gf-civicrm-formprocessor' ) . '</li>';
+					}
 				}
 			}
 		}
