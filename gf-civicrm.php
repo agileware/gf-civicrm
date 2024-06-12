@@ -7,6 +7,8 @@
  * Author URI: https://agileware.com.au
  * Version: 1.7.0
  * Text Domain: gf-civicrm
+ * 
+ * Copyright (c) Agileware Pty Ltd (email : support@agileware.com.au)
  *
  * Gravity Forms CiviCRM Integration is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
