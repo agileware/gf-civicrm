@@ -625,6 +625,28 @@ function address_replace_countries_list( $choices ) {
 	return $replace;
 }
 
+/**
+ * Replace dropdown field null values with blank "" on submission.
+ */
+add_action( 'gform_pre_submission', 'GFCiviCRM\handle_optional_select_field_values' );
+function handle_optional_select_field_values( $form ) {
+	// Get the input id for multi select type fields
+	$fields = $form['fields'];
+
+	foreach ($fields as $field) {
+		if ( 'select' === $field->inputType ) {
+			$field_id = $field->id;
+			$value = $_POST['input_' . $field_id];
+
+			// Fix optional dropdown fields saving no selection as "- None -"
+			if ( $value == "- None -" ) {
+				$_POST['input_' . $field_id] = "";
+			}
+		}
+	}
+}
+
+
 // Ensure that other WordPress plugins have not lowered the curl timeout which impacts Gravity Forms webhook requests
 function webhooks_request_args( $request_args, $feed, $entry, $form ) {
     // Set timeout to 10 seconds
