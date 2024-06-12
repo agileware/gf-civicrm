@@ -9,7 +9,7 @@ if (!defined('ABSPATH')) {
 }
 ?>
 <script type="text/html" id="tmpl-gf-civicrm-state-any">
-	<input type="text" name="{{data.field_name}}" id="{{data.field_id}}" value="{{data.state}}" placeholder="{{data.placeholder}}"
+	<input type="hidden" name="{{data.field_name}}" id="{{data.field_id}}" value="{{data.state}}" placeholder="{{data.placeholder}}"
 		<# if (data.autocomplete) { #> autocomplete="{{data.autocomplete}}" <# } #>
 		<# if (data.required) { #> aria-required="{{data.required}}" <# } #>
 		<# if (data.describedby) { #> aria-describedby="{{data.describedby}}" <# } #>

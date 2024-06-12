@@ -81,22 +81,24 @@
         if (clear_value) {
             input.value = "";
         }
+        const state_field = input.closest(".ginput_address_state");
         const data = getAddressData(input, states);
+        
         replaceElement(input, statesListTemplate(data));
+        state_field.style.visibility = 'visible';
     }
 
     /**
-     * Replace States subfield with text field.
+     * Hide the States subfield if no states are found for the given Country.
      */
-    function useStateInput(input, clear_value) {
-        // only replace if not already a string input
-        if (input.tagName !== "INPUT") {
-            // only keeping the current state value on initialisation of the form
-            if (clear_value) {
-                input.value = "";
-            }
-            replaceElement(input, stateInputTemplate(getAddressData(input)));
+    function hideStateInput(input, clear_value) {
+        if (clear_value) {
+            input.value = null;
         }
+        const state_field = input.closest(".ginput_address_state");
+        
+        replaceElement(input, stateInputTemplate(getAddressData(input)));
+        state_field.style.visibility = 'hidden';
     }
 
     /**
@@ -124,7 +126,7 @@
         if (gf_civicrm_address_fields.states[country]) {
             useStatesList(state_input, gf_civicrm_address_fields.states[country], clear_value);
         } else {
-            useStateInput(state_input, clear_value);
+            hideStateInput(state_input, clear_value);
         }
     }
 
