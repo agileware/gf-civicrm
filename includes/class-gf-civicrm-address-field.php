@@ -1,11 +1,13 @@
 <?php
 
 /**
- * Refs gf-address-enhanced
+ * Copyright (C) Agileware Pty Ltd
+ * Based on original work by WebAware Pty Ltd (email : support@webaware.com.au)
  * 
- * @TODO:
- * 		- Test auto-complete
- * 		- Placeholder values
+ * This code is based on the original work by WebAware Pty Ltd.
+ * The original plugin can be found at: https://gf-address-enhanced.webaware.net.au/
+ * Original License: GPLv2 or later
+ * Original License URI: https://www.gnu.org/licenses/gpl-2.0.html
  */
 
 use GFAPI;

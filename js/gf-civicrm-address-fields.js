@@ -1,3 +1,13 @@
+/**
+ * Copyright (C) Agileware Pty Ltd
+ * Based on original work by WebAware Pty Ltd (email : support@webaware.com.au)
+ * 
+ * This code is based on the original work by WebAware Pty Ltd.
+ * The original plugin can be found at: https://gf-address-enhanced.webaware.net.au/
+ * Original License: GPLv2 or later
+ * Original License URI: https://www.gnu.org/licenses/gpl-2.0.html
+ */
+
 (function (doc, $) {
 
     function getByID(id) {
@@ -96,7 +106,7 @@
             input.value = null;
         }
         const state_field = input.closest(".ginput_address_state");
-        
+
         replaceElement(input, stateInputTemplate(getAddressData(input)));
         state_field.style.visibility = 'hidden';
     }

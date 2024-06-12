@@ -1,7 +1,12 @@
 <?php
 
 /**
- * Refs gf-address-enhanced
+ * Copyright (c) 2018-2023 WebAware Pty Ltd (email : support@webaware.com.au)
+ * 
+ * This plugin is based on the original work by WebAware.
+ * The original plugin can be found at: https://gf-address-enhanced.webaware.net.au/
+ * Original License: GPLv2 or later
+ * Original License URI: https://www.gnu.org/licenses/gpl-2.0.html
  */
 
 if (!defined('ABSPATH')) {
