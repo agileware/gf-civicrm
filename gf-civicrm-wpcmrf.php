@@ -54,6 +54,14 @@ function gf_civicrm_formprocessor_get_profiles() {
   
 	$profiles = array();
 
+	/**
+	 * @TODO
+	 * 
+	 * Support optional McRestFace
+	 */
+	require_once( GF_CIVICRM_PLUGIN_PATH .'/includes/class-local-civicrm.php' );
+  	$profiles = GF_CiviCRM_FormProcessor_LocalCiviCRM::loadProfile( $profiles );
+
 	if (function_exists('wpcmrf_get_core')) {
 	  $core = wpcmrf_get_core();
 	  $wpcmrf_profiles = $core->getConnectionProfiles();

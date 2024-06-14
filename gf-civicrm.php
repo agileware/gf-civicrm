@@ -36,12 +36,8 @@ define( 'GF_CIVICRM_PLUGIN_PATH', plugin_dir_path( __FILE__ ) );
 define( 'GF_CIVICRM_FIELDS_ADDON_VERSION', get_file_data( __FILE__, [ 'Version' => 'Version' ] )[ 'Version' ] );
 
 // Load wpcmrf integration
-add_action( 'gform_loaded', 'GFCiviCRM\gf_givicrm_wpcmrf_bootstrap', 5 );
-function gf_givicrm_wpcmrf_bootstrap() {
-	if ( !function_exists( 'wpcmrf_get_core' ) ) {
-		return;
-	}
-
+add_action( 'gform_loaded', 'GFCiviCRM\gf_civicrm_wpcmrf_bootstrap', 5 );
+function gf_civicrm_wpcmrf_bootstrap() {
 	require_once( 'gf-civicrm-wpcmrf.php' );
 }
 
