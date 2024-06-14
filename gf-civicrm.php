@@ -33,7 +33,7 @@ use function rgar;
 const BEFORE_CHOICES_SETTING = 1350;
 
 define( 'GF_CIVICRM_PLUGIN_PATH', plugin_dir_path( __FILE__ ) );
-define( 'GF_CIVICRM_FIELDS_ADDON_VERSION', get_file_data( __FILE__, [ 'Version' => 'Version' ] )['Version'] );
+define( 'GF_CIVICRM_FIELDS_ADDON_VERSION', get_file_data( __FILE__, [ 'Version' => 'Version' ] )[ 'Version' ] );
 
 // Load wpcmrf integration
 add_action( 'gform_loaded', 'GFCiviCRM\gf_givicrm_wpcmrf_bootstrap', 5 );
@@ -57,6 +57,9 @@ function gf_givicrm_wpcmrf_bootstrap() {
  */
 function do_civicrm_replacement( $form, $context ) {
 	static $civi_fp_fields;
+
+	$profile_name = gf_civicrm_get_rest_connection_profile_name( $form );
+
 	foreach ( $form['fields'] as &$field ) {
 		if ( property_exists( $field, 'choices' ) && property_exists( $field, 'civicrmOptionGroup' ) &&
 		     preg_match( '{(?:^|\s) civicrm (?: __ (?<option_group>\S+) | _fp__ (?<processor>\S*?) __ (?<field_name> \S*))}x', $field->civicrmOptionGroup, $matches ) ) {
@@ -70,16 +73,35 @@ function do_civicrm_replacement( $form, $context ) {
 			$default_option = NULL;
 
 			if ( $option_group ) {
-				$options = OptionValue::get( FALSE )
-				                      ->addSelect( 'value', 'label', 'is_default' )
-				                      ->addWhere( 'option_group_id:name', '=', $option_group )
-				                      ->addWhere( 'is_active', '=', TRUE )
-				                      ->addOrderBy( 'weight', 'ASC' )
-				                      ->execute();
+				/**
+				 * 
+				 * @FIXME
+				 * 
+				 * 	- Get the specified option_group_id by first doing a query on the option_group_id:name
+				 * 	- What are we even using this for? Implementation disappeared.
+				 * 
+				 */
+				$api_params = array(
+					'option_group_id' => '104', // Note option_group_id:name doesn't work on it's own. First make a call to find the ID.
+					'is_active' => true,
+					'return' => array('value', 'label', 'is_default'), // Specify the fields to return
+				);
+				$api_options = array(
+					'sort' => 'weight ASC',
+					'limit' => 0,
+				);
+				$options = gf_civicrm_formprocessor_api_wrapper($profile_name, 'OptionValue', 'get', $api_params, $api_options);
+				
 			} elseif ( $processor && $field_name ) {
 				try {
 					if ( ! isset( $civi_fp_fields[ $processor ] ) ) {
-						$civi_fp_fields[ $processor ] = civicrm_api3( 'FormProcessor', 'getfields', [ 'action' => $processor ] )['values'] ?? [];
+						$api_params = array(
+							'api_action' => $processor,
+						);
+						$api_options = array(
+							'limit' => 0,
+						);
+						$civi_fp_fields[ $processor ] = gf_civicrm_formprocessor_api_wrapper($profile_name, 'FormProcessor', 'getfields', $api_params, $api_options)['values'] ?? [];
 					}
 
 					$default_option = fp_tag_default( [
@@ -128,12 +150,21 @@ function do_civicrm_replacement( $form, $context ) {
 	return $form;
 }
 
+/**
+ * Adds custom merge tags to Insert Merge tags dropdowns.
+ */
 function compose_merge_tags ( $merge_tags ) {
 	try {
-		foreach (
-			civicrm_api3( 'FormProcessorInstance', 'get', [ 'sequential' => 1 ] )['values']
-			as ['inputs' => $inputs, 'name' => $pname, 'title' => $ptitle]
-		) {
+		$profile_name = gf_civicrm_get_rest_connection_profile_name();
+		$api_params = array(
+			'sequential' => 1,
+		);
+		$api_options = array(
+			'limit' => 0,
+		);
+		$processors = gf_civicrm_formprocessor_api_wrapper($profile_name, 'FormProcessorInstance', 'get', $api_params, $api_options)['values'];
+
+		foreach ( $processors as ['inputs' => $inputs, 'name' => $pname, 'title' => $ptitle] ) {
 			foreach ( $inputs as ['name' => $iname, 'title' => $ititle] ) {
 				$merge_tags[] = [
 					'label' => sprintf( __( '%s / %s', 'gf-civicrm' ), $ptitle, $ititle ),
