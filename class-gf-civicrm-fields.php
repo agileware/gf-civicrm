@@ -235,6 +235,17 @@ class FieldsAddOn extends GFAddOn {
 					]
 				]
 			],
+			// CiviCRM McRestFace
+			[
+				'label' => esc_html__( 'CiviCRM REST Connection Profile', 'gf-civicrm' ),
+				'type'        => 'select',
+				'name'        => 'civicrm_rest_connection',
+				'description' => esc_html__(
+					'Select which CMRF connection profile to use for this form.',
+					'gf-civicrm'
+				),
+				'choices'     => $this->get_cmrf_profile_options()
+			],
 		];
 
 		return [
@@ -246,20 +257,61 @@ class FieldsAddOn extends GFAddOn {
 	}
 
 	public function plugin_settings_fields() {
-		return [ [
-			'title'       => esc_html__( 'CiviCRM Settings', 'gf-civicrm' ),
-			'description' => esc_html__( 'Global settings for CiviCRM add-on', 'gf-civicrm' ),
-			'fields'      => [ [
-				'type'          => 'checkbox',
-				'name'          => 'gf_civicrm_flags',
-				'default_value' => [ 'civicrm_multi_json' ],
-				'choices' => [
+		return [ 
+			[
+				'title'       => esc_html__( 'CiviCRM Settings', 'gf-civicrm' ),
+				'description' => esc_html__( 'Global settings for CiviCRM add-on', 'gf-civicrm' ),
+				'fields'      => [ 
 					[
-						'label'   => esc_html__( 'Use JSON encoding for Checkbox and Multiselect values in webhooks (recommended)', 'gf_civicrm' ),
-						'name'    => 'civicrm_multi_json',
+						'type'          => 'checkbox',
+						'name'          => 'gf_civicrm_flags',
+						'default_value' => [ 'civicrm_multi_json' ],
+						'choices' => [
+							[
+								'label'   => esc_html__( 'Use JSON encoding for Checkbox and Multiselect values in webhooks (not recommended)', 'gf_civicrm' ),
+								'name'    => 'civicrm_multi_json',
+							],
+						],
 					],
+					// CiviCRM McRestFace
+					[
+						'label' => esc_html__( 'CiviCRM REST Connection Profile', 'gf-civicrm' ),
+						'type'          => 'select',
+						'name'          => 'civicrm_rest_connection',
+						'choices' => $this->get_cmrf_profile_options( true ),
+					] 
 				],
-			] ],
-		] ];
+			]
+		];
+	}
+
+	/**
+	 * Build choices for selectiing CMRF connection profiles on a global or per-form basis.
+	 */
+	public function get_cmrf_profile_options( $is_global = false ) {
+		$options = [];
+
+		// Null or Default options
+		if ( $is_global ) {
+			$options[] = [
+				'label' => esc_html__( "None", 'gf_civicrm' ),
+				'value' => ""
+			];
+		} else {
+			$options[] = [
+				'label' => esc_html__( "Default", 'gf_civicrm' ),
+				'value' => "default"
+			];
+		}
+
+		$profiles = gf_civicrm_formprocessor_get_profiles();
+		foreach ($profiles as $profile_id => $profile) {
+			$options[] = [
+				'label' => esc_html__( $profile['title'], 'gf_civicrm' ),
+				'value' => $profile_id
+			];
+		}
+
+		return $options;
 	}
 }
