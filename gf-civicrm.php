@@ -33,6 +33,17 @@ use function rgar;
 const BEFORE_CHOICES_SETTING = 1350;
 
 define( 'GF_CIVICRM_PLUGIN_PATH', plugin_dir_path( __FILE__ ) );
+define( 'GF_CIVICRM_FIELDS_ADDON_VERSION', get_file_data( __FILE__, [ 'Version' => 'Version' ] )['Version'] );
+
+// Load wpcmrf integration
+add_action( 'gform_loaded', 'GFCiviCRM\gf_givicrm_wpcmrf_bootstrap', 5 );
+function gf_givicrm_wpcmrf_bootstrap() {
+	if ( !function_exists( 'wpcmrf_get_core' ) ) {
+		return;
+	}
+
+	require_once( 'gf-civicrm-wpcmrf.php' );
+}
 
 /**
  * Replace choices in Gravity Forms with CiviCRM data
@@ -134,7 +145,6 @@ function compose_merge_tags ( $merge_tags ) {
 	catch(\CRM_Core_Exception $e) {
 		// ...
 	}
-
 
 	return $merge_tags;
 }
@@ -454,10 +464,6 @@ add_filter( 'gform_custom_merge_tags', 'GFCiviCRM\compose_merge_tags', 10, 1 );
 
 add_filter( 'gform_replace_merge_tags', 'GFCiviCRM\replace_merge_tags', 10, 7 );
 
-define( 'GF_CIVICRM_FIELDS_ADDON_VERSION', get_file_data( __FILE__, [ 'Version' => 'Version' ] )['Version'] );
-
-
-
 add_action( 'gform_loaded', 'GFCiviCRM\fields_addon_bootstrap', 5 );
 
 function fields_addon_bootstrap() {
@@ -645,7 +651,6 @@ function handle_optional_select_field_values( $form ) {
 		}
 	}
 }
-
 
 // Ensure that other WordPress plugins have not lowered the curl timeout which impacts Gravity Forms webhook requests
 function webhooks_request_args( $request_args, $feed, $entry, $form ) {
