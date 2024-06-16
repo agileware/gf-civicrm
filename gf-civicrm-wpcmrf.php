@@ -54,15 +54,11 @@ function gf_civicrm_formprocessor_get_profiles() {
   
 	$profiles = array();
 
-	/**
-	 * @TODO
-	 * 
-	 * Support optional McRestFace
-	 */
-	require_once( GF_CIVICRM_PLUGIN_PATH .'/includes/class-local-civicrm.php' );
+	// Local CiviCRM connection
+	require_once( GF_CIVICRM_PLUGIN_PATH .'includes/class-local-civicrm.php' );
   	$profiles = GF_CiviCRM_FormProcessor_LocalCiviCRM::loadProfile( $profiles );
 
-	if (function_exists('wpcmrf_get_core')) {
+	if ( function_exists('wpcmrf_get_core') ) {
 	  $core = wpcmrf_get_core();
 	  $wpcmrf_profiles = $core->getConnectionProfiles();
 	  foreach($wpcmrf_profiles as $profile) {
@@ -81,6 +77,12 @@ function gf_civicrm_formprocessor_get_profiles() {
  * Get the CMRF Connection Profile name used for the given form.
  */
 function gf_civicrm_get_rest_connection_profile_name( $form = null ) {
+	// If CMRF is not enabled, return the profile id for the local CiviCRM installation
+	if ( !function_exists('wpcmrf_get_core') ) {
+		$profiles = gf_civicrm_formprocessor_get_profiles();
+		return array_key_first( $profiles );
+	}
+
 	$form_settings = !$form ? FieldsAddOn::get_instance()->get_form_settings( $form ) : null;
 	$profile = $form_settings['civicrm_rest_connection'] ?? null;
 

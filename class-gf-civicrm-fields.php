@@ -273,7 +273,7 @@ class FieldsAddOn extends GFAddOn {
 							],
 						],
 					],
-					// CiviCRM McRestFace
+					// CiviCRM McRestFace or Local
 					[
 						'label' => esc_html__( 'CiviCRM REST Connection Profile', 'gf-civicrm' ),
 						'type'          => 'select',

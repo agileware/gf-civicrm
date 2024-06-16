@@ -1,7 +1,7 @@
 <?php
 
 /**
- * This class taken straight from cf-civicrm-formprocessor, with minor naming changes.
+ * This class is taken straight from cf-civicrm-formprocessor, with minor naming changes.
  * 
  * @author Jaap Jansma <jaap.jansma@civicoop.org>
  * @license AGPL-3.0
@@ -71,7 +71,7 @@ class GF_CiviCRM_FormProcessor_LocalCiviCRM {
     if (function_exists('civi_wp') && !function_exists('wpcmrf_get_core')) {
       $profiles['_local_civi_'] = [
         'title' => __('Local CiviCRM'),
-        'function' => ['GF_CiviCRM_FormProcessor_LocalCiviCRM', 'api']
+        'function' => ['GFCiviCRM\GF_CiviCRM_FormProcessor_LocalCiviCRM', 'api']
       ];
     }
     return $profiles;
