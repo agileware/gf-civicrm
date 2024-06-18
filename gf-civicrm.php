@@ -626,8 +626,8 @@ function address_validation( $result, $value, $form, $field ) {
 		}
 
 		// Validate the whole address
-		$validate = civicrm_api3('Address', 'validate', [
-			'action' 					=> "create",
+		$api_params = array(
+			'action'					=> 'create', // api action
 			'contact_id' 				=> 1, // any contact
 			'location_type_id' 			=> 5, // Billing location_type_id is always 5
 			'street_address' 			=> $street,
@@ -636,7 +636,8 @@ function address_validation( $result, $value, $form, $field ) {
 			'state_province_id' 		=> $state_id,
 			'postal_code' 				=> $postcode,
 			'country_id' 				=> $country_id,
-		]);
+		);
+		$validate = gf_civicrm_formprocessor_api_wrapper($profile_name, 'Address', 'validate', $api_params, $api_options);
 
 		// Build the error message
 		if ( isset( $validate['values'] ) && count( $validate['values'][0] ) > 0 ) {
