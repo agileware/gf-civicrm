@@ -127,7 +127,7 @@ class FieldsAddOn extends GFAddOn {
 
 		$auth_checksum = $settings['civicrm_auth_checksum'] ?? false;
 
-		if ( ! $auth_checksum || ! civicrm_initialize() ) {
+		if ( ! $auth_checksum || check_civicrm_installation()['is_error'] ) {
 			return $form;
 		}
 

@@ -96,10 +96,32 @@ function gf_civicrm_get_rest_connection_profile_name( $form = null ) {
 /**
  * Calls wpcmrf_api() for the given profile (i.e. wpcmrf connection)
  */
-function gf_civicrm_wpcmrf_api($profile, $entity, $action, $params, $options = []) {
-	$profile_id = substr($profile, 15);
-	$options['cache'] ??= '180 minutes';
+function gf_civicrm_wpcmrf_api( $profile, $entity, $action, $params, $options = [], $api_version = '3' ) {
+	$profile_id = substr( $profile, 15 );
+	$options['cache'] ??= '2 minutes';
 
-	$call = wpcmrf_api($entity, $action, $params, $options, $profile_id);
+	$call = wpcmrf_api( $entity, $action, $params, $options, $profile_id, $api_version );
 	return $call->getReply();
+}
+
+
+function check_civicrm_installation( $profile = null ) {
+	if ( is_null( $profile ) ) {
+		$form = FieldsAddOn::get_instance()->get_current_form();
+		$profile = gf_civicrm_get_rest_connection_profile_name( $form );
+	}
+
+	$result = gf_civicrm_wpcmrf_api( $profile, 'System', 'get', [ 'version' ], [] );
+
+	if ( isset( $result['is_error'] ) && $result['is_error'] == 0 ) {
+		return array(
+			'is_error' => 0,
+			'message' => $profile . ' CiviCRM installation is accessible.',
+		);
+	} else {
+		return array(
+			'is_error' => 1,
+			'message' => $result['error_message'] ?? 'Unknown error',
+		);
+	}
 }

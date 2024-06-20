@@ -54,14 +54,16 @@ function gf_civicrm_wpcmrf_bootstrap() {
 function do_civicrm_replacement( $form, $context ) {
 	static $civi_fp_fields;
 
-	$profile_name = gf_civicrm_get_rest_connection_profile_name( $form );
-
 	foreach ( $form['fields'] as &$field ) {
 		if ( property_exists( $field, 'choices' ) && property_exists( $field, 'civicrmOptionGroup' ) &&
 		     preg_match( '{(?:^|\s) civicrm (?: __ (?<option_group>\S+) | _fp__ (?<processor>\S*?) __ (?<field_name> \S*))}x', $field->civicrmOptionGroup, $matches ) ) {
-			if ( ! civicrm_initialize() ) {
+			
+			// Check if a CiviCRM installation exists
+			if ( check_civicrm_installation()['is_error'] ) {
 				break;
 			}
+
+			$profile_name = gf_civicrm_get_rest_connection_profile_name( $form );
 
 			[ 'option_group' => $option_group, 'processor' => $processor, 'field_name' => $field_name ] = $matches;
 
@@ -284,11 +286,12 @@ add_filter( 'gform_webhooks_request_data', 'GFCiviCRM\webhooks_request_data', 10
  * @throws \Civi\API\Exception\UnauthorizedException
  */
 function civicrm_optiongroup_setting( $position, $form_id ) {
-	if ( ! civicrm_initialize() ) {
+	$profile_name = gf_civicrm_get_rest_connection_profile_name( $form_id );
+
+	// Check if a CiviCRM installation exists
+	if ( check_civicrm_installation()['is_error'] ) {
 		return;
 	}
-
-	$profile_name = gf_civicrm_get_rest_connection_profile_name();
 
 	switch ( $position ) {
 		case BEFORE_CHOICES_SETTING:
@@ -400,22 +403,27 @@ function fp_tag_default( $matches, $fallback = '', $multiple = FALSE ) {
 	$result = $fallback;
 	[ , $processor, $field ] = $matches;
 
-	if ( ! civicrm_initialize() ) {
+	$profile_name = gf_civicrm_get_rest_connection_profile_name();
+
+	// Check if a CiviCRM installation exists
+	if ( check_civicrm_installation()['is_error'] ) {
 		return $result;
 	}
 
 	if ( ! isset( $defaults[ $processor ] ) ) {
 		try {
 			// Fetch Form Processor options directly from the GET parameters.
-			$profile_name = gf_civicrm_get_rest_connection_profile_name();
+			
 			$api_params = array(
 				'api_action' => $processor,
 			);
 			$api_options = array(
 				'check_permissions' => 1, // Set check_permissions to false
 				'limit'	=> 0,
+				'cache' => NULL,
 			);
-			$fields = gf_civicrm_formprocessor_api_wrapper( $profile_name, 'FormProcessorDefaults', 'getfields', $api_params, $api_options );
+			// Get the cid
+			$fields = gf_civicrm_formprocessor_api_wrapper( $profile_name, 'FormProcessorDefaults', 'getfields', $api_params, $api_options, $api_version = '3' );
 
 			foreach ( array_keys( $fields['values'] ) as $key ) {
 				if ( ! empty( $_GET[ $key ] ) ) {
@@ -423,7 +431,8 @@ function fp_tag_default( $matches, $fallback = '', $multiple = FALSE ) {
 				}
 			}
 
-			$defaults[ $processor ] = gf_civicrm_formprocessor_api_wrapper( $profile_name, 'FormProcessorDefaults', $processor, $api_params, $api_options );
+			// Get field values
+			$defaults[ $processor ] = gf_civicrm_formprocessor_api_wrapper( $profile_name, 'FormProcessorDefaults', $processor, $api_params, $api_options, $api_version = '3' );
 		} catch ( CiviCRM_API3_Exception $e ) {
 			$defaults[ $processor ] = FALSE;
 		}
@@ -449,9 +458,11 @@ function fp_tag_default( $matches, $fallback = '', $multiple = FALSE ) {
  * Find or generate API key for the current user.
  */
 function get_api_key() {
-	if ( ! civicrm_initialize() ) {
-		return NULL;
+	// Check if a CiviCRM installation exists
+	if ( check_civicrm_installation()['is_error'] ) {
+		return null;
 	}
+
 	$contactID = \CRM_Core_Session::getLoggedInContactID();
 
 	if ( (int) $contactID < 1 ) {
