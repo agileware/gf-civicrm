@@ -53,18 +53,19 @@ class GF_Field_Group_Contact_Select extends GF_Field {
       return;
     }
 
+    $profile_name = GFCiviCRM\get_rest_connection_profile();
+    $api_version = '4';
+
     try {
-      $profile_name = GFCiviCRM\get_rest_connection_profile();
-      $api_version = '4';
-      $api_params = array(
+      $api_params = [
         'is_active' => true,
-        'return' => array('id', 'title'), // Specify the fields to return
-      );
-      $api_options = array(
+        'return'    => ['id', 'title',] // Specify the fields to return
+      ];
+      $api_options = [
         'check_permissions' => 0,
-        'sort' => 'title ASC',
-        'limit' => 0,
-      );
+        'sort'              => 'title ASC',
+        'limit'             => 0,
+      ];
       $groups = GFCiviCRM\formprocessor_api_wrapper($profile_name, 'Group', 'get', $api_params, $api_options, $api_version);
 
       // Something went wrong when attempting to retrieve Groups
@@ -75,17 +76,17 @@ class GF_Field_Group_Contact_Select extends GF_Field {
       }
 
       try {
-        $api_params = array(
-          'api_entity' => 'Contact',
-          'is_current' => true,
-          'return' => array('id', 'label'), // Specify the fields to return
-        );
-        $api_options = array(
+        $api_params = [
+          'api_entity'  => 'Contact',
+          'is_current'  => true,
+          'return'      => ['id', 'label'], // Specify the fields to return
+        ];
+        $api_options = [
           'check_permissions' => 0,
-          'sort' => 'label ASC',
-          'limit' => 0,
-          'cache' => 0,
-        );
+          'sort'              => 'label ASC',
+          'limit'             => 0,
+          'cache'             => 0,
+        ];
 
         /**
          * TODO: Awaiting CMRF to stop caching failed API calls which may cache a bad request (e.g. if this entity does not exist).
@@ -261,25 +262,25 @@ class GF_Field_Group_Contact_Select extends GF_Field {
       return $empty_option;
     }
 
-    try {
-      $profile_name = GFCiviCRM\get_rest_connection_profile();
-      $api_version = '4';
+    $profile_name = GFCiviCRM\get_rest_connection_profile();
+    $api_version = '4';
 
+    try {
       // Fetch the contacts for the selected group
       // TODO It would be nice to be able to define which name column to use for contacts: display_name, sort_name, first name and last name etc.
 
       if( preg_match('/^ss:(?<id>\d+)$/', $field['civicrm_group'], $m) ) {
         // Group is actually a saved search, use saved search parameters
         try {
-          $api_params = array(
-            'id' => $m['id'],
-            'is_current' => true,
-          );
-          $api_options = array(
+          $api_params = [
+            'id'          => $m['id'],
+            'is_current'  => true,
+          ];
+          $api_options = [
             'check_permissions' => 0,
-            'limit' => 1,
-            'cache' => 0,
-          );
+            'limit'             => 1,
+            'cache'             => 0,
+          ];
 
           /**
            * TODO: Awaiting CMRF to stop caching failed API calls which may cache a bad request (e.g. if this entity does not exist).
@@ -301,11 +302,12 @@ class GF_Field_Group_Contact_Select extends GF_Field {
         // Use the saved search's api_params
         $api_params = json_decode($savedSearch['api_params']);
         $api_params->select = [ 'id', 'sort_name' ];
-        $api_options = array(
+        $api_options = [
           'check_permissions' => 0,
-          'sort' => 'sort_name ASC',
-          'limit' => 0,
-        );
+          'sort'              => 'sort_name ASC',
+          'limit'             => 0,
+        ];
+        
         $groupContacts = GFCiviCRM\formprocessor_api_wrapper($profile_name, 'Contact', 'get', (array)$api_params, $api_options, $api_version);
 
         // Something went wrong trying to get group contacts
@@ -316,22 +318,21 @@ class GF_Field_Group_Contact_Select extends GF_Field {
         }
       }
       else {
-        $api_params = array(
-          'id' => $m['id'],
-          'where' => [
-            ['groups', 'IN', $field['civicrm_group']],
-            ['is_deleted', '=', 0],
-          ],
-          'select' => [ 'id', 'sort_name' ],
-        );
+        $api_params = [
+          'id'      => $m['id'],
+          'groups'  => $field['civicrm_group'],
+          'is_deleted' => 0,
+          'return'  => [ 'id', 'sort_name' ],
+        ];
         $api_options = array(
           'check_permissions' => 0,
-          'sort' => 'sort_name ASC',
-          'limit' => 1,
-          'cache' => 0,
+          'sort'              => 'sort_name ASC',
+          'limit'             => 0,
+          'cache'             => 0,
         );
         $groupContacts = GFCiviCRM\formprocessor_api_wrapper($profile_name, 'Contact', 'get', (array)$api_params, $api_options, $api_version);
         
+
         // Something went wrong trying to get group contacts
         if ( isset( $groupContacts['is_error'] ) && $groupContacts['is_error'] != 0  ) {
           throw new \GFCiviCRM_Exception( $groupContacts['error_message'] );

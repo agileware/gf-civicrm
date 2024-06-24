@@ -81,34 +81,34 @@ function do_civicrm_replacement( $form, $context ) {
 				 * 
 				 */
 				// Get the option group id
-				$api_params = array(
-					'name' => $option_group,
-					'return' => array('id'), // Specify the fields to return
-				);
-				$option_group_id = formprocessor_api_wrapper($profile_name, 'OptionGroup', 'get', $api_params, ['limit' => 1])['values'];
+				$api_params = [
+					'name' 		=> $option_group,
+					'return' 	=> ['id'], // Specify the fields to return
+				];
+				$option_group_id = formprocessor_api_wrapper($profile_name, 'OptionGroup', 'get', $api_params, ['limit' => 1], '4')['values'];
 
 				// Then get the Option Group Values attached to that id
-				$api_params = array(
-					'option_group_id' => array_key_first( $option_group_id ),
-					'is_active' => true,
-					'return' => array('value', 'label', 'is_default'), // Specify the fields to return
-				);
-				$api_options = array(
+				$api_params = [
+					'option_group_id' 	=> array_key_first( $option_group_id ),
+					'is_active' 		=> true,
+					'return' 			=> ['value', 'label', 'is_default'], // Specify the fields to return
+				];
+				$api_options = [
 					'check_permissions' => 0, // Set check_permissions to false
-					'sort' => 'weight ASC',
-					'limit' => 0,
-				);
+					'sort' 				=> 'weight ASC',
+					'limit' 			=> 0,
+				];
 				$options = formprocessor_api_wrapper($profile_name, 'OptionValue', 'get', $api_params, $api_options);
 			} elseif ( $processor && $field_name ) {
 				try {
 					if ( ! isset( $civi_fp_fields[ $processor ] ) ) {
-						$api_params = array(
-							'api_action' => $processor,
-						);
-						$api_options = array(
+						$api_params = [ 
+							'api_action' => $processor 
+						];
+						$api_options = [
 							'check_permissions' => 0, // Set check_permissions to false
-							'limit' => 0,
-						);						
+							'limit' 			=> 0,
+						];						
 						$civi_fp_fields[ $processor ] = formprocessor_api_wrapper($profile_name, 'FormProcessor', 'getfields', $api_params, $api_options)['values'] ?? [];
 					}
 
@@ -296,18 +296,18 @@ function civicrm_optiongroup_setting( $position, $form_id ) {
 
 	switch ( $position ) {
 		case BEFORE_CHOICES_SETTING:
-			$api_params = array(
-				'return' => array( 'name', 'title' ), // Specify the fields to return
-			);
-			$api_options = array(
+			$api_params = [
+				'return' => ['name', 'title'], // Specify the fields to return
+			];
+			$api_options = [
 				'check_permissions' => 0, // Set check_permissions to false
-				'sort' => 'title ASC',
-				'limit'	=> 0,
-			);
-			$option_groups = formprocessor_api_wrapper( $profile_name, 'OptionGroup', 'get', $api_params, $api_options )['values'];
+				'sort' 				=> 'title ASC',
+				'limit'				=> 0,
+			];
+			$option_groups = formprocessor_api_wrapper( $profile_name, 'OptionGroup', 'get', $api_params, $api_options )['values']?? [];
 
 			try {
-				$form_processors = formprocessor_api_wrapper($profile_name, 'FormProcessorInstance', 'get', ['sequential' => 1], ['limit' => 0])['values'];
+				$form_processors = formprocessor_api_wrapper($profile_name, 'FormProcessorInstance', 'get', ['sequential' => 1], ['limit' => 0])['values'] ?? [];
 
 				$form_processors = array_filter( array_map( function ( $processor ) use ( $option_groups ) {
 					$mapped = [
@@ -415,6 +415,7 @@ function fp_tag_default( $matches, $fallback = '', $multiple = FALSE ) {
 		try {
 			// Fetch Form Processor options directly from the GET parameters.
 			
+			$api_version = '3';
 			$api_params = array(
 				'api_action' => $processor,
 			);
@@ -424,7 +425,7 @@ function fp_tag_default( $matches, $fallback = '', $multiple = FALSE ) {
 				'cache' => NULL,
 			);
 			// Get the cid
-			$fields = formprocessor_api_wrapper( $profile_name, 'FormProcessorDefaults', 'getfields', $api_params, $api_options, $api_version = '3' );
+			$fields = formprocessor_api_wrapper( $profile_name, 'FormProcessorDefaults', 'getfields', $api_params, $api_options, $api_version );
 
 			foreach ( array_keys( $fields['values'] ) as $key ) {
 				if ( ! empty( $_GET[ $key ] ) ) {
@@ -433,7 +434,7 @@ function fp_tag_default( $matches, $fallback = '', $multiple = FALSE ) {
 			}
 
 			// Get field values
-			$defaults[ $processor ] = formprocessor_api_wrapper( $profile_name, 'FormProcessorDefaults', $processor, $api_params, $api_options, $api_version = '3' );
+			$defaults[ $processor ] = formprocessor_api_wrapper( $profile_name, 'FormProcessorDefaults', $processor, $api_params, $api_options, $api_version );
 		} catch ( CiviCRM_API3_Exception $e ) {
 			$defaults[ $processor ] = FALSE;
 		}
@@ -576,22 +577,28 @@ function address_validation( $result, $value, $form, $field ) {
         $country  = rgar( $value, $field->id . $address_field_keys['country_id'] );
 
 		$profile_name = get_rest_connection_profile( $form );
-		$api_options = array(
+		$api_options = [
 			'check_permissions' => 0, // Set check_permissions to false
-			'limit' => 0,
-		);
+			'limit' 			=> 0,
+		];
 
 		// Get country_id and state_id
 		$country_id = null;
-		$state_id = null;
+		$state_id 	= null;
 
 		try {
-			$api_params = array(
-				'name' => $country,
-				'return' => array('id'), // Specify the fields to return
-			);
-			$country_id = formprocessor_api_wrapper($profile_name, 'Country', 'get', $api_params, $api_options)['id'];
-		} catch ( \CRM_Core_Exception $e ) {
+			$api_params = [
+				'name' 		=> $country,
+				'return' 	=> ['id'], // Specify the fields to return
+			];
+			$country_id = formprocessor_api_wrapper($profile_name, 'Country', 'get', $api_params, $api_options);
+
+			if ( isset( $country_id['is_error'] ) && $country_id['is_error'] != 0  ) {
+				throw new \GFCiviCRM_Exception( $country_id['error_message'] );
+			} else {
+				$country_id = $country_id['id'];
+			}
+		} catch ( \GFCiviCRM_Exception $e ) {
 			// Only throw a validation error if the field is required
 			if ( $field->isRequired ) {
 				// No country ID found
@@ -606,27 +613,40 @@ function address_validation( $result, $value, $form, $field ) {
 
 			// Check for abbreviation. If none found, check for state name.
 			try {
-				$api_params = array(
+				$api_params = [
 					'country_id'	=> $country_id,
 					'abbreviation'	=> $state,
-					'return' => array('id'), // Specify the fields to return
-				);
-				$state_id = formprocessor_api_wrapper($profile_name, 'StateProvince', 'get', $api_params, $api_options)['id'];
+					'return' 		=> ['id'], // Specify the fields to return
+				];
+				$state_id = formprocessor_api_wrapper($profile_name, 'StateProvince', 'get', $api_params, $api_options);
+
+				if ( isset( $state_id['is_error'] ) && $state_id['is_error'] != 0  ) {
+					throw new \GFCiviCRM_Exception( $state_id['error_message'] );
+				} else {
+					$state_id = $state_id['id'];
+				}
 
 				$is_abbrev = true;
-			} catch ( \CRM_Core_Exception $e ) {
+			} catch ( \GFCiviCRM_Exception $e ) {
 				// Do nothing yet
 			}
 
 			if ( !$is_abbrev || is_null( $state_id ) ) {
 				try {
-					$api_params = array(
+					$api_params = [
 						'country_id'	=> $country_id,
 						'name'			=> $state,
-						'return' => array('id'), // Specify the fields to return
-					);
-					$state_id = formprocessor_api_wrapper($profile_name, 'StateProvince', 'get', $api_params, $api_options)['id'];
-				} catch ( \CRM_Core_Exception $e ) {
+						'return' 		=> ['id'], // Specify the fields to return
+					];
+					$state_id = formprocessor_api_wrapper($profile_name, 'StateProvince', 'get', $api_params, $api_options);
+
+					if ( isset( $state_id['is_error'] ) && $state_id['is_error'] != 0  ) {
+						throw new \GFCiviCRM_Exception( $state_id['error_message'] );
+					} else {
+						$state_id = $state_id['id'];
+					}
+
+				} catch ( \GFCiviCRM_Exception $e ) {
 					// Only throw a validation error if the field is required
 					if ( $field->isRequired ) {
 						// No state_id found
@@ -638,7 +658,7 @@ function address_validation( $result, $value, $form, $field ) {
 		}
 
 		// Validate the whole address
-		$api_params = array(
+		$api_params = [
 			'action'					=> 'create', // api action
 			'contact_id' 				=> 1, // any contact
 			'location_type_id' 			=> 5, // Billing location_type_id is always 5
@@ -648,7 +668,14 @@ function address_validation( $result, $value, $form, $field ) {
 			'state_province_id' 		=> $state_id,
 			'postal_code' 				=> $postcode,
 			'country_id' 				=> $country_id,
-		);
+		];
+
+		/**
+		 * TODO: Implement CiviCRM APIv3 Address validation here.
+		 * 
+		 * CiviCRM APIv4 will not be implementing validate as an action.
+		 * If changes to CiviCRM's Address field validation criteria change, we will need to change here too.
+		 */
 		$validate = formprocessor_api_wrapper($profile_name, 'Address', 'validate', $api_params, $api_options);
 
 		// Build the error message
@@ -682,20 +709,26 @@ function address_validation( $result, $value, $form, $field ) {
  */
 add_filter( 'gform_countries', 'GFCiviCRM\address_replace_countries_list' );
 function address_replace_countries_list( $choices ) {
-	$replace = array();
+	$replace = [];
 
 	$profile_name = get_rest_connection_profile();
-	$api_options = array(
+	$api_options = [
 		'check_permissions' => 0, // Set check_permissions to false
 		'limit' => 0,
-	);
+	];
 
 	try {
-		$api_params = array(
-			'return' => array( 'name', 'iso_code' ), // Specify the fields to return
-		);
-		$countries = formprocessor_api_wrapper($profile_name, 'Country', 'get', $api_params, $api_options)['values'];
+		$api_params = [
+			'return' => ['name', 'iso_code',] // Specify the fields to return
+		];
+		$countries = formprocessor_api_wrapper($profile_name, 'Country', 'get', $api_params, $api_options);
 	
+		if ( isset( $countries['is_error'] ) && $countries['is_error'] != 0  ) {
+			throw new \GFCiviCRM_Exception( $countries['error_message'] );
+		} else {
+			$countries = $countries['values'];
+		}
+
 		foreach ($countries as $country) {
 			$replace[] = __( $country["name"], 'gf-civicrm-formprocessor' );
 		}

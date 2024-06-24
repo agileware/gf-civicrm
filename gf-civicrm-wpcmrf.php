@@ -116,14 +116,14 @@ function check_civicrm_installation( $profile = null ) {
 	$result = gf_civicrm_wpcmrf_api( $profile, 'System', 'get', [ 'version' ], [] );
 
 	if ( isset( $result['is_error'] ) && $result['is_error'] == 0 ) {
-		return array(
+		return [
 			'is_error' => 0,
 			'message' => $profile . ' CiviCRM installation is accessible.',
-		);
+		];
 	} else {
-		return array(
+		return [
 			'is_error' => 1,
 			'message' => $result['error_message'] ?? 'Unknown error',
-		);
+		];
 	}
 }
