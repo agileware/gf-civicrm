@@ -81,7 +81,11 @@ function gf_civicrm_get_rest_connection_profile_name( $form = null ) {
 		return array_key_first( $profiles );
 	}
 
-	$form_settings = !$form ? FieldsAddOn::get_instance()->get_form_settings( $form ) : null;
+	if ( is_null( $form )) {
+		$form = FieldsAddOn::get_instance()->get_current_form();
+	}
+
+	$form_settings = FieldsAddOn::get_instance()->get_form_settings( $form );
 	$profile = $form_settings['civicrm_rest_connection'] ?? null;
 
 	if ( is_null( $profile ) || $profile === "default" ) {
