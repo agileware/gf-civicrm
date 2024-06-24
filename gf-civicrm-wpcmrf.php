@@ -26,19 +26,17 @@
  *
  * @return array|mixed|null
  */
-function gf_civicrm_formprocessor_api_wrapper($profile, $entity, $action, $params, $options=[], $ignore=false) {
+function gf_civicrm_formprocessor_api_wrapper($profile, $entity, $action, $params, $options=[], $api_version = '3', $ignore = false) {
 	$profiles = gf_civicrm_formprocessor_get_profiles();
 	if (isset($profiles[$profile])) {
-	  if (isset($profiles[$profile]['file'])) {
-		require_once($profiles[$profile]['file']);
-	  }
-	  $result = call_user_func($profiles[$profile]['function'], $profile, $entity, $action, $params, $options);
+		if (isset($profiles[$profile]['file'])) {
+			require_once($profiles[$profile]['file']);
+		}
+		$result = call_user_func($profiles[$profile]['function'], $profile, $entity, $action, $params, $options, $api_version);
 	} else {
-	  $result = ['error' => 'Profile not found', 'is_error' => 1];
+		$result = ['error_message' => 'Profile not found', 'is_error' => 1];
 	}
-	if (!empty($result['is_error']) && $ignore) {
-	  return null;
-	}
+	
 	return $result;
 }
 
