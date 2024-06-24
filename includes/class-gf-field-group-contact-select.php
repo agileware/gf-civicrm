@@ -320,8 +320,12 @@ class GF_Field_Group_Contact_Select extends GF_Field {
       else {
         $api_params = [
           'id'      => $m['id'],
-          'groups'  => $field['civicrm_group'],
+          'groups'  => 'in ' . $field['civicrm_group'],
           'is_deleted' => 0,
+          /*'where'   => [
+            ['groups', 'IN', $field['civicrm_group']],
+            ['is_deleted', '=', 0],
+          ],*/
           'return'  => [ 'id', 'sort_name' ],
         ];
         $api_options = array(
@@ -330,8 +334,14 @@ class GF_Field_Group_Contact_Select extends GF_Field {
           'limit'             => 0,
           'cache'             => 0,
         );
-        $groupContacts = GFCiviCRM\formprocessor_api_wrapper($profile_name, 'Contact', 'get', (array)$api_params, $api_options, $api_version);
-        
+        // TODO: Fix these values. Where clause not working,
+        $groupContacts_new = GFCiviCRM\formprocessor_api_wrapper($profile_name, 'Contact', 'get', (array)$api_params, $api_options, $api_version);
+        $groupContacts = \Civi\Api4\Contact::get( false )
+                                           ->addSelect( 'id', 'sort_name' )
+                                           ->addWhere( 'groups', 'IN', $field['civicrm_group'] )
+                                           ->addWhere( 'is_deleted', '=', false )
+                                           ->addOrderBy( 'sort_name', 'ASC' )
+                                           ->execute();
 
         // Something went wrong trying to get group contacts
         if ( isset( $groupContacts['is_error'] ) && $groupContacts['is_error'] != 0  ) {
