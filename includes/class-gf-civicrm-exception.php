@@ -25,11 +25,11 @@ class GFCiviCRM_Exception extends Exception
         return $error_log;
     }
 
-    public function logErrorMessage( $include_trace = false ) {
+    public function logErrorMessage( $message = '', $include_trace = false ) {
         if ( WP_DEBUG && WP_DEBUG_LOG ) {
-            error_log( print_r( $this->getErrorMessage( $include_trace ), true ) );
+            error_log( print_r( $this->getErrorMessage( $message, $include_trace ), true ) );
         } else if ( WP_DEBUG && !WP_DEBUG_LOG ) {
-            error_log( print_r( $this->getErrorMessage( $include_trace ) ) );
+            error_log( print_r( $this->getErrorMessage( $message, $include_trace ) ) );
         }
     }
 
