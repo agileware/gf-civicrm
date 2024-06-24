@@ -26,8 +26,8 @@
  *
  * @return array|mixed|null
  */
-function gf_civicrm_formprocessor_api_wrapper($profile, $entity, $action, $params, $options=[], $api_version = '3', $ignore = false) {
-	$profiles = gf_civicrm_formprocessor_get_profiles();
+function formprocessor_api_wrapper($profile, $entity, $action, $params, $options=[], $api_version = '3', $ignore = false) {
+	$profiles = formprocessor_get_profiles();
 	if (isset($profiles[$profile])) {
 		if (isset($profiles[$profile]['file'])) {
 			require_once($profiles[$profile]['file']);
@@ -44,7 +44,7 @@ function gf_civicrm_formprocessor_api_wrapper($profile, $entity, $action, $param
  * Returns a list of possible profiles
  * @return array
  */
-function gf_civicrm_formprocessor_get_profiles() {
+function formprocessor_get_profiles() {
 	static $profiles = null;
 	if (is_array($profiles)) {
 	  return $profiles;
@@ -74,10 +74,10 @@ function gf_civicrm_formprocessor_get_profiles() {
 /**
  * Get the CMRF Connection Profile name used for the given form.
  */
-function gf_civicrm_get_rest_connection_profile_name( $form = null ) {
+function get_rest_connection_profile( $form = null ) {
 	// If CMRF is not enabled, return the profile id for the local CiviCRM installation
 	if ( !function_exists('wpcmrf_get_core') ) {
-		$profiles = gf_civicrm_formprocessor_get_profiles();
+		$profiles = formprocessor_get_profiles();
 		return array_key_first( $profiles );
 	}
 
@@ -110,7 +110,7 @@ function gf_civicrm_wpcmrf_api( $profile, $entity, $action, $params, $options = 
 function check_civicrm_installation( $profile = null ) {
 	if ( is_null( $profile ) ) {
 		$form = FieldsAddOn::get_instance()->get_current_form();
-		$profile = gf_civicrm_get_rest_connection_profile_name( $form );
+		$profile = get_rest_connection_profile( $form );
 	}
 
 	$result = gf_civicrm_wpcmrf_api( $profile, 'System', 'get', [ 'version' ], [] );

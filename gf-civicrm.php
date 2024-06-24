@@ -64,7 +64,7 @@ function do_civicrm_replacement( $form, $context ) {
 				break;
 			}
 
-			$profile_name = gf_civicrm_get_rest_connection_profile_name( $form );
+			$profile_name = get_rest_connection_profile( $form );
 
 			[ 'option_group' => $option_group, 'processor' => $processor, 'field_name' => $field_name ] = $matches;
 
@@ -85,7 +85,7 @@ function do_civicrm_replacement( $form, $context ) {
 					'name' => $option_group,
 					'return' => array('id'), // Specify the fields to return
 				);
-				$option_group_id = gf_civicrm_formprocessor_api_wrapper($profile_name, 'OptionGroup', 'get', $api_params, ['limit' => 1])['values'];
+				$option_group_id = formprocessor_api_wrapper($profile_name, 'OptionGroup', 'get', $api_params, ['limit' => 1])['values'];
 
 				// Then get the Option Group Values attached to that id
 				$api_params = array(
@@ -98,7 +98,7 @@ function do_civicrm_replacement( $form, $context ) {
 					'sort' => 'weight ASC',
 					'limit' => 0,
 				);
-				$options = gf_civicrm_formprocessor_api_wrapper($profile_name, 'OptionValue', 'get', $api_params, $api_options);
+				$options = formprocessor_api_wrapper($profile_name, 'OptionValue', 'get', $api_params, $api_options);
 			} elseif ( $processor && $field_name ) {
 				try {
 					if ( ! isset( $civi_fp_fields[ $processor ] ) ) {
@@ -109,7 +109,7 @@ function do_civicrm_replacement( $form, $context ) {
 							'check_permissions' => 0, // Set check_permissions to false
 							'limit' => 0,
 						);						
-						$civi_fp_fields[ $processor ] = gf_civicrm_formprocessor_api_wrapper($profile_name, 'FormProcessor', 'getfields', $api_params, $api_options)['values'] ?? [];
+						$civi_fp_fields[ $processor ] = formprocessor_api_wrapper($profile_name, 'FormProcessor', 'getfields', $api_params, $api_options)['values'] ?? [];
 					}
 
 					$default_option = fp_tag_default( [
@@ -163,8 +163,8 @@ function do_civicrm_replacement( $form, $context ) {
  */
 function compose_merge_tags ( $merge_tags ) {
 	try {
-		$profile_name = gf_civicrm_get_rest_connection_profile_name();
-		$processors = gf_civicrm_formprocessor_api_wrapper($profile_name, 'FormProcessorInstance', 'get', ['sequential' => 1], ['limit' => 0])['values'];
+		$profile_name = get_rest_connection_profile();
+		$processors = formprocessor_api_wrapper($profile_name, 'FormProcessorInstance', 'get', ['sequential' => 1], ['limit' => 0])['values'];
 		
 		foreach ( $processors as ['inputs' => $inputs, 'name' => $pname, 'title' => $ptitle] ) {
 			foreach ( $inputs as ['name' => $iname, 'title' => $ititle] ) {
@@ -287,7 +287,7 @@ add_filter( 'gform_webhooks_request_data', 'GFCiviCRM\webhooks_request_data', 10
  * @throws \Civi\API\Exception\UnauthorizedException
  */
 function civicrm_optiongroup_setting( $position, $form_id ) {
-	$profile_name = gf_civicrm_get_rest_connection_profile_name( $form_id );
+	$profile_name = get_rest_connection_profile( $form_id );
 
 	// Check if a CiviCRM installation exists
 	if ( check_civicrm_installation()['is_error'] ) {
@@ -304,10 +304,10 @@ function civicrm_optiongroup_setting( $position, $form_id ) {
 				'sort' => 'title ASC',
 				'limit'	=> 0,
 			);
-			$option_groups = gf_civicrm_formprocessor_api_wrapper( $profile_name, 'OptionGroup', 'get', $api_params, $api_options )['values'];
+			$option_groups = formprocessor_api_wrapper( $profile_name, 'OptionGroup', 'get', $api_params, $api_options )['values'];
 
 			try {
-				$form_processors = gf_civicrm_formprocessor_api_wrapper($profile_name, 'FormProcessorInstance', 'get', ['sequential' => 1], ['limit' => 0])['values'];
+				$form_processors = formprocessor_api_wrapper($profile_name, 'FormProcessorInstance', 'get', ['sequential' => 1], ['limit' => 0])['values'];
 
 				$form_processors = array_filter( array_map( function ( $processor ) use ( $option_groups ) {
 					$mapped = [
@@ -404,7 +404,7 @@ function fp_tag_default( $matches, $fallback = '', $multiple = FALSE ) {
 	$result = $fallback;
 	[ , $processor, $field ] = $matches;
 
-	$profile_name = gf_civicrm_get_rest_connection_profile_name();
+	$profile_name = get_rest_connection_profile();
 
 	// Check if a CiviCRM installation exists
 	if ( check_civicrm_installation()['is_error'] ) {
@@ -424,7 +424,7 @@ function fp_tag_default( $matches, $fallback = '', $multiple = FALSE ) {
 				'cache' => NULL,
 			);
 			// Get the cid
-			$fields = gf_civicrm_formprocessor_api_wrapper( $profile_name, 'FormProcessorDefaults', 'getfields', $api_params, $api_options, $api_version = '3' );
+			$fields = formprocessor_api_wrapper( $profile_name, 'FormProcessorDefaults', 'getfields', $api_params, $api_options, $api_version = '3' );
 
 			foreach ( array_keys( $fields['values'] ) as $key ) {
 				if ( ! empty( $_GET[ $key ] ) ) {
@@ -433,7 +433,7 @@ function fp_tag_default( $matches, $fallback = '', $multiple = FALSE ) {
 			}
 
 			// Get field values
-			$defaults[ $processor ] = gf_civicrm_formprocessor_api_wrapper( $profile_name, 'FormProcessorDefaults', $processor, $api_params, $api_options, $api_version = '3' );
+			$defaults[ $processor ] = formprocessor_api_wrapper( $profile_name, 'FormProcessorDefaults', $processor, $api_params, $api_options, $api_version = '3' );
 		} catch ( CiviCRM_API3_Exception $e ) {
 			$defaults[ $processor ] = FALSE;
 		}
@@ -575,7 +575,7 @@ function address_validation( $result, $value, $form, $field ) {
         $postcode = rgar( $value, $field->id . $address_field_keys['postal_code'] );
         $country  = rgar( $value, $field->id . $address_field_keys['country_id'] );
 
-		$profile_name = gf_civicrm_get_rest_connection_profile_name( $form );
+		$profile_name = get_rest_connection_profile( $form );
 		$api_options = array(
 			'check_permissions' => 0, // Set check_permissions to false
 			'limit' => 0,
@@ -590,7 +590,7 @@ function address_validation( $result, $value, $form, $field ) {
 				'name' => $country,
 				'return' => array('id'), // Specify the fields to return
 			);
-			$country_id = gf_civicrm_formprocessor_api_wrapper($profile_name, 'Country', 'get', $api_params, $api_options)['id'];
+			$country_id = formprocessor_api_wrapper($profile_name, 'Country', 'get', $api_params, $api_options)['id'];
 		} catch ( \CRM_Core_Exception $e ) {
 			// Only throw a validation error if the field is required
 			if ( $field->isRequired ) {
@@ -611,7 +611,7 @@ function address_validation( $result, $value, $form, $field ) {
 					'abbreviation'	=> $state,
 					'return' => array('id'), // Specify the fields to return
 				);
-				$state_id = gf_civicrm_formprocessor_api_wrapper($profile_name, 'StateProvince', 'get', $api_params, $api_options)['id'];
+				$state_id = formprocessor_api_wrapper($profile_name, 'StateProvince', 'get', $api_params, $api_options)['id'];
 
 				$is_abbrev = true;
 			} catch ( \CRM_Core_Exception $e ) {
@@ -625,7 +625,7 @@ function address_validation( $result, $value, $form, $field ) {
 						'name'			=> $state,
 						'return' => array('id'), // Specify the fields to return
 					);
-					$state_id = gf_civicrm_formprocessor_api_wrapper($profile_name, 'StateProvince', 'get', $api_params, $api_options)['id'];
+					$state_id = formprocessor_api_wrapper($profile_name, 'StateProvince', 'get', $api_params, $api_options)['id'];
 				} catch ( \CRM_Core_Exception $e ) {
 					// Only throw a validation error if the field is required
 					if ( $field->isRequired ) {
@@ -649,7 +649,7 @@ function address_validation( $result, $value, $form, $field ) {
 			'postal_code' 				=> $postcode,
 			'country_id' 				=> $country_id,
 		);
-		$validate = gf_civicrm_formprocessor_api_wrapper($profile_name, 'Address', 'validate', $api_params, $api_options);
+		$validate = formprocessor_api_wrapper($profile_name, 'Address', 'validate', $api_params, $api_options);
 
 		// Build the error message
 		if ( isset( $validate['values'] ) && count( $validate['values'][0] ) > 0 ) {
@@ -684,7 +684,7 @@ add_filter( 'gform_countries', 'GFCiviCRM\address_replace_countries_list' );
 function address_replace_countries_list( $choices ) {
 	$replace = array();
 
-	$profile_name = gf_civicrm_get_rest_connection_profile_name();
+	$profile_name = get_rest_connection_profile();
 	$api_options = array(
 		'check_permissions' => 0, // Set check_permissions to false
 		'limit' => 0,
@@ -694,7 +694,7 @@ function address_replace_countries_list( $choices ) {
 		$api_params = array(
 			'return' => array( 'name', 'iso_code' ), // Specify the fields to return
 		);
-		$countries = gf_civicrm_formprocessor_api_wrapper($profile_name, 'Country', 'get', $api_params, $api_options)['values'];
+		$countries = formprocessor_api_wrapper($profile_name, 'Country', 'get', $api_params, $api_options)['values'];
 	
 		foreach ($countries as $country) {
 			$replace[] = __( $country["name"], 'gf-civicrm-formprocessor' );

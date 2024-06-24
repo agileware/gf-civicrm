@@ -54,7 +54,7 @@ class GF_Field_Group_Contact_Select extends GF_Field {
     }
 
     try {
-      $profile_name = GFCiviCRM\gf_civicrm_get_rest_connection_profile_name();
+      $profile_name = GFCiviCRM\get_rest_connection_profile();
       $api_version = '4';
       $api_params = array(
         'is_active' => true,
@@ -65,7 +65,7 @@ class GF_Field_Group_Contact_Select extends GF_Field {
         'sort' => 'title ASC',
         'limit' => 0,
       );
-      $groups = GFCiviCRM\gf_civicrm_formprocessor_api_wrapper($profile_name, 'Group', 'get', $api_params, $api_options, $api_version);
+      $groups = GFCiviCRM\formprocessor_api_wrapper($profile_name, 'Group', 'get', $api_params, $api_options, $api_version);
 
       // Something went wrong when attempting to retrieve Groups
       if ( isset( $groups['is_error'] ) && $groups['is_error'] != 0 ) {
@@ -91,7 +91,7 @@ class GF_Field_Group_Contact_Select extends GF_Field {
          * TODO: Awaiting CMRF to stop caching failed API calls which may cache a bad request (e.g. if this entity does not exist).
          * Ref GFCV-82
          */
-        $savedSearches = GFCiviCRM\gf_civicrm_formprocessor_api_wrapper($profile_name, 'SavedSearch', 'get', $api_params, $api_options);
+        $savedSearches = GFCiviCRM\formprocessor_api_wrapper($profile_name, 'SavedSearch', 'get', $api_params, $api_options);
 
         if ( isset( $savedSearches['is_error'] ) && $savedSearches['is_error'] != 0  ) {
           throw new \GFCiviCRM_Exception( $savedSearches['error_message'] );
@@ -262,7 +262,7 @@ class GF_Field_Group_Contact_Select extends GF_Field {
     }
 
     try {
-      $profile_name = GFCiviCRM\gf_civicrm_get_rest_connection_profile_name();
+      $profile_name = GFCiviCRM\get_rest_connection_profile();
       $api_version = '4';
 
       // Fetch the contacts for the selected group
@@ -285,7 +285,7 @@ class GF_Field_Group_Contact_Select extends GF_Field {
            * TODO: Awaiting CMRF to stop caching failed API calls which may cache a bad request (e.g. if this entity does not exist).
            * Ref GFCV-82
            */
-          $savedSearch = GFCiviCRM\gf_civicrm_formprocessor_api_wrapper($profile_name, 'SavedSearch', 'get', $api_params, $api_options, $api_version);
+          $savedSearch = GFCiviCRM\formprocessor_api_wrapper($profile_name, 'SavedSearch', 'get', $api_params, $api_options, $api_version);
   
           if ( isset( $savedSearch['is_error'] ) && $savedSearch['is_error'] != 0  ) {
             throw new \GFCiviCRM_Exception( $savedSearch['error_message'] );
@@ -306,7 +306,7 @@ class GF_Field_Group_Contact_Select extends GF_Field {
           'sort' => 'sort_name ASC',
           'limit' => 0,
         );
-        $groupContacts = GFCiviCRM\gf_civicrm_formprocessor_api_wrapper($profile_name, 'Contact', 'get', (array)$api_params, $api_options, $api_version);
+        $groupContacts = GFCiviCRM\formprocessor_api_wrapper($profile_name, 'Contact', 'get', (array)$api_params, $api_options, $api_version);
 
         // Something went wrong trying to get group contacts
         if ( isset( $groupContacts['is_error'] ) && $groupContacts['is_error'] != 0  ) {
@@ -330,7 +330,7 @@ class GF_Field_Group_Contact_Select extends GF_Field {
           'limit' => 1,
           'cache' => 0,
         );
-        $groupContacts = GFCiviCRM\gf_civicrm_formprocessor_api_wrapper($profile_name, 'Contact', 'get', (array)$api_params, $api_options, $api_version);
+        $groupContacts = GFCiviCRM\formprocessor_api_wrapper($profile_name, 'Contact', 'get', (array)$api_params, $api_options, $api_version);
         
         // Something went wrong trying to get group contacts
         if ( isset( $groupContacts['is_error'] ) && $groupContacts['is_error'] != 0  ) {

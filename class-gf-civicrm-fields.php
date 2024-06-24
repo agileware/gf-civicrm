@@ -304,7 +304,7 @@ class FieldsAddOn extends GFAddOn {
 			];
 		}
 
-		$profiles = gf_civicrm_formprocessor_get_profiles();
+		$profiles = formprocessor_get_profiles();
 		foreach ($profiles as $profile_id => $profile) {
 			$options[] = [
 				'label' => esc_html__( $profile['title'], 'gf_civicrm' ),
