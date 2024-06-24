@@ -100,7 +100,16 @@ function get_rest_connection_profile( $form = null ) {
  */
 function gf_civicrm_wpcmrf_api( $profile, $entity, $action, $params, $options = [], $api_version = '3' ) {
 	$profile_id = substr( $profile, 15 );
-	$options['cache'] ??= '2 minutes';
+
+	/**
+	 * TODO: Prevent caching of specific error codes.
+	 * 
+	 * This is likely something that needs to happen in CMRF plugin.
+	 * See https://github.com/CiviMRF/CMRF_Abstract_Core/issues/24
+	 * 
+	 */
+	// If options isn't already set, set it to a default value.
+	$options['cache'] ??= '15 minutes';
 
 	$call = wpcmrf_api( $entity, $action, $params, $options, $profile_id, $api_version );
 	return $call->getReply();
