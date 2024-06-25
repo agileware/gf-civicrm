@@ -65,6 +65,8 @@
         if (fields.length > 0) {
             initialiseGFCiviCRMAddressField();
             fields.forEach(function (field) {
+                addMaxLength(field);
+
                 // NB: must allow for hidden country input, e.g address type !== international
                 const country_id = field.id.replace(/field_([0-9]+)_([0-9]+)/, "input_$1_$2_6");
                 populateStateProvinceField(getByID(country_id), false);
@@ -109,6 +111,33 @@
 
         replaceElement(input, stateInputTemplate(getAddressData(input)));
         state_field.style.visibility = 'hidden';
+    }
+
+    /**
+     * GFCV-87 Add maxlength to Street Address fields
+     */
+    function addMaxLength(field) {
+        const address_field = field.querySelector(".ginput_container_address");
+        const street_address_1_input = address_field.querySelector(".address_line_1 input");
+        const street_address_2_input = address_field.querySelector(".address_line_2 input");
+        const city_input = address_field.querySelector(".address_city input");
+        const zip_input = address_field.querySelector(".address_zip input");
+
+        if (street_address_1_input) {
+            street_address_1_input.maxLength = 96;
+        }
+
+        if (street_address_2_input) {
+            street_address_2_input.maxLength = 96;
+        }
+
+        if (city_input) {
+            city_input.maxLength = 64;
+        }
+
+        if (zip_input) {
+            zip_input.maxLength = 64;
+        }
     }
 
     /**
