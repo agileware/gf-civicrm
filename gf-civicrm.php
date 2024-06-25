@@ -5,7 +5,7 @@
  * Description: Extends Gravity Forms to get option lists and defaults from linked CiviCRM Form Processors
  * Author: Agileware
  * Author URI: https://agileware.com.au
- * Version: 1.7.0
+ * Version: 1.7.1-beta
  * Text Domain: gf-civicrm
  *
  * Gravity Forms CiviCRM Integration is free software: you can redistribute it and/or modify
@@ -67,11 +67,17 @@ function do_civicrm_replacement( $form, $context ) {
 						$civi_fp_fields[ $processor ] = civicrm_api3( 'FormProcessor', 'getfields', [ 'action' => $processor ] )['values'] ?? [];
 					}
 
-					$default_option = fp_tag_default( [
-						$field->civicrmOptionGroup,
-						$processor,
-						$field_name,
-					], NULL, TRUE );
+					// If the field has a default value set then that has priority
+					if ( isset( $field->defaultValue ) && ! empty( $field->defaultValue ) ) {
+						$default_option = $field->defaultValue;
+					} else {
+						// Otherwise, retrieve the default value from the form processor
+						$default_option = fp_tag_default( [
+							$field->civicrmOptionGroup,
+							$processor,
+							$field_name,
+						], NULL, TRUE );
+					}
 
 					$field->choices = [];
 					if ( $field->type == 'checkbox' ) {
@@ -131,11 +137,53 @@ function compose_merge_tags ( $merge_tags ) {
 		// ...
 	}
 
-
 	return $merge_tags;
 }
 
 function pre_render( $form ) {
+	// @TODO - Refactor this to a single loop.
+	// @TODO - do_civicrm_replacement should be done first or last?
+
+	// Use the default value if set for radio buttons 
+	foreach ( $form['fields'] as &$field ) {
+		if ( $field->inputType != 'radio' ) {
+			continue;
+		}
+
+		if ( isset( $field->defaultValue ) && ! empty( $field->defaultValue ) ) {
+			$default_value = $field->defaultValue;
+
+			foreach ( $field->choices as &$choice ) {
+				if ( $choice['text'] == $default_value ) {
+					$choice['isSelected'] = TRUE;
+				}
+			}
+		}
+	}
+
+	// Apply comma separated default values to multiselect and checkbox fields
+	foreach ( $form['fields'] as &$field ) {
+		// Check if the field is of a type that should have comma-separated defaults
+		if ( in_array( $field->type, [ 'multiselect', 'checkbox' ] ) ) {
+			// Check if the custom comma-separated default setting is set
+
+			/* @TODO
+			 * Test 1 - if this works with CiviCRM multi-value options
+			 * Test 2 - what happens when a merge tag returns a value which has commas in it, does it call this function again?
+			 */
+
+			if ( isset( $field->defaultValue ) && ! empty( $field->defaultValue ) ) {
+				$defaults = explode( ',', trim( $field->defaultValue ) );
+				// Apply these defaults to the field
+				foreach ( $field->choices as $i => $choice ) {
+					if ( in_array( trim( $choice['value'] ), $defaults ) ) {
+						$field->choices[ $i ]['isSelected'] = TRUE;
+					}
+				}
+			}
+		}
+	}
+
 	return do_civicrm_replacement( $form, 'pre_render' );
 }
 
@@ -156,6 +204,9 @@ add_filter( 'gform_admin_pre_render', function ( $form ) {
 	return do_civicrm_replacement( $form, 'admin_pre_render' );
 } );
 
+add_filter( 'gform_username', function ( $username ) {
+	return sanitize_user( $username );
+} );
 
 /**
  * Replaces comma separated values for multiselect with an actual array for JSON encoding
@@ -188,6 +239,45 @@ function fix_multi_values( \GF_Field $field, $entry, $input_id = '', $use_text =
 
 }
 
+/*
+*
+* Locale agnostic conversion of various currency formats to float.
+* Possibly alternative implementation, but requires formatting locale as a parameter
+* https://www.php.net/manual/en/numberformatter.parsecurrency.php
+* 
+*/
+
+function convertInternationalCurrencyToFloat( $currencyValue ) {
+	// Remove all non-numeric characters except commas and dots
+	$number = preg_replace( '/[^\d.,]/', '', $currencyValue );
+
+	// Detect the use of comma or dot as the last decimal separator
+	if ( preg_match( '/\.\d{2}$/', $number ) ) {
+		// Dot is the decimal separator and comma as thousand separator
+		$number = str_replace( ',', '', $number );
+	} elseif ( preg_match( '/,\d{2}$/', $number ) ) {
+		// Comma is the decimal separator and dot as thousand separator
+		$number = str_replace( '.', '', $number );
+		$number = str_replace( ',', '.', $number );
+	} else {
+		// Assume no decimal places or unconventional usage, remove all commas and dots
+		$number = str_replace( [ ',', '.' ], '', $number );
+	}
+
+	// Convert to float cast as a string because webhook will complain otherwise
+	return (string) floatval( $number );
+}
+
+/*
+* Extend the maximum attempts for webhook calls, so Gravity Forms does not give up and start bailing
+*/
+
+add_filter( 'gform_max_async_feed_attempts', 'GFCiviCRM\custom_max_async_feed_attempts' );
+
+function custom_max_async_feed_attempts( $max_attempts ) {
+	return 999999; // @TODO this could be a configurable option
+}
+
 /**
  * Replace request data output with json-decoded structures where applicable.
  *
@@ -203,23 +293,32 @@ function webhooks_request_data( $request_data, $feed, $entry, $form ) {
 	$form = do_civicrm_replacement( $form, 'webhook_request_data' );
 
 	if ( $feed['meta']['requestFormat'] === 'json' ) {
-		$json_decoded = [];
+		$rewrite_data = [];
 
 		$multi_json = (bool) FieldsAddOn::get_instance()->get_plugin_setting( 'civicrm_multi_json' );
 
 		/** @var \GF_Field $field */
 		foreach ( $form['fields'] as $field ) {
 			if ( property_exists( $field, 'storageType' ) && $field->storageType == 'json' ) {
-				$json_decoded[ $field['id'] ] = json_decode( $entry[ $field['id'] ] );
+				$rewrite_data[ $field['id'] ] = json_decode( $entry[ $field['id'] ] );
 			} elseif (
 				! empty( $multi_json ) &&  // JSON encoding selected in settings
 				( is_a( $field, 'GF_Field_Checkbox' ) || is_a( $field, 'GF_Field_MultiSelect' ) ) // Multi-value field
 			) {
-				$json_decoded[ $field->id ] = fix_multi_values( $field, $entry );
+				$rewrite_data[ $field->id ] = fix_multi_values( $field, $entry );
+			}
+            
+			/*
+			* Custom Price, Product fields send the value in $ 50.00 format which is problematic
+			* @TODO If the $feed['meta']['fieldValues'][x] field has a value=gf_custom then custom_value will contain something like {membership_type:83:price} - this requires new logic extract the field ID. Will not contain the usual field ID.			
+			*/
+
+			if ( is_a( $field, 'GF_Field_Price' ) && $field->inputType == 'price' && isset( $entry[ $field->id ] ) ) {
+				$rewrite_data[ $field->id ] = convertInternationalCurrencyToFloat( $entry[ $field->id ] );
 			}
 		}
 		foreach ( $feed['meta']['fieldValues'] as $field_value ) {
-			if ( ( ! empty( $field_value['custom_key'] ) ) && ( $value = $json_decoded[ $field_value['value'] ] ?? NULL ) ) {
+			if ( ( ! empty( $field_value['custom_key'] ) ) && ( $value = $rewrite_data[ $field_value['value'] ] ?? NULL ) ) {
 				$request_data[ $field_value['custom_key'] ] = $value;
 			}
 		}
@@ -326,6 +425,43 @@ function editor_script() {
       function SetCiviCRMOptionGroup({value}) {
         SetFieldProperty('civicrmOptionGroup', value);
       }
+
+	  jQuery(document).ready(function($) {
+            // Enable display of the default value field for these other field types
+            $(document).on('gform_load_field_settings', function(event, field, form) {
+                if (field.inputType === 'radio' || field.inputType === 'multiselect' || field.inputType === 'checkbox') {
+                    $('.default_value_setting').show();
+                    $('#field_default_value').val(field.defaultValue);
+                }
+            });
+			// Add default value, comma separated values help text
+			$(document).bind('gform_load_field_settings', function(event, field, form) {
+                // Check for specific field types or all types
+                if (field.type === 'multiselect' || field.type === 'checkbox') {
+                    // Locate the default value setting field
+                    var defaultValueSetting = $('.field_setting:contains("Default Value")');
+
+                    // Check if the help text is already added
+                    if (!defaultValueSetting.find('.custom-help-text').length) {
+                        // Append the help text
+                        defaultValueSetting.append('<p class="custom-help-text description">Enter comma-separated values for default selections.</p>');
+                    }
+                }
+            });
+
+			// Hide all choice labels for checkbox fields, feature is replaced by the default value field
+			function updateChoiceLabelDisplay() {                
+                $('.field-choice-label').css('display', 'none');
+            }
+
+            // Run when the form editor is initially loaded
+            updateChoiceLabelDisplay();
+
+            // Bind to the event that triggers when field settings are loaded/changed
+            $(document).bind('gform_load_field_settings', function() {
+                updateChoiceLabelDisplay();
+            });
+        });
 	</script>
 	<?php
 }
@@ -376,6 +512,7 @@ function fp_tag_default( $matches, $fallback = '', $multiple = FALSE ) {
 	}
 
 	// GFCV-20 Resolve to first value if array
+	// @TODO - This may be interferring with the setting of multiple values using the default value field, form process merge tag
 	while ( is_array( $result ) ) {
 		$result = reset( $result );
 	}
@@ -436,6 +573,15 @@ function replace_merge_tags( $text, $form, $entry, $url_encode, $esc_html, $nl2b
 		$text = str_replace( '{civicrm_api_key}', $apiKey, $text );
 	}
 
+	// TODO - This may pass in multiple options
+	/*
+	return preg_replace_callback(
+		'{ {civicrm_fp(?:_default)? \. ([[:alnum:]_]+) \. ([[:alnum:]_]+) } }x',
+		'GFCiviCRM\fp_tag_default',
+		$text,'',true
+
+	);
+	*/
 	return preg_replace_callback(
 		'{ {civicrm_fp(?:_default)? \. ([[:alnum:]_]+) \. ([[:alnum:]_]+) } }x',
 		'GFCiviCRM\fp_tag_default',
