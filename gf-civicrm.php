@@ -536,166 +536,23 @@ function fields_addon_bootstrap() {
 }
 
 /**
- * Validate address inputs according to CiviCRM rules.
- *
- * @param array $result
- * @param string|array $value
- * @param \GF_Form $form
- * @param \GF_Field $field
- *
+ * Fix the counter for input fields to have a max length of 255, CiviCRM's limit.
+ * 
+ * GFCV-89
  */
-add_filter( 'gform_field_validation', 'GFCiviCRM\address_validation', 10, 4 );
-function address_validation( $result, $value, $form, $field ) {
-    // Validate input before attempting to enter into CiviCRM
-    if ( 'address' === $field->type ) {
-		// GF Address fields have set input ids for each inner field
-		$address_field_keys = array(
-			'street_address' 		 => '.1',
-			'supplemental_address_1' => '.2',
-			'city' 					 => '.3',
-			'state_province_id' 	 => '.4',
-			'postal_code' 			 => '.5',
-			'country_id' 			 => '.6',
-		);
+add_filter( 'gform_counter_script', 'GFCiviCRM\set_text_input_counter', 10, 5 );
+function set_text_input_counter( $script, $form_id, $input_id, $max_length, $field ) {
+	if ($max_length > 255) {
+		$max_length = 255;
+	}
 
-		// Field labels for error messaging
-		// Keys should correspond to the ids as seen in $address_field_keys
-		$field_labels = array();
-		$field_labels[] = $field['label']; // Address field label
-		foreach ( $field['inputs'] as $address_field_key => $address_field_value ) {
-			$field_labels[$address_field_key + 1] = isset( $address_field_value['customLabel'] ) ? $address_field_value['customLabel'] : $address_field_value['label'];
-		}
-
-		$error_messages = "";
-
-		// Get input values
-		$street   = rgar( $value, $field->id . $address_field_keys['street_address'] );
-        $street2  = rgar( $value, $field->id . $address_field_keys['supplemental_address_1'] );
-        $city     = rgar( $value, $field->id . $address_field_keys['city'] );
-        $state    = rgar( $value, $field->id . $address_field_keys['state_province_id'] );
-        $postcode = rgar( $value, $field->id . $address_field_keys['postal_code'] );
-        $country  = rgar( $value, $field->id . $address_field_keys['country_id'] );
-
-		$profile_name = get_rest_connection_profile( $form );
-		$api_options = [
-			'check_permissions' => 0, // Set check_permissions to false
-			'limit' 			=> 0,
-		];
-
-		// Get country_id and state_id
-		$country_id = null;
-		$state_id 	= null;
-
-		try {
-			$api_params = [
-				'name' 		=> $country,
-				'return' 	=> ['id'], // Specify the fields to return
-			];
-			$country_id = formprocessor_api_wrapper($profile_name, 'Country', 'get', $api_params, $api_options);
-
-			if ( isset( $country_id['is_error'] ) && $country_id['is_error'] != 0  ) {
-				throw new \GFCiviCRM_Exception( $country_id['error_message'] );
-			} else {
-				$country_id = $country_id['id'];
-			}
-		} catch ( \GFCiviCRM_Exception $e ) {
-			// Only throw a validation error if the field is required
-			if ( $field->isRequired ) {
-				// No country ID found
-				$result['is_valid'] = false;
-				$error_messages .= '<li>' . __( 'Invalid '. $field_labels[6] . '.', 'gf-civicrm-formprocessor' ) . '</li>';
-			}
-		}
-
-		// State depends on country_id being valid
-		if ( !is_null($country_id) && !empty($state) ) {
-			$is_abbrev = false;
-
-			// Check for abbreviation. If none found, check for state name.
-			try {
-				$api_params = [
-					'country_id'	=> $country_id,
-					'abbreviation'	=> $state,
-					'return' 		=> ['id'], // Specify the fields to return
-				];
-				$state_id = formprocessor_api_wrapper($profile_name, 'StateProvince', 'get', $api_params, $api_options);
-
-				if ( isset( $state_id['is_error'] ) && $state_id['is_error'] != 0  ) {
-					throw new \GFCiviCRM_Exception( $state_id['error_message'] );
-				} else {
-					$state_id = $state_id['id'];
-				}
-
-				$is_abbrev = true;
-			} catch ( \GFCiviCRM_Exception $e ) {
-				// Do nothing yet
-			}
-
-			if ( !$is_abbrev || is_null( $state_id ) ) {
-				try {
-					$api_params = [
-						'country_id'	=> $country_id,
-						'name'			=> $state,
-						'return' 		=> ['id'], // Specify the fields to return
-					];
-					$state_id = formprocessor_api_wrapper($profile_name, 'StateProvince', 'get', $api_params, $api_options);
-
-					if ( isset( $state_id['is_error'] ) && $state_id['is_error'] != 0  ) {
-						throw new \GFCiviCRM_Exception( $state_id['error_message'] );
-					} else {
-						$state_id = $state_id['id'];
-					}
-
-				} catch ( \GFCiviCRM_Exception $e ) {
-					// Only throw a validation error if the field is required
-					if ( $field->isRequired ) {
-						// No state_id found
-						$result['is_valid'] = false;
-						$error_messages .= '<li>' . __( 'Invalid '. $field_labels[4] . '.', 'gf-civicrm-formprocessor' ) . '</li>';
-					}
-				}
-			}
-		}
-
-		// Validate the whole address
-		$api_params = [
-			'action'					=> 'create', // api action
-			'contact_id' 				=> 1, // any contact
-			'location_type_id' 			=> 5, // Billing location_type_id is always 5
-			'street_address' 			=> $street,
-			'supplemental_address_1' 	=> $street2,
-			'city' 						=> $city,
-			'state_province_id' 		=> $state_id,
-			'postal_code' 				=> $postcode,
-			'country_id' 				=> $country_id,
-		];
-
-		/**
-		 * TODO: Implement CiviCRM APIv3 Address validation here.
-		 * 
-		 * CiviCRM APIv4 will not be implementing validate as an action.
-		 * If changes to CiviCRM's Address field validation criteria change, we will need to change here too.
-		 */
-		$validate = formprocessor_api_wrapper($profile_name, 'Address', 'validate', $api_params, $api_options);
-
-		// Build the error message
-		if ( isset( $validate['values'] ) && count( $validate['values'][0] ) > 0 ) {
-			foreach( $validate['values'][0] as $field_id => $error ){
-				$field->set_input_validation_state( $address_field_keys[$field_id], false );
-				$result['is_valid'] = false;
-				$error_messages .= '<li>' . $error['message'] . '</li>';
-			}
-		}
-
-		// Output error messages
-		if ( !$result['is_valid'] ) {
-			$result['message']  = empty( $field->errorMessage ) 
-				? 'Invalid inputs found in ' . $field_labels[0] . '. Please review the following fields before submission:<ul>' . $error_messages . '</ul>'
-				: $field->errorMessage;
-		}
-    }
-
-    return $result;
+    $script =
+		"if(!jQuery('#{$input_id}+.ginput_counter').length){jQuery('#{$input_id}').textareaCount(" .
+		"    {'maxCharacterSize': {$max_length}," .
+		"    'originalStyle': 'ginput_counter gfield_description'," .
+		"    'displayFormat' : '#input " . esc_js( __( 'of', 'gravityforms' ) ) . ' #max ' . esc_js( __( 'max characters', 'gravityforms' ) ) . "'" .
+		"    });" . "jQuery('#{$input_id}').next('.ginput_counter').attr('aria-live','polite');}";
+    return $script;
 }
 
 /**
