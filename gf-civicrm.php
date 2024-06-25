@@ -633,6 +633,26 @@ function fields_addon_bootstrap() {
 }
 
 /**
+ * Fix the counter for input fields to have a max length of 255, CiviCRM's limit.
+ *
+ * GFCV-89
+ */
+add_filter( 'gform_counter_script', 'GFCiviCRM\set_text_input_counter', 10, 5 );
+function set_text_input_counter( $script, $form_id, $input_id, $max_length, $field ) {
+	if ($max_length > 255) {
+		$max_length = 255;
+	}
+
+    $script =
+		"if(!jQuery('#{$input_id}+.ginput_counter').length){jQuery('#{$input_id}').textareaCount(" .
+		"    {'maxCharacterSize': {$max_length}," .
+		"    'originalStyle': 'ginput_counter gfield_description'," .
+		"    'displayFormat' : '#input " . esc_js( __( 'of', 'gravityforms' ) ) . ' #max ' . esc_js( __( 'max characters', 'gravityforms' ) ) . "'" .
+		"    });" . "jQuery('#{$input_id}').next('.ginput_counter').attr('aria-live','polite');}";
+    return $script;
+}
+
+/**
  * Replace the default countries list with CiviCRM's list.
  *
  * @param array $choices
