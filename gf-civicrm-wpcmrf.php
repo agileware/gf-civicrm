@@ -112,7 +112,7 @@ function gf_civicrm_wpcmrf_api( $profile, $entity, $action, $params, $options = 
 	// If options isn't already set, set it to a default value.
 	$options['cache'] ??= '15 minutes';
 
-	$call = wpcmrf_api( $entity, $action, $params, $options, $profile_id, $api_version );
+	$call = \wpcmrf_api( $entity, $action, $params, $options, $profile_id, $api_version );
 	return $call->getReply();
 }
 
@@ -123,7 +123,7 @@ function check_civicrm_installation( $profile = null ) {
 		$profile = get_rest_connection_profile( $form );
 	}
 
-	$result = gf_civicrm_wpcmrf_api( $profile, 'System', 'get', [ 'version' ], [] );
+	$result = api_wrapper( $profile, 'System', 'get', [ 'version' ], [] );
 
 	if ( isset( $result['is_error'] ) && $result['is_error'] == 0 ) {
 		return [
