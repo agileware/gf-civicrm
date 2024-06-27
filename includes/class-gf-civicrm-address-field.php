@@ -10,6 +10,7 @@
  * Original License URI: https://www.gnu.org/licenses/gpl-2.0.html
  */
 
+namespace GFCiviCRM;
 use GFAPI;
 use GF_Field;
 
@@ -17,7 +18,7 @@ if ( ! class_exists( 'GFForms' ) ) {
 	die();
 }
 
-class GF_CiviCRM_Address_Field {
+class Address_Field {
 	private $field_settings = [];
 	private $address_type = null;
 
@@ -148,11 +149,11 @@ class GF_CiviCRM_Address_Field {
 
 		// Compile the list of states_data and labels
 		foreach ($countries as $country) {
-			$state_abbreviation = __( $country['state_province.abbreviation'], 'gf-civicrm-formprocessor' );
-			$state_name = __( $country['state_province.name'], 'gf-civicrm-formprocessor' );
+			$state_abbreviation = __( $country['state_province.abbreviation'], 'gf-civicrm' );
+			$state_name = __( $country['state_province.name'], 'gf-civicrm' );
 			$states_data[$country['name']][] = [$state_abbreviation, $state_name];
 			// DEV: Do we need this?
-			$labels['countries'][$country['name']][] = __( $country['state_province.name'], 'gf-civicrm-formprocessor' );
+			$labels['countries'][$country['name']][] = __( $country['state_province.name'], 'gf-civicrm' );
 		}
 		
 		// Compile script data

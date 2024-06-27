@@ -11,7 +11,8 @@
  * 
  */
 
- namespace GFCiviCRM;
+namespace GFCiviCRM;
+use GFCiviCRM\LocalCiviCRM;
 
 /**
  * Wrapper function for the CiviCRM api's.
@@ -26,8 +27,8 @@
  *
  * @return array|mixed|null
  */
-function formprocessor_api_wrapper($profile, $entity, $action, $params, $options=[], $api_version = '3', $ignore = false) {
-	$profiles = formprocessor_get_profiles();
+function api_wrapper($profile, $entity, $action, $params, $options=[], $api_version = '3', $ignore = false) {
+	$profiles = get_profiles();
 	if (isset($profiles[$profile])) {
 		if (isset($profiles[$profile]['file'])) {
 			require_once($profiles[$profile]['file']);
@@ -44,7 +45,7 @@ function formprocessor_api_wrapper($profile, $entity, $action, $params, $options
  * Returns a list of possible profiles
  * @return array
  */
-function formprocessor_get_profiles() {
+function get_profiles() {
 	static $profiles = null;
 	if (is_array($profiles)) {
 	  return $profiles;
@@ -54,10 +55,10 @@ function formprocessor_get_profiles() {
 
 	// Local CiviCRM connection
 	require_once( GF_CIVICRM_PLUGIN_PATH .'includes/class-local-civicrm.php' );
-  	$profiles = GF_CiviCRM_FormProcessor_LocalCiviCRM::loadProfile( $profiles );
+  	$profiles = LocalCiviCRM::loadProfile( $profiles );
 
 	if ( function_exists('wpcmrf_get_core') ) {
-	  $core = wpcmrf_get_core();
+	  $core = \wpcmrf_get_core();
 	  $wpcmrf_profiles = $core->getConnectionProfiles();
 	  foreach($wpcmrf_profiles as $profile) {
 		$profile_name = 'wpcmrf_profile_'.$profile['id'];
@@ -77,7 +78,7 @@ function formprocessor_get_profiles() {
 function get_rest_connection_profile( $form = null ) {
 	// If CMRF is not enabled, return the profile id for the local CiviCRM installation
 	if ( !function_exists('wpcmrf_get_core') ) {
-		$profiles = formprocessor_get_profiles();
+		$profiles = get_profiles();
 		return array_key_first( $profiles );
 	}
 

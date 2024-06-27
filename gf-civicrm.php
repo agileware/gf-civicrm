@@ -85,7 +85,7 @@ function do_civicrm_replacement( $form, $context ) {
 					'name' 		=> $option_group,
 					'return' 	=> ['id'], // Specify the fields to return
 				];
-				$option_group_id = formprocessor_api_wrapper($profile_name, 'OptionGroup', 'get', $api_params, ['limit' => 1], '4')['values'];
+				$option_group_id = api_wrapper($profile_name, 'OptionGroup', 'get', $api_params, [ 'limit' => 1], '4')['values'];
 
 				// Then get the Option Group Values attached to that id
 				$api_params = [
@@ -98,7 +98,7 @@ function do_civicrm_replacement( $form, $context ) {
 					'sort' 				=> 'weight ASC',
 					'limit' 			=> 0,
 				];
-				$options = formprocessor_api_wrapper($profile_name, 'OptionValue', 'get', $api_params, $api_options);
+				$options = api_wrapper($profile_name, 'OptionValue', 'get', $api_params, $api_options);
 			} elseif ( $processor && $field_name ) {
 				try {
 					if ( ! isset( $civi_fp_fields[ $processor ] ) ) {
@@ -109,7 +109,7 @@ function do_civicrm_replacement( $form, $context ) {
 							'check_permissions' => 0, // Set check_permissions to false
 							'limit' 			=> 0,
 						];						
-						$civi_fp_fields[ $processor ] = formprocessor_api_wrapper($profile_name, 'FormProcessor', 'getfields', $api_params, $api_options)['values'] ?? [];
+						$civi_fp_fields[ $processor ] = api_wrapper($profile_name, 'FormProcessor', 'getfields', $api_params, $api_options)['values'] ?? [];
 					}
 
 					$default_option = fp_tag_default( [
@@ -146,7 +146,7 @@ function do_civicrm_replacement( $form, $context ) {
 
 			if ( ( $context === 'pre_render' ) && ( ! $field->isRequired ) && ( $field->type != 'multiselect' ) && ( $field->type != 'checkbox' ) ) {
 				array_unshift( $field->choices, [
-					'text'       => __( '- None -', 'gf-civicrm-formprocessor' ),
+					'text'       => __( '- None -', 'gf-civicrm' ),
 					'value'      => NULL,
 					'isSelected' => ! $default_option,
 				] );
@@ -164,7 +164,7 @@ function do_civicrm_replacement( $form, $context ) {
 function compose_merge_tags ( $merge_tags ) {
 	try {
 		$profile_name = get_rest_connection_profile();
-		$processors = formprocessor_api_wrapper($profile_name, 'FormProcessorInstance', 'get', ['sequential' => 1], ['limit' => 0])['values'];
+		$processors = api_wrapper($profile_name, 'FormProcessorInstance', 'get', [ 'sequential' => 1], [ 'limit' => 0])['values'];
 		
 		foreach ( $processors as ['inputs' => $inputs, 'name' => $pname, 'title' => $ptitle] ) {
 			foreach ( $inputs as ['name' => $iname, 'title' => $ititle] ) {
@@ -304,10 +304,10 @@ function civicrm_optiongroup_setting( $position, $form_id ) {
 				'sort' 				=> 'title ASC',
 				'limit'				=> 0,
 			];
-			$option_groups = formprocessor_api_wrapper( $profile_name, 'OptionGroup', 'get', $api_params, $api_options )['values']?? [];
+			$option_groups = api_wrapper( $profile_name, 'OptionGroup', 'get', $api_params, $api_options )['values'] ?? [];
 
 			try {
-				$form_processors = formprocessor_api_wrapper($profile_name, 'FormProcessorInstance', 'get', ['sequential' => 1], ['limit' => 0])['values'] ?? [];
+				$form_processors = api_wrapper($profile_name, 'FormProcessorInstance', 'get', [ 'sequential' => 1], [ 'limit' => 0])['values'] ?? [];
 
 				$form_processors = array_filter( array_map( function ( $processor ) use ( $option_groups ) {
 					$mapped = [
@@ -339,7 +339,7 @@ function civicrm_optiongroup_setting( $position, $form_id ) {
 			?>
 			<li class="civicrm_optiongroup_setting field_setting">
 				<label for="civicrm_optiongroup_selector">
-					<?php esc_html_e( 'CiviCRM Source', 'gf-civicrm-formprocessor' ); ?>
+					<?php esc_html_e( 'CiviCRM Source', 'gf-civicrm' ); ?>
 				</label>
 				<select id="civicrm_optiongroup_selector"
 				        onchange="SetCiviCRMOptionGroup(this)">
@@ -425,7 +425,7 @@ function fp_tag_default( $matches, $fallback = '', $multiple = FALSE ) {
 				'cache' => NULL,
 			);
 			// Get the cid
-			$fields = formprocessor_api_wrapper( $profile_name, 'FormProcessorDefaults', 'getfields', $api_params, $api_options, $api_version );
+			$fields = api_wrapper( $profile_name, 'FormProcessorDefaults', 'getfields', $api_params, $api_options, $api_version );
 
 			foreach ( array_keys( $fields['values'] ) as $key ) {
 				if ( ! empty( $_GET[ $key ] ) ) {
@@ -434,7 +434,7 @@ function fp_tag_default( $matches, $fallback = '', $multiple = FALSE ) {
 			}
 
 			// Get field values
-			$defaults[ $processor ] = formprocessor_api_wrapper( $profile_name, 'FormProcessorDefaults', $processor, $api_params, $api_options, $api_version );
+			$defaults[ $processor ] = api_wrapper( $profile_name, 'FormProcessorDefaults', $processor, $api_params, $api_options, $api_version );
 		} catch ( CiviCRM_API3_Exception $e ) {
 			$defaults[ $processor ] = FALSE;
 		}
@@ -578,7 +578,7 @@ function address_replace_countries_list( $choices ) {
 		$api_params = [
 			'return' => ['name', 'iso_code',] // Specify the fields to return
 		];
-		$countries = formprocessor_api_wrapper($profile_name, 'Country', 'get', $api_params, $api_options);
+		$countries = api_wrapper($profile_name, 'Country', 'get', $api_params, $api_options);
 	
 		if ( isset( $countries['is_error'] ) && $countries['is_error'] != 0  ) {
 			throw new \GFCiviCRM_Exception( $countries['error_message'] );
@@ -587,7 +587,7 @@ function address_replace_countries_list( $choices ) {
 		}
 
 		foreach ($countries as $country) {
-			$replace[] = __( $country["name"], 'gf-civicrm-formprocessor' );
+			$replace[] = __( $country["name"], 'gf-civicrm' );
 		}
 	} catch ( \CRM_Core_Exception $e ) {
 		// Could not retrieve CiviCRM countries list

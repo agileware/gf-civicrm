@@ -84,7 +84,7 @@ class FieldsAddOn extends GFAddOn {
 
 		if ( $this->is_gravityforms_supported() && class_exists('GF_Field') ) {
 			require_once( 'includes/class-gf-civicrm-address-field.php' );
-			$this->gf_civicrm_address_field = new \GF_CiviCRM_Address_Field();
+			$this->gf_civicrm_address_field = new Address_Field();
 		}
 
 		add_filter( 'gform_is_delayed_pre_process_feed', [$this, 'switchIsDelayed'], 10, 4 );
@@ -304,7 +304,7 @@ class FieldsAddOn extends GFAddOn {
 			];
 		}
 
-		$profiles = formprocessor_get_profiles();
+		$profiles = get_profiles();
 		foreach ($profiles as $profile_id => $profile) {
 			$options[] = [
 				'label' => esc_html__( $profile['title'], 'gf_civicrm' ),

@@ -7,12 +7,12 @@
  * @license AGPL-3.0
  */
 
- namespace GFCiviCRM;
+namespace GFCiviCRM;
 
 // All functions are Wordpress-specific.
 defined( 'ABSPATH' ) or die( 'No script kiddies please!' );
 
-class GF_CiviCRM_FormProcessor_LocalCiviCRM {
+class LocalCiviCRM {
 
   public static function api($profile, $entity, $action, $params, $options = []) {
     if (empty($entity) || empty($action) || !is_array($params)) {
@@ -71,7 +71,7 @@ class GF_CiviCRM_FormProcessor_LocalCiviCRM {
     if (function_exists('civi_wp') && !function_exists('wpcmrf_get_core')) {
       $profiles['_local_civi_'] = [
         'title' => __('Local CiviCRM'),
-        'function' => ['GFCiviCRM\GF_CiviCRM_FormProcessor_LocalCiviCRM', 'api']
+        'function' => [ 'GFCiviCRM\LocalCiviCRM', 'api']
       ];
     }
     return $profiles;
