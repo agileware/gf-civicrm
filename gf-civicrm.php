@@ -3,6 +3,7 @@
  * Plugin Name: Gravity Forms CiviCRM Integration
  * Plugin URI: https://bitbucket.org/agileware/gf-civicrm
  * Description: Extends Gravity Forms to get option lists and defaults from linked CiviCRM Form Processors
+ * Requires Plugins: gravityforms
  * Author: Agileware
  * Author URI: https://agileware.com.au
  * Version: 1.7.0
@@ -34,6 +35,27 @@ const BEFORE_CHOICES_SETTING = 1350;
 
 define( 'GF_CIVICRM_PLUGIN_PATH', plugin_dir_path( __FILE__ ) );
 define( 'GF_CIVICRM_FIELDS_ADDON_VERSION', get_file_data( __FILE__, [ 'Version' => 'Version' ] )[ 'Version' ] );
+
+register_activation_hook(__FILE__, 'GFCiviCRM\check_plugin_dependencies');
+
+/**
+ * Either civicrm or wpcmrf plugins must be active.
+ * This is not supported by the Dependencies header, so implement our own check.
+ */
+function check_plugin_dependencies() {
+	// Check if CiviCRM or WP CMRF plugins are active
+	if ( ! is_plugin_active( 'civicrm/civicrm.php' ) && ! is_plugin_active( 'connector-civicrm-mcrestface/wpcmrf.php' ) ) {
+        $notice = sprintf(
+        /* translators: 1: this plugin name, 2, 3: required plugin names */
+            esc_html__( 'Before activating %1$s, you must first activate either %2$s or %3$s.', 'gf-civicrm' ),
+            'Gravity Forms CiviCRM Integration',
+            '<a href="https://wordpress.org/plugins/connector-civicrm-mcrestface/">Connector to CiviCRM with CiviMcRestFace</a>',
+            'CiviCRM' );
+
+        // Show an error message and exit immediately
+		\wp_die( $notice, __( 'Plugin Activation Error', 'gf-civicrm' ), [ 'back_link' => TRUE ] );
+	}
+}
 
 // Load wpcmrf integration
 add_action( 'gform_loaded', 'GFCiviCRM\gf_civicrm_wpcmrf_bootstrap', 5 );
