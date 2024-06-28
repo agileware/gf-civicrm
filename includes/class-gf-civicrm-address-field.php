@@ -114,34 +114,26 @@ class Address_Field {
 			return;
 		}
 
+		$profile_name = get_rest_connection_profile();
+		$api_params = [
+			'select' => [ 'id', 'name', 'iso_code', 'state_province.id', 'state_province.name', 'state_province.abbreviation', 'state_province.country_id' ],
+			'join' => [ 'StateProvince AS state_province', 'INNER' ],
+			'orderBy' => [ 'name' => 'ASC', 'state_province.name' => 'ASC', ],
+		];
+		$api_options = [
+			'check_permissions' => 0, // Set check_permissions to false
+			'limit' => 0,
+		];
 		// Get Countries and their States/Provinces from CiviCRM
 		$countries = [];
 		if ( $this->address_type == 'us' ) {
-			$countries = \Civi\Api4\Country::get(TRUE)
-				->addSelect('id', 'name', 'iso_code', 'state_province.id', 'state_province.name', 'state_province.abbreviation', 'state_province.country_id')
-				->addJoin('StateProvince AS state_province', 'INNER')
-				->addWhere('id', '=', 1228) // US country_id in CiviCRM
-				->addOrderBy('name', 'ASC')
-				->addOrderBy('state_province.name', 'ASC')
-				->execute();
-		} else if (  $this->address_type == 'canadian' ) {
-			$countries = \Civi\Api4\Country::get(TRUE)
-				->addSelect('id', 'name', 'iso_code', 'state_province.id', 'state_province.name', 'state_province.abbreviation', 'state_province.country_id')
-				->addJoin('StateProvince AS state_province', 'INNER')
-				->addWhere('id', '=', 1039) // Canada country_id in CiviCRM
-				->addOrderBy('name', 'ASC')
-				->addOrderBy('state_province.name', 'ASC')
-				->execute();
-		} else {
-			// Default to international
-			$countries = \Civi\Api4\Country::get(TRUE)
-				->addSelect('id', 'name', 'iso_code', 'state_province.id', 'state_province.name', 'state_province.abbreviation', 'state_province.country_id')
-				->addJoin('StateProvince AS state_province', 'INNER')
-				->addOrderBy('name', 'ASC')
-				->addOrderBy('state_province.name', 'ASC')
-				->execute();
+			$api_params['where'][] = [ 'iso_code', '=', 'US' ];
+		} elseif (  $this->address_type == 'canadian' ) {
+			$api_params['where'][] = [ 'iso_code', '=', 'CA' ];
 		}
-		
+
+		$countries = api_wrapper(get_rest_connection_profile(), 'Country', 'get', $api_params, $api_options, 4);
+
 		// Exit early if we didn't get any countries and their states
 		if ( empty($countries) ) {
 			return;
