@@ -117,7 +117,7 @@ class Address_Field {
 		$profile_name = get_rest_connection_profile();
 		$api_params = [
 			'select' => [ 'id', 'name', 'iso_code', 'state_province.id', 'state_province.name', 'state_province.abbreviation', 'state_province.country_id' ],
-			'join' => [ 'StateProvince AS state_province', 'INNER' ],
+			'join' => [[ 'StateProvince AS state_province', 'INNER' ]],
 			'orderBy' => [ 'name' => 'ASC', 'state_province.name' => 'ASC', ],
 		];
 		$api_options = [
