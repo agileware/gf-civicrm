@@ -12,7 +12,7 @@
  */
 
 namespace GFCiviCRM;
-use GFCiviCRM\LocalCiviCRM;
+use GFCiviCRM_Exception;
 
 /**
  * Wrapper function for the CiviCRM api's.
@@ -34,8 +34,11 @@ function api_wrapper($profile, $entity, $action, $params, $options=[], $api_vers
 			require_once($profiles[$profile]['file']);
 		}
 		$result = call_user_func($profiles[$profile]['function'], $profile, $entity, $action, $params, $options, $api_version);
+		if (!empty($result['is_error'])) {
+			throw new GFCiviCRM_Exception( $result['error_message'], $result['error_code'] );
+		}
 	} else {
-		$result = ['error_message' => 'Profile not found', 'is_error' => 1];
+		throw new GFCiviCRM_Exception( __( 'Profile not found', 'gf-civicrm' ) );
 	}
 	
 	return $result;
