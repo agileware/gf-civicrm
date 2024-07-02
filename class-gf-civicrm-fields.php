@@ -268,7 +268,7 @@ class FieldsAddOn extends GFAddOn {
 						'default_value' => [ 'civicrm_multi_json' ],
 						'choices' => [
 							[
-								'label'   => esc_html__( 'Use JSON encoding for Checkbox and Multiselect values in webhooks (not recommended)', 'gf_civicrm' ),
+								'label'   => esc_html__( 'Use JSON encoding for Checkbox and Multiselect values in webhooks (recommended)', 'gf_civicrm' ),
 								'name'    => 'civicrm_multi_json',
 							],
 						],
