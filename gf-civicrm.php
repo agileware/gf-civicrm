@@ -58,9 +58,10 @@ function check_plugin_dependencies() {
 
 // Load wpcmrf integration
 add_action( 'gform_loaded', 'GFCiviCRM\gf_civicrm_wpcmrf_bootstrap', 5 );
+
 function gf_civicrm_wpcmrf_bootstrap() {
-	require_once( GF_CIVICRM_PLUGIN_PATH . '/includes/class-gf-civicrm-exception.php' );
-	require_once( 'gf-civicrm-wpcmrf.php' );
+	require_once( GF_CIVICRM_PLUGIN_PATH . 'includes/class-gf-civicrm-exception.php' );
+	require_once( GF_CIVICRM_PLUGIN_PATH . 'includes/gf-civicrm-wpcmrf.php' );
 }
 
 /**

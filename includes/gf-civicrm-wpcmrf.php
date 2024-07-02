@@ -54,7 +54,7 @@ function get_profiles() {
 	$profiles = array();
 
 	// Local CiviCRM connection
-	require_once( GF_CIVICRM_PLUGIN_PATH .'includes/class-local-civicrm.php' );
+	require_once( GF_CIVICRM_PLUGIN_PATH . 'includes/class-local-civicrm.php' );
   	$profiles = LocalCiviCRM::loadProfile( $profiles );
 
 	if ( function_exists('wpcmrf_get_core') ) {
@@ -90,7 +90,7 @@ function get_rest_connection_profile( $form = null ) {
 	$profile = $form_settings['civicrm_rest_connection'] ?? null;
 
 	if ( is_null( $profile ) || $profile === "default" ) {
-		$profile =FieldsAddOn::get_instance()->get_plugin_setting( 'civicrm_rest_connection' );
+		$profile = FieldsAddOn::get_instance()->get_plugin_setting( 'civicrm_rest_connection' );
 	}
 
 	return $profile;
