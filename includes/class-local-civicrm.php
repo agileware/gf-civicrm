@@ -53,7 +53,7 @@ class LocalCiviCRM {
 					$result = civicrm_api3( $entity, $action, $params );
 					break;
 				case '4':
-					$result = civicrm_api4( $entity, $action, $params );
+					$result = civicrm_api4( $entity, $action, $params )->getArrayCopy();
 					break;
 			}
 
