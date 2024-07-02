@@ -480,10 +480,12 @@ function fp_tag_default( $matches, $fallback = '', $multiple = FALSE ) {
 
 /**
  * Find or generate API key for the current user.
+ *
+ * This function is implemented without CMRF support, as it does not make sense in that context
  */
 function get_api_key() {
-	// Check if a CiviCRM installation exists
-	if ( check_civicrm_installation()['is_error'] ) {
+	// Leave early if directly connected to CiviCRM.
+	if ( ! ( function_exists( 'civicrm_initialize' ) && civicrm_initialize() ) ) {
 		return null;
 	}
 
