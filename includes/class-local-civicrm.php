@@ -9,13 +9,17 @@
  */
 
 namespace GFCiviCRM;
+use GFCiviCRM_Exception;
+use CRM_Core_Exception;
+
+require_once 'class-gf-civicrm-exception.php';
 
 // All functions are Wordpress-specific.
-defined( 'ABSPATH' ) or die( 'No script kiddies please!' );
+defined( 'ABSPATH' ) or die( 'No direct access' );
 
 class LocalCiviCRM {
 
-	public static function api( $profile, $entity, $action, $params, $options = [] ) {
+	public static function api( $profile, $entity, $action, $params, $options = [], $api_version = '3' ) {
 		if ( empty( $entity ) || empty( $action ) || ! is_array( $params ) ) {
 			throw new Exception( 'One of given parameters is empty.' );
 		}
@@ -41,24 +45,31 @@ class LocalCiviCRM {
 		}
 
 		try {
-			if ( ! empty( $options ) ) {
-				$params['options'] = $options;
+			switch($api_version) {
+				case '3':
+					if ( ! empty( $options ) ) {
+						$params['options'] = $options;
+					}
+					$result = civicrm_api3( $entity, $action, $params );
+					break;
+				case '4':
+					$result = civicrm_api4( $entity, $action, $params );
+					break;
 			}
-			$result = civicrm_api3( $entity, $action, $params );
-		}
-		catch ( \CRM_Core_Exception $e ) {
-			$error  = $e->getMessage() . '<br><br><pre>' . $e->getTraceAsString() . '</pre>';
-			$result = [ 'error' => $error, 'is_error' => '1' ];
-		}
 
-		/*
-		 * Reset the timezone back the original setting.
-		 */
-		if ( $wpBaseTimezone ) {
-			date_default_timezone_set( $wpBaseTimezone );
+			return $result;
 		}
-
-		return $result;
+		catch ( CRM_Core_Exception $e ) {
+			throw new GFCiviCRM_Exception($e->getMessage(), $e->getCode(), $e);
+		}
+		finally {
+			/*
+			 * Reset the timezone back the original setting.
+			 */
+			if ( $wpBaseTimezone ) {
+				date_default_timezone_set( $wpBaseTimezone );
+			}
+		}
 	}
 
 	/**
