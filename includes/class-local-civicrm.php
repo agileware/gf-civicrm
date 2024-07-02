@@ -20,8 +20,19 @@ defined( 'ABSPATH' ) or die( 'No direct access' );
 class LocalCiviCRM {
 
 	public static function api( $profile, $entity, $action, $params, $options = [], $api_version = '3' ) {
-		if ( empty( $entity ) || empty( $action ) || ! is_array( $params ) ) {
-			throw new Exception( 'One of given parameters is empty.' );
+		$contract_errors = [];
+		if ( empty( $entity ) ) {
+			$contract_errors[] = sprintf( __( "'%s' is required" ), '$entity' );
+		}
+		if ( empty( $action ) ) {
+			$contract_errors[] = sprintf( __( "'%s' is required" ), '$action' );
+		}
+		if ( ! is_array( $params ) ) {
+			$contract_errors = sprintf( __( "'%s' must be an array" ), '$params' );
+		}
+
+		if(!empty($contract_errors)){
+			throw new GFCiviCRM_Exception( implode( '\r\n', $contract_errors ) );
 		}
 
 		if ( ! civi_wp()->initialize() ) {
