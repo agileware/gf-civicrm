@@ -44,7 +44,7 @@ class LocalCiviCRM {
         $params['options'] = $options;
       }
       $result = civicrm_api3($entity, $action, $params);
-    } catch (CiviCRM_API3_Exception $e) {
+    } catch (\CRM_Core_Exception $e) {
       $error = $e->getMessage() . '<br><br><pre>' . $e->getTraceAsString() . '</pre>';
       $result = ['error' => $error, 'is_error' => '1'];
     }

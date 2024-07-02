@@ -25,7 +25,6 @@
 namespace GFCiviCRM;
 
 use Civi\Api4\{OptionValue, OptionGroup, Contact};
-use CiviCRM_API3_Exception;
 use CRM_Core_Exception;
 use GFCommon;
 use GFAddon;
@@ -161,7 +160,7 @@ function do_civicrm_replacement( $form, $context ) {
 						}
 					}
 
-				} catch ( CiviCRM_API3_Exception $e ) {
+				} catch ( CRM_Core_Exception $e ) {
 					// Couldn't get form processor instance, don't try to set options
 				}
 			}
@@ -354,7 +353,7 @@ function civicrm_optiongroup_setting( $position, $form_id ) {
 
 					return ! empty( $mapped['options'] ) ? $mapped : FALSE;
 				}, $form_processors ) );
-			} catch ( CiviCRM_API3_Exception $e ) {
+			} catch ( CRM_Core_Exception $e ) {
 				// Form processor extension may not be installed, ignore
 				$form_processors = [];
 			}
@@ -457,7 +456,7 @@ function fp_tag_default( $matches, $fallback = '', $multiple = FALSE ) {
 
 			// Get field values
 			$defaults[ $processor ] = api_wrapper( $profile_name, 'FormProcessorDefaults', $processor, $api_params, $api_options, $api_version );
-		} catch ( CiviCRM_API3_Exception $e ) {
+		} catch ( CRM_Core_Exception $e ) {
 			$defaults[ $processor ] = FALSE;
 		}
 	}
