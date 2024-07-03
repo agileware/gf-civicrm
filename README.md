@@ -1,3 +1,10 @@
+# Experimental branch
+
+This branch of the plugin was used to implement remote CiviCRM support via the CiviMRF framework, and during
+implementation we found that supporting this framework was not cost effective. As a result, further implementation using
+CiviMRF has been suspended.
+**Use of this version of the gf-civicrm plugin is not recommended and impossible for non-developers**
+
 # Gravity Forms CiviCRM Integration
 
 This is a [WordPress](https://wordpress.org) plugin that integrates the [Gravity Forms plugin](https://www.gravityforms.com/) with [CiviCRM](https://civicrm.org) using the [Form Processor extension](https://civicrm.org/extensions/form-processor).
