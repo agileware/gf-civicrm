@@ -643,12 +643,18 @@ function set_text_input_counter( $script, $form_id, $input_id, $max_length, $fie
 		$max_length = 255;
 	}
 
-    $script =
-		"if(!jQuery('#{$input_id}+.ginput_counter').length){jQuery('#{$input_id}').textareaCount(" .
-		"    {'maxCharacterSize': {$max_length}," .
-		"    'originalStyle': 'ginput_counter gfield_description'," .
-		"    'displayFormat' : '#input " . esc_js( __( 'of', 'gravityforms' ) ) . ' #max ' . esc_js( __( 'max characters', 'gravityforms' ) ) . "'" .
-		"    });" . "jQuery('#{$input_id}').next('.ginput_counter').attr('aria-live','polite');}";
+    $displayFormat = esc_js( __( '#input of #max max characters', 'gravityforms' ) );
+
+    $script = <<<EOJS
+		if(!jQuery('#{$input_id}+.ginput_counter').length){
+			jQuery('#{$input_id}').textareaCount({
+		    	'maxCharacterSize': {$max_length},
+		    	'originalStyle': 'ginput_counter gfield_description',
+		    	'displayFormat' : '{$displayFormat}'
+		    });
+		    jQuery('#{$input_id}').next('.ginput_counter').attr('aria-live','polite');
+		};
+	EOJS;
     return $script;
 }
 
