@@ -51,7 +51,6 @@ function do_civicrm_replacement( $form, $context ) {
 
 			[ 'option_group' => $option_group, 'processor' => $processor, 'field_name' => $field_name ] = $matches;
 
-			$options        = [];
 			$default_option = NULL;
 
 			if ( $option_group ) {
@@ -61,6 +60,18 @@ function do_civicrm_replacement( $form, $context ) {
 				                      ->addWhere( 'is_active', '=', TRUE )
 				                      ->addOrderBy( 'weight', 'ASC' )
 				                      ->execute();
+
+                $field->choices = [];
+                $field->inputs = [];
+
+                foreach ( $options as [ 'value' => $value, 'label' => $label, 'is_default' => $is_default ] ) {
+						$field->choices[] = [
+							'text'       => $label,
+							'value'      => $value,
+							'isSelected' => (bool) ( $is_default ?? FALSE )
+						];
+
+                }
 			} elseif ( $processor && $field_name ) {
 				try {
 					if ( ! isset( $civi_fp_fields[ $processor ] ) ) {
@@ -83,25 +94,29 @@ function do_civicrm_replacement( $form, $context ) {
 					if ( $field->type == 'checkbox' ) {
 						$field->inputs = [];
 					}
-					$i = 0;
-
 					foreach ( $civi_fp_fields[ $processor ][ $field_name ]['options'] ?? [] as $value => $label ) {
 						$field->choices[] = [
 							'text'       => $label,
 							'value'      => $value,
 							'isSelected' => ( ( is_array( $default_option ) && in_array( $value, $default_option ) ) || ( $value == $default_option ) ),
 						];
-						if ( $field->type == 'checkbox' ) {
-							$field->inputs[] = [
-								// Avoid multiples of 10, allegedly these are problematic
-								'id'    => $field->id . '.' . ( ++$i % 10? $i : ++$i ),
-								'label' => $label,
-							];
-						}
 					}
 
 				} catch ( CiviCRM_API3_Exception $e ) {
 					// Couldn't get form processor instance, don't try to set options
+                    return $form;
+				}
+			}
+
+			if ( $field->type == 'checkbox' ) {
+                $i = 0;
+                $field->inputs = [];
+				foreach ( $field->choices as [ 'label' => $label ] ) {
+					$field->inputs[] = [
+						// Avoid multiples of 10, allegedly these are problematic
+						'id'    => $field->id . '.' . ( ++ $i % 10 ? $i : ++ $i ),
+						'label' => $choice['label'],
+					];
 				}
 			}
 
