@@ -82,22 +82,38 @@ class FieldsAddOn extends GFAddOn {
 	public function init() {
 		parent::init();
 
+		$gf_version = \GFCommon::get_version_info()['version'];
+
 		if ( $this->is_gravityforms_supported() && class_exists('GF_Field') ) {
 			require_once( 'includes/class-gf-civicrm-address-field.php' );
 			$this->gf_civicrm_address_field = new \GF_CiviCRM_Address_Field();
 		}
 
-		add_filter( 'gform_is_delayed_pre_process_feed', [$this, 'switchIsDelayed'], 10, 4 );
-		
+		if( defined('GFEWAYPRO_PLUGIN_VERSION' ) ) {
+			if ( version_compare( GFEWAYPRO_PLUGIN_VERSION, '1.16.0', '<') ||
+			     version_compare( $gf_version, '2.8', '<' ) ) {
+				// In Gravity forms < 2.8 or Gravity forms eWAY Pro < 1.16, the webhook feed is not delayed properly
+				// Within these version constraints, add heuristics to force a delay
+				add_filter( 'gform_is_delayed_pre_process_feed', [ $this, 'switchIsDelayed' ], 10, 4 );
+			}
+		}
 	}
 
+	/**
+	 * Check if the current form has an active GravityForms eWAY Pro payment feed
+	 */
 	protected function hasPaymentAddon( $form, $entry ) {
 		static $payment_feed_slugs = [];
+
+		if(!class_exists('webaware\gfewaypro\AddOn')) {
+			return false;
+		}
+
 		$feeds = GFAPI::get_feeds( NULL, $form['id'] );
 
 		if ( empty($payment_feed_slugs) ) {
 			foreach(GFAddon::get_registered_addons( TRUE ) as $feed_instance) {
-				if ( $feed_instance instanceof \GFPaymentAddOn ) {
+				if ( $feed_instance instanceof \webaware\gfewaypro\AddOn ) {
 					$payment_feed_slugs[ $feed_instance->get_slug() ] = $feed_instance;
 				}
 			}
@@ -113,6 +129,9 @@ class FieldsAddOn extends GFAddOn {
 		return false;
 	}
 
+	/**
+	 * Force the feed to be delayed, if applicable.
+	 */
 	public function switchIsDelayed($is_delayed, $form, $entry, $addon_slug) {
 		if ( !$is_delayed &&
 		     ( $addon_slug === 'gravityformswebhooks' ) &&
