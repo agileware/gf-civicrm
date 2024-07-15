@@ -185,6 +185,31 @@ class FieldsAddOn extends GFAddOn {
 		return $form;
 	}
 
+	public function warn_auth_checksum($callback, $forms = null) {
+		$forms ??= GFAPI::get_forms();
+
+		$warnings = [];
+
+		foreach ($forms as $form) {
+			$settings = $this->get_form_settings($form);
+			if (!empty($settings['civicrm_auth_checksum'])) {
+				$settings_link = admin_url( 'admin.php?page=gf_edit_forms&view=settings&subview=gf-civicrm&id=' . $form['id'] );
+				$message = sprintf( __( 'The Gravity Form "%s" has the CiviCRM auth checksum setting enabled. <a href="%s">Click here to edit the form settings.</a>', 'text-domain' ), esc_html( $form['title'] ), esc_url( $settings_link ) );
+
+				if(is_callable($callback)) {
+					call_user_func($callback, $message);
+				} else {
+					$warnings[] = "<li>$message</li>";
+				}
+			}
+		}
+
+		if(!empty($warnings)) {
+			$notice_heading = __( 'Legacy setting enabled for form(s)' );
+			echo "<div class=\"notice notice-warning is-dismissible\"><h3>$notice_heading</h3><ul>" . implode( '', $warnings ) . '</ul></div>';
+		}
+	}
+
   /**
    * Include gf-civicrm-fields.js when the form contains a 'group_contact_select' type field.
    *
@@ -238,30 +263,40 @@ class FieldsAddOn extends GFAddOn {
   }
 
 	public function form_settings_fields( $form ) {
-		$fields = [
-			[
+		$settings = $this->get_form_settings( $form ) ?: [];
+
+		$fields = [];
+
+		// Legacy field, don't allow for new forms.
+		// @TODO Add documentation for alternative approach.
+		if($settings['civicrm_auth_checksum']) {
+			$fields[] = [
 				// 'label' => esc_html__( 'Allow authentication with checksum', 'gf-civicrm' ),
 				'type'        => 'checkbox',
 				'name'        => 'civicrm_auth_checksum',
-				'description' => esc_html__(
-					'Check this option to allow passing a contact id (cid) and checksum (cs) parameter to the form to emulate a CiviCRM contact',
+				'description' => wp_kses(__(
+					'<strong>Deprecated</strong>: This option is not recommended and <strong>poses a hypothetical security risk</strong>. Check on to allow passing a contact id (cid) and checksum (cs) parameter to the form to emulate a CiviCRM contact.',
 					'gf-civicrm'
-				),
+				), 'data'),
 				'choices'     => [
 					[
 						'label' => esc_html__( 'Allow authentication with checksum', 'gf-civicrm' ),
 						'name'  => 'civicrm_auth_checksum'
 					]
 				]
-			],
-		];
+			];
+		}
 
-		return [
-			[
-				'title'  => esc_html__( 'CiviCRM Settings', 'gf-civicrm' ),
-				'fields' => &$fields,
-			],
-		];
+		if(!empty($fields)) {
+			return [
+				[
+					'title'  => esc_html__( 'CiviCRM Settings', 'gf-civicrm' ),
+					'fields' => &$fields,
+				],
+			];
+		} else {
+			return [];
+		}
 	}
 
 	public function plugin_settings_fields() {
