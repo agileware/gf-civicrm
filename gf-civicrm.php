@@ -693,4 +693,25 @@ function webhooks_request_args( $request_args, $feed, $entry, $form ) {
 	return $request_args;
 }
 
+function validateChecksumFromURL( $cid_param = 'cid', $cs_param = 'cs' ): int|null {
+	$contact_id = rgget( $cid_param );
+	$checksum   = rgget( $cs_param );
+
+	if ( empty( $contact_id ) || empty( $checksum ) ) {
+		return NULL;
+	}
+
+    $validator = Contact::validateChecksum( FALSE )
+                        ->setContactId( $contact_id )
+                        ->setChecksum( $checksum )
+                        ->execute()
+                        ->first();
+
+    if ( ! $validator['valid'] ) {
+        throw new \CRM_Core_Exception('Invalid checksum');
+    } else {
+        return $contact_id;
+    }
+}
+
 add_filter( 'gform_webhooks_request_args', 'GFCiviCRM\webhooks_request_args', 10, 4 );
