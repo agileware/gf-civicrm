@@ -73,7 +73,7 @@ For Gravity Forms fields that support setting choices (e.g. Drop Down, Checkboxe
     - Radio Buttons or Drop Down to allow selection of a single option
 3. Under the General settings for your field, open the CiviCRM Source selection.
 4. Locate your Form Processor in the option list headings, and under it, select the field you defined in step 1.
-5. Press the "Edit Choices" button, and select "show values" - this will allow the CiviCRM options to be mapped directly
+5. Press the "Edit Choices" button, and select "show values" - this will allow the CiviCRM options to be mapped directly.
    Note that the Choices will not appear filled from CiviCRM until you save the form and reload - also, if you change any options here your changes will be replaced with options filled from CiviCRM, so if you need to make any changes to the available options, including order, it is important to make them in the *Form Processor* configuration
 6. Save the Form and either Preview or embed it to see the changes
 
@@ -107,9 +107,9 @@ This method is preferred to the previously documented `{civicrm_api_key}` merge 
 Previous versions presented a checkbox on the CiviCRM settings tab to masquerade as a logged in user based on passed in `cid` and `cs` URL parameters. We have found that in some circumstances this workflow can permanently hijack the logged in user's session, **which could result in privilege escalation**.
 The option is no longer allowed for forms that do not already have it set, and in places it was in use, we **strongly recommend** replacing the functionality with the above workflow and unchecking the option. The functionality is scheduled to be removed in a future release in August 2024.
 
-# Trouble-shooting
+# Troubleshooting
 
-To trouble-shoot this integration, enable the Gravity Forms Logging on the page `/wp-admin/admin.php?page=gf_settings&subview=settings` and then check the Web Hooks logs when the Gravity Form is submitted. Logs are available on this page, `/wp-admin/admin.php?page=gf_settings&subview=gravityformslogging`
+To troubleshoot this integration, enable the Gravity Forms Logging on the page `/wp-admin/admin.php?page=gf_settings&subview=settings` and then check the Web Hooks logs when the Gravity Form is submitted. Logs are available on this page, `/wp-admin/admin.php?page=gf_settings&subview=gravityformslogging`
 This should help you identify the cause of most issues integrating the Gravity Form and CiviCRM.
 
 CiviCRM expects permalink settings to be set to "Post name" by default in order to address the `wp-json` directory. Enable this setting on the page `/wp-admin/options-permalink.php` if it is not set already.
