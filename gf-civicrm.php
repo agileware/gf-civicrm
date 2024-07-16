@@ -716,8 +716,19 @@ function validateChecksumFromURL( $cid_param = 'cid', $cs_param = 'cs' ): int|nu
 
 add_filter( 'gform_webhooks_request_args', 'GFCiviCRM\webhooks_request_args', 10, 4 );
 
-add_action('admin_notices', function() {
-    if (class_exists('GFAPI') && class_exists('GFCiviCRM\FieldsAddOn')) {
-        FieldsAddOn::get_instance()->warn_auth_checksum();
-    }
-});
+add_action( 'admin_notices', function() {
+	if ( class_exists( 'GFAPI' ) && class_exists( 'GFCiviCRM\FieldsAddOn' ) ) {
+		echo FieldsAddOn::get_instance()->warn_auth_checksum();
+	}
+} );
+
+add_action( 'gform_admin_error_messages', function( $messages ) {
+	if ( class_exists( 'GFCiviCRM\FieldsAddOn' ) ) {
+		$message = FieldsAddOn::get_instance()->warn_auth_checksum( '%s' );
+		if ( $message ) {
+			$messages[] = $message;
+		}
+	}
+
+	return $messages;
+} );

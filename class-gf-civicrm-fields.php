@@ -185,8 +185,8 @@ class FieldsAddOn extends GFAddOn {
 		return $form;
 	}
 
-	public function warn_auth_checksum($callback, $forms = null) {
-		$forms ??= GFAPI::get_forms();
+	public function warn_auth_checksum($wrapper = '<div class="notice notice-warning is-dismissible">%s</div>') {
+		$forms = GFAPI::get_forms();
 
 		$warnings = [];
 
@@ -194,19 +194,15 @@ class FieldsAddOn extends GFAddOn {
 			$settings = $this->get_form_settings($form);
 			if (!empty($settings['civicrm_auth_checksum'])) {
 				$settings_link = admin_url( 'admin.php?page=gf_edit_forms&view=settings&subview=gf-civicrm&id=' . $form['id'] );
-				$message = sprintf( __( 'The Gravity Form "%s" has the CiviCRM auth checksum setting enabled. <a href="%s">Click here to edit the form settings.</a>', 'text-domain' ), esc_html( $form['title'] ), esc_url( $settings_link ) );
-
-				if(is_callable($callback)) {
-					call_user_func($callback, $message);
-				} else {
-					$warnings[] = "<li>$message</li>";
-				}
+				$warnings[] = sprintf( __( 'The Gravity Form "%s" has the CiviCRM auth checksum setting enabled. <a href="%s">Click here to edit the form settings.</a>', 'text-domain' ), esc_html( $form['title'] ), esc_url( $settings_link ) );
 			}
 		}
 
 		if(!empty($warnings)) {
 			$notice_heading = __( 'Legacy setting enabled for form(s)' );
-			echo "<div class=\"notice notice-warning is-dismissible\"><h3>$notice_heading</h3><ul>" . implode( '', $warnings ) . '</ul></div>';
+			return sprintf( $wrapper, "<h3>$notice_heading</h3><ul>" . implode( '', $warnings ) . '</ul>' );
+		} else {
+			return NULL;
 		}
 	}
 
