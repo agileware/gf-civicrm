@@ -88,13 +88,24 @@ Any form processor that should record actions as a specific Contact should imple
   - `cs` for the Checksum
 2. These fields should also be included in Gravity Forms, using merge tags from the form processor as defaults
 3. Inside the Form processor "Retrieval of defaults" settings, use the "Contact: get contact ID of the currently logged in user" and "Contact: generate checksum" actions to provide default values to these fields
-4. You can also use the "Retrieval criteria for default data" to add `cid` and `cs` criteria supporting checksum links generated from CiviCRM schedule reminders.  In this case you should use the "Contact: validate checksum" action to authenticate the link
+4. You can also use the "Retrieval criteria for default data" to add `cid` and `cs` criteria supporting checksum links generated from CiviCRM schedule reminders.
+  - Works with any link that includes `?{contact.checksum}&cid={contact.id}` on the page with the Gravity Form.
+  - Use the "Contact: validate checksum" action in Retrieval of Details to authenticate the link.
 5. As part of the Form Processor actions, you must use the "Contact: validate checksum" to authenticate the Contact ID and checksum used to submit the form.
 6. For Form Processors that *must* be processed on behalf of an existing contact, also use the "Contact: Validate checksum" action as part of the Form Processor Validation actions
 
 An example of this setup is available,
-- Import Gravity form: [example/gravityforms-update_card.json]
-- Import Form Processor: [example/civicrm-form-processor-update_card.json]
+- Import Gravity form: [gravityforms-update_card.json](example/gravityforms-update_card.json)
+- Import Form Processor: [civicrm-form-processor-update_card.json](example/civicrm-form-processor-update_card.json)
+
+## **Deprecated** - CiviCRM API Key merge tag
+
+This method is preferred to the previously documented `{civicrm_api_key}` merge tag to use the API Key of the user viewing the form, due to impracticalities discovered in the latter workflow.
+
+## **Deprecated** - "Allow authentication with checksum"
+
+Previous versions presented a checkbox on the CiviCRM settings tab to masquerade as a logged in user based on passed in `cid` and `cs` URL parameters. We have found that in some circumstances this workflow can permanently hijack the logged in user's session, **which could result in privilege escalation**.
+The option is no longer allowed for forms that do not already have it set, and in places it was in use, we **strongly recommend** replacing the functionality with the above workflow and unchecking the option. The functionality is scheduled to be removed in a future release in August 2024.
 
 # Trouble-shooting
 

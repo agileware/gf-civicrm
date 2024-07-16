@@ -270,10 +270,10 @@ class FieldsAddOn extends GFAddOn {
 				// 'label' => esc_html__( 'Allow authentication with checksum', 'gf-civicrm' ),
 				'type'        => 'checkbox',
 				'name'        => 'civicrm_auth_checksum',
-				'description' => wp_kses(__(
-					'<strong>Deprecated</strong>: This option is not recommended and <strong>poses a hypothetical security risk</strong>. Check on to allow passing a contact id (cid) and checksum (cs) parameter to the form to emulate a CiviCRM contact.',
+				'description' => wp_kses(sprintf(__(
+					'<strong>Deprecated</strong>: This option is not recommended and <strong>poses a hypothetical security risk</strong>. Switch to the replacement workflow using Form Processor capabilities outlined <a target="_blank" href="%s">in the README</a>.',
 					'gf-civicrm'
-				), 'data'),
+				), 'https://github.com/agileware/gf-civicrm/tree/main?tab=readme-ov-file#processing-form-submissions-as-a-specific-contact'), 'data'),
 				'choices'     => [
 					[
 						'label' => esc_html__( 'Allow authentication with checksum', 'gf-civicrm' ),
