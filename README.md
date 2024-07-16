@@ -62,15 +62,15 @@ The "Retrieval criteria for default data" specified in the form processor will b
 For Gravity Forms fields that support setting choices (e.g. Drop Down, Checkboxes, Radio Buttons), you may use predefined option lists set in CiviCRM. These either can use Option Groups defined in CiviCRM directly or may be defined by your Form Processor (recommended):
 
 1. Edit your Form Processor and add an input of one of the supported types:
-- Yes/No as Option List
-- Option Group
-- Custom Options
-- Mailing Group
-- Tags
+    - Yes/No as Option List
+    - Option Group
+    - Custom Options
+    - Mailing Group
+    - Tags
 2. Save your Form Processor
 3. Edit your Gravity form and add one of these types of field:
-- Checkboxes or Multi Select (under Advanced Fields) for multiple option selection
-- Radio Buttons or Drop Down to allow selection of a single option
+    - Checkboxes or Multi Select (under Advanced Fields) for multiple option selection
+    - Radio Buttons or Drop Down to allow selection of a single option
 3. Under the General settings for your field, open the CiviCRM Source selection.
 4. Locate your Form Processor in the option list headings, and under it, select the field you defined in step 1.
 5. Press the "Edit Choices" button, and select "show values" - this will allow the CiviCRM options to be mapped directly
@@ -84,13 +84,13 @@ If you set defaults for the Form Processor input used as a "CiviCRM Source", the
 Any form processor that should record actions as a specific Contact should implement checksum validation as part of the processor
 
 1. Include fields in the form processor that are used for the checksum validation
-  - `cid` for the Contact ID
-  - `cs` for the Checksum
+    - `cid` for the Contact ID
+    - `cs` for the Checksum
 2. These fields should also be included in Gravity Forms, using merge tags from the form processor as defaults
 3. Inside the Form processor "Retrieval of defaults" settings, use the "Contact: get contact ID of the currently logged in user" and "Contact: generate checksum" actions to provide default values to these fields
 4. You can also use the "Retrieval criteria for default data" to add `cid` and `cs` criteria supporting checksum links generated from CiviCRM schedule reminders.
-  - Works with any link that includes `?{contact.checksum}&cid={contact.id}` on the page with the Gravity Form.
-  - Use the "Contact: validate checksum" action in Retrieval of Details to authenticate the link.
+    - Works with any link that includes `?{contact.checksum}&cid={contact.id}` on the page with the Gravity Form.
+    - Use the "Contact: validate checksum" action in Retrieval of Details to authenticate the link.
 5. As part of the Form Processor actions, you must use the "Contact: validate checksum" to authenticate the Contact ID and checksum used to submit the form.
 6. For Form Processors that *must* be processed on behalf of an existing contact, also use the "Contact: Validate checksum" action as part of the Form Processor Validation actions
 
