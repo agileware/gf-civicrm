@@ -79,13 +79,22 @@ For Gravity Forms fields that support setting choices (e.g. Drop Down, Checkboxe
 
 If you set defaults for the Form Processor input used as a "CiviCRM Source", these will be applied when the form is loaded, including any Retrieval criteria specified in the URL parameters.
 
-# Processing form submissions as the logged-in user
+# Processing form submissions as a specific Contact
 
-When you need the Gravity Form to update the details of the CiviCRM contact for the logged-in user, then replace the api_key parameter in the Web Hook with the Gravity Forms, Merge Tag `{civicrm_api_key}`. This will be evaluated to the current logged-in users CiviCRM Contact, API Key. If no API Key exists one will be created at time of submission.
+Any form processor that should record actions as a specific Contact should implement checksum validation as part of the processor
 
-For example, the Web Hook URL would be: `/wp-json/civicrm/v3/rest?entity=FormProcessor&action= update_contact_details&key=XYZ&api_key={civicrm_api_key}&json=1`
+1. Include fields in the form processor that are used for the checksum validation
+  - `cid` for the Contact ID
+  - `cs` for the Checksum
+2. These fields should also be included in Gravity Forms, using merge tags from the form processor as defaults
+3. Inside the Form processor "Retrieval of defaults" settings, use the "Contact: get contact ID of the currently logged in user" and "Contact: generate checksum" actions to provide default values to these fields
+4. You can also use the "Retrieval criteria for default data" to add `cid` and `cs` criteria supporting checksum links generated from CiviCRM schedule reminders.  In this case you should use the "Contact: validate checksum" action to authenticate the link
+5. As part of the Form Processor actions, you must use the "Contact: validate checksum" to authenticate the Contact ID and checksum used to submit the form.
+6. For Form Processors that *must* be processed on behalf of an existing contact, also use the "Contact: Validate checksum" action as part of the Form Processor Validation actions
 
-If the user is not logged into the website submits the form, then the `{civicrm_api_key}` will return `NULL` and the Web Hook POST will fail, as no valid API Key ws provided.
+An example of this setup is available,
+- Import Gravity form: [example/gravityforms-update_card.json]
+- Import Form Processor: [example/civicrm-form-processor-update_card.json]
 
 # Trouble-shooting
 
