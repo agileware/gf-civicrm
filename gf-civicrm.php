@@ -119,7 +119,7 @@ function do_civicrm_replacement( $form, $context ) {
 					$field->inputs[] = [
 						// Avoid multiples of 10, allegedly these are problematic
 						'id'    => $field->id . '.' . ( ++ $i % 10 ? $i : ++ $i ),
-						'label' => $choice['label'],
+						'label' => $label,
 					];
 				}
 			}
