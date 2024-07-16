@@ -62,34 +62,54 @@ The "Retrieval criteria for default data" specified in the form processor will b
 For Gravity Forms fields that support setting choices (e.g. Drop Down, Checkboxes, Radio Buttons), you may use predefined option lists set in CiviCRM. These either can use Option Groups defined in CiviCRM directly or may be defined by your Form Processor (recommended):
 
 1. Edit your Form Processor and add an input of one of the supported types:
-- Yes/No as Option List
-- Option Group
-- Custom Options
-- Mailing Group
-- Tags
+    - Yes/No as Option List
+    - Option Group
+    - Custom Options
+    - Mailing Group
+    - Tags
 2. Save your Form Processor
 3. Edit your Gravity form and add one of these types of field:
-- Checkboxes or Multi Select (under Advanced Fields) for multiple option selection
-- Radio Buttons or Drop Down to allow selection of a single option
+    - Checkboxes or Multi Select (under Advanced Fields) for multiple option selection
+    - Radio Buttons or Drop Down to allow selection of a single option
 3. Under the General settings for your field, open the CiviCRM Source selection.
 4. Locate your Form Processor in the option list headings, and under it, select the field you defined in step 1.
-5. Press the "Edit Choices" button, and select "show values" - this will allow the CiviCRM options to be mapped directly
+5. Press the "Edit Choices" button, and select "show values" - this will allow the CiviCRM options to be mapped directly.
    Note that the Choices will not appear filled from CiviCRM until you save the form and reload - also, if you change any options here your changes will be replaced with options filled from CiviCRM, so if you need to make any changes to the available options, including order, it is important to make them in the *Form Processor* configuration
 6. Save the Form and either Preview or embed it to see the changes
 
 If you set defaults for the Form Processor input used as a "CiviCRM Source", these will be applied when the form is loaded, including any Retrieval criteria specified in the URL parameters.
 
-# Processing form submissions as the logged-in user
+# Processing form submissions as a specific Contact
 
-When you need the Gravity Form to update the details of the CiviCRM contact for the logged-in user, then replace the api_key parameter in the Web Hook with the Gravity Forms, Merge Tag `{civicrm_api_key}`. This will be evaluated to the current logged-in users CiviCRM Contact, API Key. If no API Key exists one will be created at time of submission.
+Any form processor that should record actions as a specific Contact should implement checksum validation as part of the processor
 
-For example, the Web Hook URL would be: `/wp-json/civicrm/v3/rest?entity=FormProcessor&action= update_contact_details&key=XYZ&api_key={civicrm_api_key}&json=1`
+1. Include fields in the form processor that are used for the checksum validation
+    - `cid` for the Contact ID
+    - `cs` for the Checksum
+2. These fields should also be included in Gravity Forms, using merge tags from the form processor as defaults
+3. Inside the Form processor "Retrieval of defaults" settings, use the "Contact: get contact ID of the currently logged in user" and "Contact: generate checksum" actions to provide default values to these fields
+4. You can also use the "Retrieval criteria for default data" to add `cid` and `cs` criteria supporting checksum links generated from CiviCRM schedule reminders.
+    - Works with any link that includes `?{contact.checksum}&cid={contact.id}` on the page with the Gravity Form.
+    - Use the "Contact: validate checksum" action in Retrieval of Details to authenticate the link.
+5. As part of the Form Processor actions, you must use the "Contact: validate checksum" to authenticate the Contact ID and checksum used to submit the form.
+6. For Form Processors that *must* be processed on behalf of an existing contact, also use the "Contact: Validate checksum" action as part of the Form Processor Validation actions
 
-If the user is not logged into the website submits the form, then the `{civicrm_api_key}` will return `NULL` and the Web Hook POST will fail, as no valid API Key ws provided.
+An example of this setup is available,
+- Import Gravity form: [gravityforms-update_card.json](example/gravityforms-update_card.json)
+- Import Form Processor: [civicrm-form-processor-update_card.json](example/civicrm-form-processor-update_card.json)
 
-# Trouble-shooting
+## **Deprecated** - CiviCRM API Key merge tag
 
-To trouble-shoot this integration, enable the Gravity Forms Logging on the page `/wp-admin/admin.php?page=gf_settings&subview=settings` and then check the Web Hooks logs when the Gravity Form is submitted. Logs are available on this page, `/wp-admin/admin.php?page=gf_settings&subview=gravityformslogging`
+This method is preferred to the previously documented `{civicrm_api_key}` merge tag to use the API Key of the user viewing the form, due to impracticalities discovered in the latter workflow.
+
+## **Deprecated** - "Allow authentication with checksum"
+
+Previous versions presented a checkbox on the CiviCRM settings tab to masquerade as a logged in user based on passed in `cid` and `cs` URL parameters. We have found that in some circumstances this workflow can permanently hijack the logged in user's session, **which could result in privilege escalation**.
+The option is no longer allowed for forms that do not already have it set, and in places it was in use, we **strongly recommend** replacing the functionality with the above workflow and unchecking the option. The functionality is scheduled to be removed in a future release in August 2024.
+
+# Troubleshooting
+
+To troubleshoot this integration, enable the Gravity Forms Logging on the page `/wp-admin/admin.php?page=gf_settings&subview=settings` and then check the Web Hooks logs when the Gravity Form is submitted. Logs are available on this page, `/wp-admin/admin.php?page=gf_settings&subview=gravityformslogging`
 This should help you identify the cause of most issues integrating the Gravity Form and CiviCRM.
 
 CiviCRM expects permalink settings to be set to "Post name" by default in order to address the `wp-json` directory. Enable this setting on the page `/wp-admin/options-permalink.php` if it is not set already.

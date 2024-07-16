@@ -216,7 +216,7 @@ class CiviCRM_Payment_Token extends GF_Field {
 
 	public function payment_token_options( $field, $value = '', $support_placeholders = true ) {
 		// Define empty value to return
-		$empty_option = '<option value="">Not Available</option>';
+		$empty_option = '<option value="">' . esc_html__( 'Not Available', 'gf-civicrm' ) . '</option>';
 
 		// If no group has been selected, then return empty
 		if ( ! isset( $this->civicrm_payment_processor ) ) {
@@ -235,9 +235,15 @@ class CiviCRM_Payment_Token extends GF_Field {
 			$payment_tokens = PaymentToken::get( false )
 			                              ->addSelect( 'id', 'masked_account_number', 'expiry_date', 'token' )
 			                              ->addWhere( 'payment_processor_id', '=', $field['civicrm_payment_processor'] )
-			                              ->addWhere( 'contact_id', '=', 'user_contact_id' )
-			                              ->addOrderBy( 'expiry_date', 'DESC' )
-			                              ->execute();
+			                              ->addOrderBy( 'expiry_date', 'DESC' );
+
+            if(empty(\CRM_Core_Session::getLoggedInContactID()) && $contact_id = validateChecksumFromURL()) {
+                $payment_tokens->addWhere( 'contact_id', '=', $contact_id );
+            } else {
+	            $payment_tokens->addWhere( 'contact_id', '=', 'user_contact_id' );
+            }
+
+            $payment_tokens = $payment_tokens->execute();
 
             $field->choices = [];
 
@@ -256,6 +262,10 @@ class CiviCRM_Payment_Token extends GF_Field {
 					'isSelected' => false,
 				];
 			}
+
+            if( empty( $field->choices )) {
+                return $empty_option;
+            }
 		} catch ( CRM_Core_Exception $e ) {
 			Civi::log()->error( 'Error retrieving Payment Tokens: ' . $e->getMessage() );
 

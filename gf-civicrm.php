@@ -1,11 +1,11 @@
 <?php
 /**
  * Plugin Name: Gravity Forms CiviCRM Integration
- * Plugin URI: https://bitbucket.org/agileware/gf-civicrm
+ * Plugin URI: https://github.com/agileware/gf-civicrm
  * Description: Extends Gravity Forms to get option lists and defaults from linked CiviCRM Form Processors
  * Author: Agileware
  * Author URI: https://agileware.com.au
- * Version: 1.8.0
+ * Version: 1.8.1
  * Text Domain: gf-civicrm
  * 
  * Copyright (c) Agileware Pty Ltd (email : support@agileware.com.au)
@@ -119,7 +119,7 @@ function do_civicrm_replacement( $form, $context ) {
 					$field->inputs[] = [
 						// Avoid multiples of 10, allegedly these are problematic
 						'id'    => $field->id . '.' . ( ++ $i % 10 ? $i : ++ $i ),
-						'label' => $choice['label'],
+						'label' => $label,
 					];
 				}
 			}
@@ -693,4 +693,42 @@ function webhooks_request_args( $request_args, $feed, $entry, $form ) {
 	return $request_args;
 }
 
+function validateChecksumFromURL( $cid_param = 'cid', $cs_param = 'cs' ): int|null {
+	$contact_id = rgget( $cid_param );
+	$checksum   = rgget( $cs_param );
+
+	if ( empty( $contact_id ) || empty( $checksum ) ) {
+		return NULL;
+	}
+
+    $validator = Contact::validateChecksum( FALSE )
+                        ->setContactId( $contact_id )
+                        ->setChecksum( $checksum )
+                        ->execute()
+                        ->first();
+
+    if ( ! $validator['valid'] ) {
+        throw new \CRM_Core_Exception('Invalid checksum');
+    } else {
+        return $contact_id;
+    }
+}
+
 add_filter( 'gform_webhooks_request_args', 'GFCiviCRM\webhooks_request_args', 10, 4 );
+
+add_action( 'admin_notices', function() {
+	if ( class_exists( 'GFAPI' ) && class_exists( 'GFCiviCRM\FieldsAddOn' ) ) {
+		echo FieldsAddOn::get_instance()->warn_auth_checksum();
+	}
+} );
+
+add_action( 'gform_admin_error_messages', function( $messages ) {
+	if ( class_exists( 'GFCiviCRM\FieldsAddOn' ) ) {
+		$message = FieldsAddOn::get_instance()->warn_auth_checksum( '%s' );
+		if ( $message ) {
+			$messages[] = $message;
+		}
+	}
+
+	return $messages;
+} );

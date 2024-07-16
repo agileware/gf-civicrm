@@ -1,0 +1,303 @@
+{
+    "name": "update_card",
+    "title": "Update card",
+    "is_active": "1",
+    "output_handler": "OutputAllActionOutput",
+    "output_handler_configuration": [],
+    "enable_default_data": "1",
+    "default_data_output_configuration": {
+        "token_id": "",
+        "token": "",
+        "card_number": "",
+        "expiry": "",
+        "ip_address": "",
+        "cid": "action.validate_checksum.contact_id",
+        "cs": "action.generate_checksum.cs",
+        "contact_id": "",
+        "first_name": "action.get_contact_fields.first_name",
+        "last_name": "action.get_contact_fields.last_name",
+        "prefix": "action.get_contact_fields.prefix_id"
+    },
+    "permission": "",
+    "inputs": [
+        {
+            "weight": "0",
+            "include_formatted_params": "1",
+            "title": "Token ID",
+            "name": "token_id",
+            "type": "String",
+            "is_required": "0",
+            "default_value": "",
+            "configuration": [],
+            "validators": []
+        },
+        {
+            "weight": "1",
+            "include_formatted_params": "1",
+            "title": "token",
+            "name": "token",
+            "type": "String",
+            "is_required": "1",
+            "default_value": "",
+            "configuration": [],
+            "validators": []
+        },
+        {
+            "weight": "2",
+            "include_formatted_params": "1",
+            "title": "IP Address",
+            "name": "ip_address",
+            "type": "String",
+            "is_required": "0",
+            "default_value": "",
+            "configuration": [],
+            "validators": []
+        },
+        {
+            "weight": "3",
+            "include_formatted_params": "0",
+            "title": "Contact ID",
+            "name": "cid",
+            "type": "String",
+            "is_required": "0",
+            "default_value": "",
+            "configuration": [],
+            "validators": []
+        },
+        {
+            "weight": "4",
+            "include_formatted_params": "0",
+            "title": "Checksum",
+            "name": "cs",
+            "type": "String",
+            "is_required": "0",
+            "default_value": "",
+            "configuration": [],
+            "validators": []
+        },
+        {
+            "weight": "5",
+            "include_formatted_params": "1",
+            "title": "Prefix",
+            "name": "prefix",
+            "type": "String",
+            "is_required": "0",
+            "default_value": "",
+            "configuration": [],
+            "validators": []
+        },
+        {
+            "weight": "6",
+            "include_formatted_params": "1",
+            "title": "First Name",
+            "name": "first_name",
+            "type": "String",
+            "is_required": "0",
+            "default_value": "",
+            "configuration": [],
+            "validators": []
+        },
+        {
+            "weight": "7",
+            "include_formatted_params": "1",
+            "title": "Last Name",
+            "name": "last_name",
+            "type": "String",
+            "is_required": "0",
+            "default_value": "",
+            "configuration": [],
+            "validators": []
+        }
+    ],
+    "actions": [
+        {
+            "name": "validate_contact",
+            "title": "Validate contact",
+            "type": "ValidateChecksum",
+            "configuration": [],
+            "mapping": {
+                "cs": "input.cs",
+                "cid": "input.cid"
+            },
+            "condition_configuration": "",
+            "delay_configuration": ""
+        },
+        {
+            "name": "update_card",
+            "title": "Update card",
+            "type": "CreateOrUpdatePaymentToken",
+            "configuration": {
+                "payment_processor_id": "4",
+                "clear_meta": "1"
+            },
+            "mapping": {
+                "id": "input.token_id",
+                "contact_id": "action.validate_contact.contact_id",
+                "token": "input.token",
+                "expiry_date": "action.null.value",
+                "masked_account_number": "action.null.value",
+                "ip_address": "input.ip_address"
+            },
+            "condition_configuration": "",
+            "delay_configuration": ""
+        },
+        {
+            "name": "record_activity",
+            "title": "Record Activity",
+            "type": "CreateActivity",
+            "configuration": {
+                "priority": "Normal",
+                "activity_type": "Update Recurring Contribution Billing Details",
+                "activity_status": "Left Message",
+                "subject": "Added Credit Card or Updated Existing Credit Card"
+            },
+            "mapping": {
+                "source_contact_id": "action.validate_contact.contact_id",
+                "target_contact_id": "action.validate_contact.contact_id"
+            },
+            "condition_configuration": "",
+            "delay_configuration": ""
+        }
+    ],
+    "default_data_inputs": [
+        {
+            "weight": "0",
+            "include_formatted_params": "1",
+            "title": "Contact ID",
+            "name": "cid",
+            "type": "Integer",
+            "is_required": "0",
+            "default_value": "",
+            "configuration": [],
+            "validators": [
+                {
+                    "validator": "min",
+                    "configuration": {
+                        "min_value": "1"
+                    }
+                }
+            ]
+        },
+        {
+            "weight": "1",
+            "include_formatted_params": "0",
+            "title": "Checksum",
+            "name": "cs",
+            "type": "String",
+            "is_required": "0",
+            "default_value": "",
+            "configuration": [],
+            "validators": []
+        }
+    ],
+    "default_data_actions": [
+        {
+            "name": "logged_in_contact",
+            "title": "Logged in Contact",
+            "type": "GetLoggedInContactId",
+            "configuration": [],
+            "mapping": [],
+            "condition_configuration": ""
+        },
+        {
+            "name": "validate_checksum",
+            "title": "Validate Checksum",
+            "type": "ValidateChecksum",
+            "configuration": [],
+            "mapping": {
+                "cs": "input.cs",
+                "cid": "input.cid"
+            },
+            "condition_configuration": {
+                "name": "ParameterIsNotEmpty",
+                "parameter_mapping": {
+                    "parameter": "input.cid"
+                },
+                "output_mapping": {
+                    "contact_id": "action.logged_in_contact.contact_id"
+                },
+                "title": "Parameter is not empty"
+            }
+        },
+        {
+            "name": "generate_checksum",
+            "title": "Generate checksum",
+            "type": "GenerateChecksum",
+            "configuration": [],
+            "mapping": {
+                "contact_id": "action.validate_checksum.contact_id"
+            },
+            "condition_configuration": {
+                "name": "ParameterIsEmpty",
+                "parameter_mapping": {
+                    "parameter": "action.validate_checksum.cs"
+                },
+                "output_mapping": {
+                    "cs": "action.validate_checksum.cs"
+                },
+                "title": "Parameter is empty"
+            }
+        },
+        {
+            "name": "get_contact_fields",
+            "title": "Get Contact Fields",
+            "type": "ContactDataById",
+            "configuration": [],
+            "mapping": {
+                "contact_id": "action.validate_checksum.contact_id"
+            },
+            "condition_configuration": ""
+        }
+    ],
+    "validate_actions": [
+        {
+            "name": "validate_checksum",
+            "title": "Validate Checksum",
+            "type": "ValidateChecksum",
+            "configuration": [],
+            "mapping": {
+                "cs": "input.cs",
+                "cid": "input.cid"
+            },
+            "condition_configuration": ""
+        },
+        {
+            "name": "get_token_by_id",
+            "title": "Get Token by Id",
+            "type": "GetPaymentToken",
+            "configuration": {
+                "payment_processor_id": "2"
+            },
+            "mapping": {
+                "id": "input.token_id",
+                "contact_id": "action.validate_checksum.contact_id",
+                "token": "",
+                "created_date": "",
+                "created_id": "",
+                "expiry_date": "",
+                "email": "",
+                "billing_first_name": "",
+                "billing_middle_name": "",
+                "billing_last_name": "",
+                "masked_account_number": "",
+                "ip_address": ""
+            },
+            "condition_configuration": ""
+        }
+    ],
+    "validate_validators": [
+        {
+            "name": "check_token_loads",
+            "title": "Check Token Loads",
+            "type": "is_not_empty",
+            "configuration": {
+                "message": "Invalid Token"
+            },
+            "mapping": {
+                "parameter": "action.get_token_by_id.token"
+            },
+            "inputs": ""
+        }
+    ],
+    "uploaded_source_file": "1"
+}

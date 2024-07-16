@@ -82,22 +82,38 @@ class FieldsAddOn extends GFAddOn {
 	public function init() {
 		parent::init();
 
+		$gf_version = \GFCommon::get_version_info()['version'];
+
 		if ( $this->is_gravityforms_supported() && class_exists('GF_Field') ) {
 			require_once( 'includes/class-gf-civicrm-address-field.php' );
 			$this->gf_civicrm_address_field = new \GF_CiviCRM_Address_Field();
 		}
 
-		add_filter( 'gform_is_delayed_pre_process_feed', [$this, 'switchIsDelayed'], 10, 4 );
-		
+		if( defined('GFEWAYPRO_PLUGIN_VERSION' ) ) {
+			if ( version_compare( GFEWAYPRO_PLUGIN_VERSION, '1.16.0', '<') ||
+			     version_compare( $gf_version, '2.8', '<' ) ) {
+				// In Gravity forms < 2.8 or Gravity forms eWAY Pro < 1.16, the webhook feed is not delayed properly
+				// Within these version constraints, add heuristics to force a delay
+				add_filter( 'gform_is_delayed_pre_process_feed', [ $this, 'switchIsDelayed' ], 10, 4 );
+			}
+		}
 	}
 
+	/**
+	 * Check if the current form has an active GravityForms eWAY Pro payment feed
+	 */
 	protected function hasPaymentAddon( $form, $entry ) {
 		static $payment_feed_slugs = [];
+
+		if(!class_exists('webaware\gfewaypro\AddOn')) {
+			return false;
+		}
+
 		$feeds = GFAPI::get_feeds( NULL, $form['id'] );
 
 		if ( empty($payment_feed_slugs) ) {
 			foreach(GFAddon::get_registered_addons( TRUE ) as $feed_instance) {
-				if ( $feed_instance instanceof \GFPaymentAddOn ) {
+				if ( $feed_instance instanceof \webaware\gfewaypro\AddOn ) {
 					$payment_feed_slugs[ $feed_instance->get_slug() ] = $feed_instance;
 				}
 			}
@@ -113,6 +129,9 @@ class FieldsAddOn extends GFAddOn {
 		return false;
 	}
 
+	/**
+	 * Force the feed to be delayed, if applicable.
+	 */
 	public function switchIsDelayed($is_delayed, $form, $entry, $addon_slug) {
 		if ( !$is_delayed &&
 		     ( $addon_slug === 'gravityformswebhooks' ) &&
@@ -164,6 +183,27 @@ class FieldsAddOn extends GFAddOn {
 		}
 
 		return $form;
+	}
+
+	public function warn_auth_checksum($wrapper = '<div class="notice notice-warning is-dismissible">%s</div>') {
+		$forms = GFAPI::get_forms();
+
+		$warnings = [];
+
+		foreach ($forms as $form) {
+			$settings = $this->get_form_settings($form);
+			if (!empty($settings['civicrm_auth_checksum'])) {
+				$settings_link = admin_url( 'admin.php?page=gf_edit_forms&view=settings&subview=gf-civicrm&id=' . $form['id'] );
+				$warnings[] = sprintf( __( 'The Gravity Form "%s" has the CiviCRM auth checksum setting enabled. <a href="%s">Click here to edit the form settings.</a>', 'text-domain' ), esc_html( $form['title'] ), esc_url( $settings_link ) );
+			}
+		}
+
+		if(!empty($warnings)) {
+			$notice_heading = __( 'Legacy setting enabled for form(s)' );
+			return sprintf( $wrapper, "<h3>$notice_heading</h3><ul>" . implode( '', $warnings ) . '</ul>' );
+		} else {
+			return NULL;
+		}
 	}
 
   /**
@@ -219,30 +259,40 @@ class FieldsAddOn extends GFAddOn {
   }
 
 	public function form_settings_fields( $form ) {
-		$fields = [
-			[
+		$settings = $this->get_form_settings( $form ) ?: [];
+
+		$fields = [];
+
+		// Legacy field, don't allow for new forms.
+		// @TODO Add documentation for alternative approach.
+		if($settings['civicrm_auth_checksum']) {
+			$fields[] = [
 				// 'label' => esc_html__( 'Allow authentication with checksum', 'gf-civicrm' ),
 				'type'        => 'checkbox',
 				'name'        => 'civicrm_auth_checksum',
-				'description' => esc_html__(
-					'Check this option to allow passing a contact id (cid) and checksum (cs) parameter to the form to emulate a CiviCRM contact',
+				'description' => wp_kses(sprintf(__(
+					'<strong>Deprecated</strong>: This option is not recommended and <strong>poses a hypothetical security risk</strong>. Switch to the replacement workflow using Form Processor capabilities outlined <a target="_blank" href="%s">in the README</a>.',
 					'gf-civicrm'
-				),
+				), 'https://github.com/agileware/gf-civicrm/tree/main?tab=readme-ov-file#processing-form-submissions-as-a-specific-contact'), 'data'),
 				'choices'     => [
 					[
 						'label' => esc_html__( 'Allow authentication with checksum', 'gf-civicrm' ),
 						'name'  => 'civicrm_auth_checksum'
 					]
 				]
-			],
-		];
+			];
+		}
 
-		return [
-			[
-				'title'  => esc_html__( 'CiviCRM Settings', 'gf-civicrm' ),
-				'fields' => &$fields,
-			],
-		];
+		if(!empty($fields)) {
+			return [
+				[
+					'title'  => esc_html__( 'CiviCRM Settings', 'gf-civicrm' ),
+					'fields' => &$fields,
+				],
+			];
+		} else {
+			return [];
+		}
 	}
 
 	public function plugin_settings_fields() {
