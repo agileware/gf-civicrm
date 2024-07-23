@@ -116,7 +116,7 @@ class GF_CiviCRM_Address_Field {
 		// Get Countries and their States/Provinces from CiviCRM
 		$countries = [];
 		if ( $this->address_type == 'us' ) {
-			$countries = \Civi\Api4\Country::get(TRUE)
+			$countries = \Civi\Api4\Country::get(FALSE)
 				->addSelect('id', 'name', 'iso_code', 'state_province.id', 'state_province.name', 'state_province.abbreviation', 'state_province.country_id')
 				->addJoin('StateProvince AS state_province', 'INNER')
 				->addWhere('id', '=', 1228) // US country_id in CiviCRM
@@ -124,7 +124,7 @@ class GF_CiviCRM_Address_Field {
 				->addOrderBy('state_province.name', 'ASC')
 				->execute();
 		} else if (  $this->address_type == 'canadian' ) {
-			$countries = \Civi\Api4\Country::get(TRUE)
+			$countries = \Civi\Api4\Country::get(FALSE)
 				->addSelect('id', 'name', 'iso_code', 'state_province.id', 'state_province.name', 'state_province.abbreviation', 'state_province.country_id')
 				->addJoin('StateProvince AS state_province', 'INNER')
 				->addWhere('id', '=', 1039) // Canada country_id in CiviCRM
@@ -133,7 +133,7 @@ class GF_CiviCRM_Address_Field {
 				->execute();
 		} else {
 			// Default to international
-			$countries = \Civi\Api4\Country::get(TRUE)
+			$countries = \Civi\Api4\Country::get(FALSE)
 				->addSelect('id', 'name', 'iso_code', 'state_province.id', 'state_province.name', 'state_province.abbreviation', 'state_province.country_id')
 				->addJoin('StateProvince AS state_province', 'INNER')
 				->addOrderBy('name', 'ASC')

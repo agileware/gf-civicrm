@@ -669,7 +669,7 @@ function address_replace_countries_list( $choices ) {
 	$replace = array();
 
 	try {
-		$countries = \Civi\Api4\Country::get(TRUE)
+		$countries = \Civi\Api4\Country::get(FALSE)
 			->addSelect('name', 'iso_code')
 			->execute();
 
