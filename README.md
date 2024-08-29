@@ -19,7 +19,7 @@ Use the following steps to set up a _Newsletter Subscription_ form using the exa
     1. [Action Provider](https://lab.civicrm.org/extensions/action-provider)
     2. [Form Processor](https://lab.civicrm.org/extensions/form-processor)
     3. [API Key Management](https://lab.civicrm.org/extensions/apikey)
-3. In CiviCRM, locate the CiviCRM "System User" Contact. This is the user account used to execute CiviCRM cron and scheduled jobs. If you do not have such a user, then best to create one now as this will be used by default for processing the form submissions. This user must have a corresponding WordPress user account.
+3. In CiviCRM, locate the CiviCRM "System User" Contact. This is the user account used to execute CiviCRM cron and scheduled jobs. If you do not have such a user, then best to create one is now as this will be used by default for processing the form submissions; this user must have a corresponding WordPress user account.
 4. Open this CiviCRM Contact and click on the **API Key** tab.
 5. Generate a **User API Key** and copy the **Site API Key**.
 6. In WordPress, open Gravity Forms and import the example Gravity Form, [gravityforms-newsletter_subscribe.json](example/gravityforms-newsletter_subscribe.json)
@@ -81,7 +81,7 @@ If you set defaults for the Form Processor input used as a "CiviCRM Source", the
 
 # Processing form submissions as a specific Contact
 
-Any form processor that should record actions as a specific Contact should implement checksum validation as part of the processor
+Any form processor that should record actions as a specific Contact must implement checksum validation as part of the processor
 
 1. Include fields in the form processor that are used for the checksum validation
     - `cid` for the Contact ID
@@ -102,10 +102,10 @@ An example of this setup is available,
 
 This method is preferred to the previously documented `{civicrm_api_key}` merge tag to use the API Key of the user viewing the form, due to impracticalities discovered in the latter workflow.
 
-## **Deprecated** - "Allow authentication with checksum"
+## **Removed** - "Allow authentication with checksum"
 
-Previous versions presented a checkbox on the CiviCRM settings tab to masquerade as a logged in user based on passed in `cid` and `cs` URL parameters. We have found that in some circumstances this workflow can permanently hijack the logged in user's session, **which could result in privilege escalation**.
-The option is no longer allowed for forms that do not already have it set, and in places it was in use, we **strongly recommend** replacing the functionality with the above workflow and unchecking the option. The functionality is scheduled to be removed in a future release in August 2024.
+Previous versions presented a checkbox on the CiviCRM settings tab to masquerade as a logged in user based on passed in `cid` and `cs` URL parameters. We found that in some circumstances this workflow could permanently hijack the logged in user's session, **which could result in privilege escalation**.
+The option is no longer allowed; the functionality has been removed from the plugin and an alternative method of checksum authentication can be implemented according to [Processing form submissions as a specific Contact](#processing-form-submissions-as-a-specific-contact) above
 
 # Troubleshooting
 

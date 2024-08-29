@@ -73,12 +73,6 @@ class FieldsAddOn extends GFAddOn {
     ], 10, 2);
   }
 
-	public function init_frontend() {
-		parent::init_frontend();
-
-		add_action( 'gform_pre_render', [ $this, 'maybe_authenticate' ], 9, 1 );
-	}
-
 	public function init() {
 		parent::init();
 
@@ -141,50 +135,6 @@ class FieldsAddOn extends GFAddOn {
 		return $is_delayed;
 	}
 
-	public function maybe_authenticate( $form ) {
-		$settings = $this->get_form_settings( $form ) ?: [];
-
-		$auth_checksum = $settings['civicrm_auth_checksum'] ?? false;
-
-		if ( ! $auth_checksum || ! civicrm_initialize() ) {
-			return $form;
-		}
-
-		$contact_id = rgget( 'cid' );
-		$checksum   = rgget( 'cs' );
-
-		if ( empty( $contact_id ) || empty( $checksum ) ) {
-			return $form;
-		}
-
-		try {
-			if ( \CRM_Core_Session::getLoggedInContactID() ) {
-				return $form;
-			}
-
-			$session = \CRM_Core_Session::useFakeSession();
-
-			$validator = Contact::validateChecksum( false )
-			                    ->setContactId( $contact_id )
-			                    ->setChecksum( $checksum )
-			                    ->execute()
-			                    ->first();
-
-			if ( ! $validator['valid'] ) {
-				// Checksum invalid, so don't load the form
-				return false;
-			}
-
-			// Checksum validated! Pretend we're logged in.
-			$session->set( 'userID', $contact_id );
-			$session->set( 'authSrc', \CRM_Core_Permission::AUTH_SRC_CHECKSUM );
-		} catch ( \CRM_Core_Exception $e ) {
-			// ...
-		}
-
-		return $form;
-	}
-
 	public function warn_auth_checksum($wrapper = '<div class="notice notice-warning is-dismissible">%s</div>') {
 		$forms = GFAPI::get_forms();
 
@@ -194,13 +144,16 @@ class FieldsAddOn extends GFAddOn {
 			$settings = $this->get_form_settings($form);
 			if (!empty($settings['civicrm_auth_checksum'])) {
 				$settings_link = admin_url( 'admin.php?page=gf_edit_forms&view=settings&subview=gf-civicrm&id=' . $form['id'] );
-				$warnings[] = sprintf( __( 'The Gravity Form "%s" has the CiviCRM auth checksum setting enabled. <a href="%s">Click here to edit the form settings.</a>', 'text-domain' ), esc_html( $form['title'] ), esc_url( $settings_link ) );
+				$warnings[] = sprintf( __( 'The Gravity Form "%s" has the <strong>nonfunctional</strong> CiviCRM auth checksum setting enabled. <a href="%s">Click here to edit the form settings.</a>', 'text-domain' ), esc_html( $form['title'] ), esc_url( $settings_link ) );
 			}
 		}
 
 		if(!empty($warnings)) {
 			$notice_heading = __( 'Legacy setting enabled for form(s)' );
-			return sprintf( $wrapper, "<h3>$notice_heading</h3><ul>" . implode( '', $warnings ) . '</ul>' );
+			$notice_footer  = sprintf(
+				__( 'For details on setting up an alternative method for checksum authentication, see the README section on <a target="_blank" href="%1$s">Processing form submissions as a specific Contact</a>' ),
+				'https://github.com/agileware/gf-civicrm/blob/main/README.md#processing-form-submissions-as-a-specific-contact' );
+			return sprintf( $wrapper, '<h3>' . $notice_heading . '</h3><ul>' . implode( '', $warnings ) . '</ul><p>' . $notice_footer . '</p>'  );
 		} else {
 			return NULL;
 		}
@@ -258,20 +211,32 @@ class FieldsAddOn extends GFAddOn {
     return array_merge(parent::styles(), $styles);
   }
 
+  /**
+   * Add form settings tab, *only if* legacy settings are already set.
+   */
+  public function add_form_settings_menu( $tabs, $form_id ) {
+	  $settings = $this->get_form_settings( $form_id );
+
+	  if ( ! empty( $settings['civicrm_auth_checksum'] ) ) {
+		  return parent::add_form_settings_menu( $tabs, $form_id );
+	  } else {
+		  return $tabs;
+	  }
+  }
+
 	public function form_settings_fields( $form ) {
 		$settings = $this->get_form_settings( $form ) ?: [];
 
 		$fields = [];
 
 		// Legacy field, don't allow for new forms.
-		// @TODO Add documentation for alternative approach.
-		if($settings['civicrm_auth_checksum']) {
+		if ( ! empty( $settings['civicrm_auth_checksum'] ) ) {
 			$fields[] = [
 				// 'label' => esc_html__( 'Allow authentication with checksum', 'gf-civicrm' ),
 				'type'        => 'checkbox',
 				'name'        => 'civicrm_auth_checksum',
 				'description' => wp_kses(sprintf(__(
-					'<strong>Deprecated</strong>: This option is not recommended and <strong>poses a hypothetical security risk</strong>. Switch to the replacement workflow using Form Processor capabilities outlined <a target="_blank" href="%s">in the README</a>.',
+					'<strong>Nonfunctional</strong>: This option is no longer functional due to a <strong>security risk</strong>. Switch to the replacement workflow using Form Processor capabilities outlined <a target="_blank" href="%s">in the README</a>.',
 					'gf-civicrm'
 				), 'https://github.com/agileware/gf-civicrm/tree/main?tab=readme-ov-file#processing-form-submissions-as-a-specific-contact'), 'data'),
 				'choices'     => [
