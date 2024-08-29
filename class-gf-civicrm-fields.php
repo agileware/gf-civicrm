@@ -86,7 +86,7 @@ class FieldsAddOn extends GFAddOn {
 
 		if ( $this->is_gravityforms_supported() && class_exists('GF_Field') ) {
 			require_once( 'includes/class-gf-civicrm-address-field.php' );
-			$this->gf_civicrm_address_field = new \GF_CiviCRM_Address_Field();
+			$this->gf_civicrm_address_field = new Address_Field();
 		}
 
 		if( defined('GFEWAYPRO_PLUGIN_VERSION' ) ) {

@@ -10,6 +10,8 @@
  * Original License URI: https://www.gnu.org/licenses/gpl-2.0.html
  */
 
+namespace GFCiviCRM;
+
 use GFAPI;
 use GF_Field;
 
@@ -17,7 +19,8 @@ if ( ! class_exists( 'GFForms' ) ) {
 	die();
 }
 
-class GF_CiviCRM_Address_Field {
+class Address_Field {
+
 	private $field_settings = [];
 	private $address_type = null;
 
