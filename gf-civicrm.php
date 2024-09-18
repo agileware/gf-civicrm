@@ -5,7 +5,7 @@
  * Description: Extends Gravity Forms to get option lists and defaults from linked CiviCRM Form Processors
  * Author: Agileware
  * Author URI: https://agileware.com.au
- * Version: 1.9.2
+ * Version: 1.10.0
  * Text Domain: gf-civicrm
  * 
  * Copyright (c) Agileware Pty Ltd (email : support@agileware.com.au)
@@ -33,6 +33,15 @@ use function rgar;
 const BEFORE_CHOICES_SETTING = 1350;
 
 define( 'GF_CIVICRM_PLUGIN_PATH', plugin_dir_path( __FILE__ ) );
+define( 'GF_CIVICRM_PLUGIN_SLUG', plugin_basename( __FILE__ ) );
+define( 'GF_CIVICRM_PLUGIN_GITHUB_REPO', 'agileware/gf-civicrm' ); // GitHub username and repo
+
+// Include the updater class
+require_once GF_CIVICRM_PLUGIN_PATH . 'includes/class-gf-civicrm-upgrader.php';
+
+// Initialize the updater
+$updater = new Upgrader( __FILE__ );
+$updater->init();
 
 /**
  * Replace choices in Gravity Forms with CiviCRM data
