@@ -57,6 +57,8 @@ function do_civicrm_replacement( $form, $context ) {
 
 			$default_option = NULL;
 
+            $field->inputs = NULL;
+
 			if ( $option_group ) {
 				$options = OptionValue::get( FALSE )
 				                      ->addSelect( 'value', 'label', 'is_default' )
@@ -66,7 +68,6 @@ function do_civicrm_replacement( $form, $context ) {
 				                      ->execute();
 
                 $field->choices = [];
-                $field->inputs = [];
 
                 foreach ( $options as [ 'value' => $value, 'label' => $label, 'is_default' => $is_default ] ) {
 						$field->choices[] = [
@@ -95,9 +96,7 @@ function do_civicrm_replacement( $form, $context ) {
 					}
 
 					$field->choices = [];
-					if ( $field->type == 'checkbox' ) {
-						$field->inputs = [];
-					}
+
 					foreach ( $civi_fp_fields[ $processor ][ $field_name ]['options'] ?? [] as $value => $label ) {
 						$field->choices[] = [
 							'text'       => $label,
