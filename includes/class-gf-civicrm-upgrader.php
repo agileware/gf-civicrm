@@ -56,7 +56,7 @@ class Upgrader extends \Plugin_Upgrader {
 
         $this->plugin_file              = $plugin_file;
         $this->plugin_uri               = $plugin_data['PluginURI'];
-        $this->plugin_update_uri        = $plugin_data['PluginURI'] . '/releases/latest';
+        $this->plugin_update_uri        = 'https://api.github.com/repos/' . GF_CIVICRM_PLUGIN_GITHUB_REPO . '/releases/latest';
         $this->plugin                   = plugin_basename( $plugin_file );
         $this->name                     = $plugin_data['PluginName'];
 		$this->slug                     = basename( dirname( $plugin_file ) );
@@ -80,9 +80,6 @@ class Upgrader extends \Plugin_Upgrader {
      * @return object Modified update transient with potential update data.
      */
     public function check_for_update($transient) {
-        // Log the transient data to observe what happens
-        error_log(print_r($transient, true));
-
         if ( ! is_object( $transient ) ) {
 			$transient = new \stdClass();
 		}
@@ -97,22 +94,21 @@ class Upgrader extends \Plugin_Upgrader {
         // Get the latest version information from GitHub
         $update_info = $this->get_update_info();
 
-        /*if (!$update_info) {
+        if (!$update_info) {
             return $transient;
         }
 
-        $latest_version = $update_info->tag_name;*/
+        $latest_version = $update_info->tag_name;
 
-        $latest_version = '1.9.1';
         // Compare versions and add the update info if a newer version is available
         if (version_compare($current_version, $latest_version, '<')) {
             $plugin = array(
                 'slug'        => $this->slug,
-                'plugin'      => $this->plugin, // plugin_basename
+                'plugin'      => $this->plugin,
                 'name'        => $this->name,
                 'new_version' => $latest_version,
-                'url'         => 'https://github.com/agileware/gf-civicrm', // TODO hardcoding because of rate limits $update_info->html_url,
-                'package'     => 'https://github.com/agileware/gf-civicrm/archive/refs/tags/1.9.1.zip' // TODO hardcoding because of rate limits $update_info->zipball_url,
+                'url'         => $update_info->html_url,
+                'package'     => $update_info->zipball_url
             );
 
             $transient->response[$this->plugin] = (object) $plugin;
@@ -122,7 +118,6 @@ class Upgrader extends \Plugin_Upgrader {
     }
 
     /**
-	 * TODO : CHANGEME
      * Updates information on the "View version x.x details" page with custom data.
 	 *
 	 * @uses api_request()
@@ -133,7 +128,6 @@ class Upgrader extends \Plugin_Upgrader {
 	 * @return object $_data
 	 */
 	public function plugins_api_filter( $result, $action = '', $args = null ) {
-        $update_plugins = get_site_transient('update_plugins');
 		if ( 'plugin_information' !== $action ) {
 			return $result;
 		}
@@ -151,25 +145,14 @@ class Upgrader extends \Plugin_Upgrader {
 
         $plugin_info = new \stdClass();
         $plugin_info->name = $this->name;
-        $plugin_info->slug = $this->slug;
+        $plugin_info->slug = $this->plugin;
         $plugin_info->version = ltrim($update_info->tag_name, 'v');
         $plugin_info->author = '<a href="' . $this->author_uri . '">' . $this->author . '</a>';
         $plugin_info->homepage = $this->plugin_uri;
         $plugin_info->download_link = $update_info->zipball_url;
-        $plugin_info->requires = '6.5'; // Set required WP version
-        $plugin_info->tested = '6.5'; // Set the latest tested WP version
         $plugin_info->sections = [
-            'description' => '<p>' . $update_info->body . '</p>',
-            'changelog' => '<p>' . nl2br($update_info->body) . '</p>',
+            'Release Notes' => '<p>' . $update_info->body . '</p>',
         ];
-
-
-        /*
-		$api_response = $this->get_repo_api_data();
-
-		if ( !empty( $api_response ) ){
-			$_data = $api_response;
-		}*/
 
 		return $plugin_info;
 	}
@@ -180,16 +163,38 @@ class Upgrader extends \Plugin_Upgrader {
      * @return object|false Latest release information or false on failure.
      */
     private function get_update_info() {
-        $url = "https://api.github.com/repos/agileware/gf-civicrm/releases/latest";
+        // Allow cache to be skipped
+		$version_info = $this->allowCached() ? $this->get_cached_version_info() : false;
 
+		if ( false === $version_info ) {
+			$version_info = $this->get_update_info_from_remote();
+
+			if ( ! $version_info ) {
+				return false;
+			}
+
+			// This is required for your plugin to support auto-updates in WordPress 5.5.
+			$version_info->plugin = $this->name;
+			$version_info->id     = $this->name;
+			$version_info->version = $version_info->new_version;
+			$version_info->author = sprintf('<a href="%s">%s</a>', esc_url($this->author_uri), esc_html($this->author));
+
+			$this->set_version_info_cache( $version_info );
+		}
+
+		return $version_info;
+    }
+
+    private function get_update_info_from_remote() {
         // Set up the request headers, including a User-Agent as GitHub requires this.
         $args = [
             'headers' => [
-                'User-Agent' => 'WordPress Plugin Request', // GitHub API requires a User-Agent header.
-                'Accept' => 'application/vnd.github.v3+json',
+                'Authorization' => 'token ' . GITHUB_ACCESS_TOKEN_TESTING_ONLY, // Use GitHub Access Token
+                'User-Agent' => $this->name . ' Plugin Request', // GitHub API requires a User-Agent header.
+                'Accept' => 'application/vnd.github+json',
             ],
         ];
-        $response = wp_remote_get($url, $args);
+        $response = wp_remote_get($this->plugin_update_uri, $args);
 
         if (is_wp_error($response)) {
             return false;
@@ -212,7 +217,7 @@ class Upgrader extends \Plugin_Upgrader {
      */
     public function run_updater($package_url) {
         // Set up the upgrader skin
-        $skin = new Automatic_Upgrader_Skin();
+        $skin = new \Automatic_Upgrader_Skin();
 
         // Use the inherited install method from WP_Upgrader
         $this->init();
@@ -225,4 +230,62 @@ class Upgrader extends \Plugin_Upgrader {
             error_log('Plugin updated successfully.');
         }
     }
+
+    /**
+	 * Get the version info from the cache, if it exists.
+	 *
+	 * @param string $cache_key
+	 * @return boolean|string
+	 */
+	public function get_cached_version_info( $cache_key = '' ) {
+
+		if ( empty( $cache_key ) ) {
+			$cache_key = $this->get_cache_key();
+		}
+
+		$cache = get_option( $cache_key );
+
+		// Cache is expired
+		if ( empty( $cache['timeout'] ) || time() > $cache['timeout'] ) {
+			return false;
+		}
+
+		return $cache['value'];
+
+	}
+
+    /**
+	 * Adds the plugin version information to the database.
+	 *
+	 * @param string $value
+	 * @param string $cache_key
+	 */
+	public function set_version_info_cache( $value = '', $cache_key = '' ) {
+
+		if ( empty( $cache_key ) ) {
+			$cache_key = $this->get_cache_key();
+		}
+
+		$data = array(
+			'timeout' => strtotime( '30 seconds', time() ), // TODO Give this an appropriate value after testing
+			'value'   => $value,
+		);
+
+		update_option( $cache_key, $data, 'no' );
+	}
+
+    /**
+	 * Gets the unique key (option name) for a plugin.
+	 *
+	 * @return string
+	 */
+	private function get_cache_key() {
+		$string = $this->slug;
+
+		return 'gfcv_vi_' . md5( $string );
+	}
+
+	private function allowCached() : bool {
+		return empty($_GET['force-check']);
+	}
 }
