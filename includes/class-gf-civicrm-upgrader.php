@@ -71,6 +71,7 @@ class Upgrader extends \Plugin_Upgrader {
     public function init() {
         add_filter( 'pre_set_site_transient_update_plugins', array($this, 'check_for_update') );
         add_filter( 'plugins_api', array( $this, 'plugins_api_filter' ), 10, 3 );
+        add_filter( 'upgrader_source_selection', array($this, 'fix_plugin_directory_name'), 10, 4 );
     }
 
     /**
@@ -288,4 +289,49 @@ class Upgrader extends \Plugin_Upgrader {
 	private function allowCached() : bool {
 		return empty($_GET['force-check']);
 	}
+
+    /**
+     * Fix the directory name of the plugin during the update process.
+     * 
+     * Releases pulled from GitHub ZIP downloads use directory names that include the GitHub username,
+     * repository name, branch, and version. This results in incorrect folder structure when WordPress 
+     * runs updates, because WordPress expects the ZIP file to contain exactly one directory with the 
+     * same name as the directory where the plugin is currently installed.
+     * 
+     * We need to change the name of the folder from GitHub to the actual plugin folder name. 
+     *
+     * @param string $source        The source path of the update.
+     * @param string $remote_source The remote source path of the update.
+     * @param WP_Upgrader $upgrader The WP_Upgrader instance performing the update.
+     * @param array $hook_extra     Additional arguments passed to the filter.
+     * @return string Modified source path.
+     */
+    function fix_plugin_directory_name($source, $remote_source, $upgrader, $hook_extra) {
+        global $wp_filesystem;
+
+        //Basic sanity checks.
+        if ( !isset($source, $remote_source, $upgrader, $wp_filesystem) ) {
+            return $source;
+        }
+
+        // Check if we're updating this plugin
+        if (isset($hook_extra['plugin']) && $hook_extra['plugin'] === $this->plugin) {
+            // Define the expected directory structure
+            $correctedSource = trailingslashit($remote_source) . $this->slug . '/';
+            
+            // Check if the extracted directory matches the expected name
+            if ($source !== $correctedSource) {
+                if ( $wp_filesystem->move($source, $correctedSource, true) ) {
+					error_log('Successfully renamed the directory.');
+					return $correctedSource;
+				} else {
+					error_log('Unable to rename the update to match the existing directory.');
+                    return new \WP_Error('rename_failed', __('Failed to rename plugin directory. Unable to rename the update to match the existing directory'));
+				}
+            }
+        }
+
+        // Return the original source if no changes are needed
+        return $source;
+    }
 }
