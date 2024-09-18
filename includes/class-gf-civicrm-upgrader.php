@@ -1,30 +1,14 @@
 <?php
 namespace GFCiviCRM;
 
+// Exit if accessed directly
+if ( ! defined( 'ABSPATH' ) ) exit;
+
 if (!class_exists('WP_Upgrader')) {
     require_once ABSPATH . 'wp-admin/includes/class-wp-upgrader.php';
 }
 
-// Add this code to manually trigger the check and inspect the transient
-add_action('admin_init', function() {
-    // Delete the transient to ensure a new update check
-    delete_site_transient('update_plugins');
-
-    // Trigger the update check
-    wp_update_plugins();
-
-    // Retrieve and log the update_plugins transient
-    $update_plugins = get_site_transient('update_plugins');
-    
-    if ($update_plugins) {
-        error_log('Update Plugins Transient Content: ' . print_r($update_plugins, true));
-    } else {
-        error_log('Update Plugins Transient not set.');
-    }
-});
-
 /**
- * Class My_Plugin_Updater
  * Handles the update process for the plugin using WP_Upgrader.
  */
 class Upgrader extends \Plugin_Upgrader {
@@ -159,7 +143,7 @@ class Upgrader extends \Plugin_Upgrader {
 	}
 
     /**
-     * Get the latest release information from the GitHub repository.
+     * Get the latest release information from cached data or from remote repository.
      *
      * @return object|false Latest release information or false on failure.
      */
@@ -174,7 +158,7 @@ class Upgrader extends \Plugin_Upgrader {
 				return false;
 			}
 
-			// This is required for your plugin to support auto-updates in WordPress 5.5.
+			// This is required to support auto-updates since WordPress 5.5.
 			$version_info->plugin = $this->name;
 			$version_info->id     = $this->name;
 			$version_info->version = $version_info->new_version;
@@ -186,11 +170,15 @@ class Upgrader extends \Plugin_Upgrader {
 		return $version_info;
     }
 
+    /**
+     * Get the latest release information from the GitHub repository.
+     *
+     * @return object|false Latest release information or false on failure.
+     */
     private function get_update_info_from_remote() {
         // Set up the request headers, including a User-Agent as GitHub requires this.
         $args = [
             'headers' => [
-                'Authorization' => 'token ' . GITHUB_ACCESS_TOKEN_TESTING_ONLY, // Use GitHub Access Token
                 'User-Agent' => $this->name . ' Plugin Request', // GitHub API requires a User-Agent header.
                 'Accept' => 'application/vnd.github+json',
             ],
@@ -209,27 +197,6 @@ class Upgrader extends \Plugin_Upgrader {
         }
 
         return $data;
-    }
-
-    /**
-     * Perform the plugin update.
-     *
-     * @param string $package_url URL of the update package.
-     */
-    public function run_updater($package_url) {
-        // Set up the upgrader skin
-        $skin = new \Automatic_Upgrader_Skin();
-
-        // Use the inherited install method from WP_Upgrader
-        $this->init();
-        $this->install($package_url);
-        
-        // Check if the plugin was upgraded correctly
-        if (is_wp_error($this->result)) {
-            error_log($this->result->get_error_message());
-        } else {
-            error_log('Plugin updated successfully.');
-        }
     }
 
     /**
@@ -293,12 +260,12 @@ class Upgrader extends \Plugin_Upgrader {
     /**
      * Fix the directory name of the plugin during the update process.
      * 
-     * Releases pulled from GitHub ZIP downloads use directory names that include the GitHub username,
+     * Releases pulled from GitHub ZIP downloads use directory names that can include the GitHub username,
      * repository name, branch, and version. This results in incorrect folder structure when WordPress 
      * runs updates, because WordPress expects the ZIP file to contain exactly one directory with the 
      * same name as the directory where the plugin is currently installed.
      * 
-     * We need to change the name of the folder from GitHub to the actual plugin folder name. 
+     * We need to change the name of the folder downloaded from GitHub to the actual plugin folder name. 
      *
      * @param string $source        The source path of the update.
      * @param string $remote_source The remote source path of the update.
