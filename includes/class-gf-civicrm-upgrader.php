@@ -260,7 +260,8 @@ class Upgrader extends \Plugin_Upgrader {
 			$cache_key = $this->get_cache_key();
 		}
 
-        set_transient( $cache_key, $value, 30 ); // 30 seconds
+        // Set the transient to expire in 12 hours (12 * 60 * 60 seconds)
+        set_transient( $cache_key, $value, 12 * 60 * 60 );
 	}
 
     /**
