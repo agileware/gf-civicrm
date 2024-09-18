@@ -13,7 +13,6 @@ if (!class_exists('WP_Upgrader')) {
  */
 class Upgrader extends \Plugin_Upgrader {
 
-    private $plugin_file          = '';
     private $plugin_uri           = '';
     private $plugin_update_uri    = '';
     private $plugin               = ''; // folder/filename.php
@@ -38,7 +37,6 @@ class Upgrader extends \Plugin_Upgrader {
             'AuthorURI'     => 'Author URI'
         ));
 
-        $this->plugin_file              = $plugin_file;
         $this->plugin_uri               = $plugin_data['PluginURI'];
         $this->plugin_update_uri        = 'https://api.github.com/repos/' . GF_CIVICRM_PLUGIN_GITHUB_REPO . '/releases/latest';
         $this->plugin                   = plugin_basename( $plugin_file );
@@ -105,12 +103,10 @@ class Upgrader extends \Plugin_Upgrader {
     /**
      * Updates information on the "View version x.x details" page with custom data.
 	 *
-	 * @uses api_request()
 	 *
-	 * @param mixed   $_data
-	 * @param string  $_action
-	 * @param object  $_args
-	 * @return object $_data
+	 * @param mixed   $result
+	 * @param string  $action
+	 * @param object  $args
 	 */
 	public function plugins_api_filter( $result, $action = '', $args = null ) {
 		if ( 'plugin_information' !== $action ) {
@@ -129,18 +125,51 @@ class Upgrader extends \Plugin_Upgrader {
         }
 
         $plugin_info = new \stdClass();
-        $plugin_info->name = $this->name;
+        $plugin_info->name = $this->name . ' version ' . $update_info->tag_name;
         $plugin_info->slug = $this->plugin;
         $plugin_info->version = ltrim($update_info->tag_name, 'v');
         $plugin_info->author = '<a href="' . $this->author_uri . '">' . $this->author . '</a>';
         $plugin_info->homepage = $this->plugin_uri;
         $plugin_info->download_link = $update_info->zipball_url;
         $plugin_info->sections = [
-            'Release Notes' => '<p>' . $update_info->body . '</p>',
+            'Release Notes' => $update_info->html_body,
         ];
 
 		return $plugin_info;
 	}
+
+    /**
+     * Convert the Markdown body to HTML using GitHub's Markdown API
+     * 
+     * @param string    $markdown_body
+	 * @return string
+     */
+    private function convert_markdown_to_html($markdown_body) {
+        // GitHub API URL for converting Markdown to HTML
+        $markdown_url = 'https://api.github.com/markdown';
+
+        // Convert the markdown to HTML
+        $response = wp_remote_post($markdown_url, array(
+            'headers' => array(
+                'Accept'        => 'application/vnd.github.v3+json',
+                'User-Agent'    => 'WordPress Plugin Updater',
+            ),
+            'body' => json_encode(array(
+                'text'   => $markdown_body,
+                'mode'   => 'gfm',
+                'context' => GF_CIVICRM_PLUGIN_GITHUB_REPO
+            )),
+        ));
+
+        if (is_wp_error($response)) {
+            error_log('Error converting Markdown to HTML via GitHub API : ' . $response->get_error_message());
+            return false;
+        }
+
+        $html_body = wp_remote_retrieve_body($response);
+
+        return $html_body;
+    }
 
     /**
      * Get the latest release information from cached data or from remote repository.
@@ -163,6 +192,9 @@ class Upgrader extends \Plugin_Upgrader {
 			$version_info->id     = $this->name;
 			$version_info->version = $version_info->new_version;
 			$version_info->author = sprintf('<a href="%s">%s</a>', esc_url($this->author_uri), esc_html($this->author));
+
+            // Cache the body after converting from Markdown to HTML
+            $version_info->html_body = $this->convert_markdown_to_html($version_info->body);
 
 			$this->set_version_info_cache( $version_info );
 		}
