@@ -283,17 +283,20 @@ class Upgrader extends \Plugin_Upgrader {
 
         // Check if we're updating this plugin
         if (isset($hook_extra['plugin']) && $hook_extra['plugin'] === $this->plugin) {
+            // Get the current directory name
+            $currentDirectory = basename(GF_CIVICRM_PLUGIN_PATH);
+
             // Define the expected directory structure
-            $correctedSource = trailingslashit($remote_source) . $this->slug . '/';
+            $correctedSource = trailingslashit($remote_source) . $currentDirectory . '/';
             
             // Check if the extracted directory matches the expected name
             if ($source !== $correctedSource) {
                 if ( $wp_filesystem->move($source, $correctedSource, true) ) {
-					error_log('Successfully renamed the directory.');
+					// error_log( 'Successfully renamed the directory.' );
 					return $correctedSource;
 				} else {
-					error_log('Unable to rename the update to match the existing directory.');
-                    return new \WP_Error('rename_failed', __('Failed to rename plugin directory. Unable to rename the update to match the existing directory'));
+					// error_log( 'Unable to rename the update to match the existing directory.' );
+                    return new \WP_Error( 'rename_failed', __('Failed to rename plugin directory to match the existing directory.') );
 				}
             }
         }
