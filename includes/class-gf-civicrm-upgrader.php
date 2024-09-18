@@ -27,15 +27,15 @@ class Upgrader extends \Plugin_Upgrader {
      *
      * @param string $plugin_file The main plugin file.
      */
-    public function __construct($plugin_file) {
+    public function __construct( $plugin_file ) {
         // Get plugin information
-        $plugin_data = get_file_data($plugin_file, array(
+        $plugin_data = get_file_data( $plugin_file, [
             'PluginName'    => 'Plugin Name',
             'PluginURI'     => 'Plugin URI',
             'Version'       => 'Version',
             'Author'        => 'Author',
             'AuthorURI'     => 'Author URI'
-        ));
+        ] );
 
         $this->plugin_uri               = $plugin_data['PluginURI'];
         $this->plugin_update_uri        = 'https://api.github.com/repos/' . GF_CIVICRM_PLUGIN_GITHUB_REPO . '/releases/latest';
@@ -51,9 +51,9 @@ class Upgrader extends \Plugin_Upgrader {
      * Initialize the updater by hooking into WordPress.
      */
     public function init() {
-        add_filter( 'pre_set_site_transient_update_plugins', array($this, 'check_for_update') );
-        add_filter( 'plugins_api', array( $this, 'plugins_api_filter' ), 10, 3 );
-        add_filter( 'upgrader_source_selection', array($this, 'fix_plugin_directory_name'), 10, 4 );
+        add_filter( 'pre_set_site_transient_update_plugins', [$this, 'check_for_update'] );
+        add_filter( 'plugins_api', [$this, 'plugins_api_filter'], 10, 3 );
+        add_filter( 'upgrader_source_selection', [$this, 'fix_plugin_directory_name'], 10, 4 );
     }
 
     /**
@@ -62,7 +62,7 @@ class Upgrader extends \Plugin_Upgrader {
      * @param object $transient The current update transient.
      * @return object Modified update transient with potential update data.
      */
-    public function check_for_update($transient) {
+    public function check_for_update( $transient ) {
         if ( ! is_object( $transient ) ) {
 			$transient = new \stdClass();
 		}
@@ -77,22 +77,22 @@ class Upgrader extends \Plugin_Upgrader {
         // Get the latest version information from GitHub
         $update_info = $this->get_update_info();
 
-        if (!$update_info) {
+        if ( !$update_info ) {
             return $transient;
         }
 
         $latest_version = $update_info->tag_name;
 
         // Compare versions and add the update info if a newer version is available
-        if (version_compare($current_version, $latest_version, '<')) {
-            $plugin = array(
+        if ( version_compare( $current_version, $latest_version, '<' ) ) {
+            $plugin = [
                 'slug'        => $this->slug,
                 'plugin'      => $this->plugin,
                 'name'        => $this->name,
                 'new_version' => $latest_version,
                 'url'         => $update_info->html_url,
                 'package'     => $update_info->zipball_url
-            );
+            ];
 
             $transient->response[$this->plugin] = (object) $plugin;
         }
@@ -144,29 +144,29 @@ class Upgrader extends \Plugin_Upgrader {
      * @param string    $markdown_body
 	 * @return string
      */
-    private function convert_markdown_to_html($markdown_body) {
+    private function convert_markdown_to_html( $markdown_body ) {
         // GitHub API URL for converting Markdown to HTML
         $markdown_url = 'https://api.github.com/markdown';
 
         // Convert the markdown to HTML
-        $response = wp_remote_post($markdown_url, array(
-            'headers' => array(
+        $response = wp_remote_post( $markdown_url, [
+            'headers' => [
                 'Accept'        => 'application/vnd.github.v3+json',
                 'User-Agent'    => 'WordPress Plugin Updater',
-            ),
-            'body' => json_encode(array(
+            ],
+            'body' => json_encode([
                 'text'   => $markdown_body,
                 'mode'   => 'gfm',
                 'context' => GF_CIVICRM_PLUGIN_GITHUB_REPO
-            )),
-        ));
+            ]),
+        ] );
 
-        if (is_wp_error($response)) {
-            error_log('Error converting Markdown to HTML via GitHub API : ' . $response->get_error_message());
+        if ( is_wp_error( $response ) ) {
+            error_log( 'Error converting Markdown to HTML via GitHub API : ' . $response->get_error_message() );
             return false;
         }
 
-        $html_body = wp_remote_retrieve_body($response);
+        $html_body = wp_remote_retrieve_body( $response );
 
         return $html_body;
     }
@@ -191,10 +191,10 @@ class Upgrader extends \Plugin_Upgrader {
 			$version_info->plugin = $this->name;
 			$version_info->id     = $this->name;
 			$version_info->version = $version_info->new_version;
-			$version_info->author = sprintf('<a href="%s">%s</a>', esc_url($this->author_uri), esc_html($this->author));
+			$version_info->author = sprintf( '<a href="%s">%s</a>', esc_url($this->author_uri), esc_html($this->author) );
 
             // Cache the body after converting from Markdown to HTML
-            $version_info->html_body = $this->convert_markdown_to_html($version_info->body);
+            $version_info->html_body = $this->convert_markdown_to_html( $version_info->body );
 
 			$this->set_version_info_cache( $version_info );
 		}
@@ -215,16 +215,16 @@ class Upgrader extends \Plugin_Upgrader {
                 'Accept' => 'application/vnd.github+json',
             ],
         ];
-        $response = wp_remote_get($this->plugin_update_uri, $args);
+        $response = wp_remote_get( $this->plugin_update_uri, $args );
 
-        if (is_wp_error($response)) {
+        if ( is_wp_error( $response ) ) {
             return false;
         }
 
-        $body = wp_remote_retrieve_body($response);
-        $data = json_decode($body);
+        $body = wp_remote_retrieve_body( $response );
+        $data = json_decode( $body );
 
-        if (empty($data) || isset($data->message)) {
+        if ( empty( $data ) || isset( $data->message ) ) {
             return false;
         }
 
@@ -294,25 +294,25 @@ class Upgrader extends \Plugin_Upgrader {
      * @param array $hook_extra     Additional arguments passed to the filter.
      * @return string Modified source path.
      */
-    function fix_plugin_directory_name($source, $remote_source, $upgrader, $hook_extra) {
+    function fix_plugin_directory_name( $source, $remote_source, $upgrader, $hook_extra ) {
         global $wp_filesystem;
 
         //Basic sanity checks.
-        if ( !isset($source, $remote_source, $upgrader, $wp_filesystem) ) {
+        if ( !isset( $source, $remote_source, $upgrader, $wp_filesystem ) ) {
             return $source;
         }
 
         // Check if we're updating this plugin
-        if (isset($hook_extra['plugin']) && $hook_extra['plugin'] === $this->plugin) {
+        if ( isset( $hook_extra['plugin'] ) && $hook_extra['plugin'] === $this->plugin ) {
             // Get the current directory name
-            $currentDirectory = basename(GF_CIVICRM_PLUGIN_PATH);
+            $currentDirectory = basename( GF_CIVICRM_PLUGIN_PATH );
 
             // Define the expected directory structure
-            $correctedSource = trailingslashit($remote_source) . $currentDirectory . '/';
+            $correctedSource = trailingslashit( $remote_source ) . $currentDirectory . '/';
             
             // Check if the extracted directory matches the expected name
-            if ($source !== $correctedSource) {
-                if ( $wp_filesystem->move($source, $correctedSource, true) ) {
+            if ( $source !== $correctedSource ) {
+                if ( $wp_filesystem->move( $source, $correctedSource, true ) ) {
 					// error_log( 'Successfully renamed the directory.' );
 					return $correctedSource;
 				} else {
