@@ -5,7 +5,7 @@
  * Description: Extends Gravity Forms to get option lists and defaults from linked CiviCRM Form Processors
  * Author: Agileware
  * Author URI: https://agileware.com.au
- * Version: 1.9.1
+ * Version: 1.9.2
  * Text Domain: gf-civicrm
  * 
  * Copyright (c) Agileware Pty Ltd (email : support@agileware.com.au)
@@ -57,6 +57,8 @@ function do_civicrm_replacement( $form, $context ) {
 
 			$default_option = NULL;
 
+            $field->inputs = NULL;
+
 			if ( $option_group ) {
 				$options = OptionValue::get( FALSE )
 				                      ->addSelect( 'value', 'label', 'is_default' )
@@ -66,7 +68,6 @@ function do_civicrm_replacement( $form, $context ) {
 				                      ->execute();
 
                 $field->choices = [];
-                $field->inputs = [];
 
                 foreach ( $options as [ 'value' => $value, 'label' => $label, 'is_default' => $is_default ] ) {
 						$field->choices[] = [
@@ -95,9 +96,7 @@ function do_civicrm_replacement( $form, $context ) {
 					}
 
 					$field->choices = [];
-					if ( $field->type == 'checkbox' ) {
-						$field->inputs = [];
-					}
+
 					foreach ( $civi_fp_fields[ $processor ][ $field_name ]['options'] ?? [] as $value => $label ) {
 						$field->choices[] = [
 							'text'       => $label,
