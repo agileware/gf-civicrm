@@ -243,15 +243,9 @@ class Upgrader extends \Plugin_Upgrader {
 			$cache_key = $this->get_cache_key();
 		}
 
-		$cache = get_option( $cache_key );
+        $cache = get_transient( $cache_key );
 
-		// Cache is expired
-		if ( empty( $cache['timeout'] ) || time() > $cache['timeout'] ) {
-			return false;
-		}
-
-		return $cache['value'];
-
+		return $cache;
 	}
 
     /**
@@ -266,12 +260,7 @@ class Upgrader extends \Plugin_Upgrader {
 			$cache_key = $this->get_cache_key();
 		}
 
-		$data = array(
-			'timeout' => strtotime( '30 seconds', time() ), // TODO Give this an appropriate value after testing
-			'value'   => $value,
-		);
-
-		update_option( $cache_key, $data, 'no' );
+        set_transient( $cache_key, $value, 30 ); // 30 seconds
 	}
 
     /**
