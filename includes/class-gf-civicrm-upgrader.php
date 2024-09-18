@@ -30,11 +30,14 @@ add_action('admin_init', function() {
 class Upgrader extends \Plugin_Upgrader {
 
     private $plugin_file          = '';
+    private $plugin_uri           = '';
     private $plugin_update_uri    = '';
     private $plugin               = ''; // folder/filename.php
 	private $name                 = '';
 	private $slug                 = '';
 	private $version              = '';
+    private $author               = '';
+	private $author_uri           = '';
 
     /**
      * Constructor.
@@ -46,15 +49,20 @@ class Upgrader extends \Plugin_Upgrader {
         $plugin_data = get_file_data($plugin_file, array(
             'PluginName'    => 'Plugin Name',
             'PluginURI'     => 'Plugin URI',
-            'Version'       => 'Version'
+            'Version'       => 'Version',
+            'Author'        => 'Author',
+            'AuthorURI'     => 'Author URI'
         ));
 
         $this->plugin_file              = $plugin_file;
+        $this->plugin_uri               = $plugin_data['PluginURI'];
         $this->plugin_update_uri        = $plugin_data['PluginURI'] . '/releases/latest';
         $this->plugin                   = plugin_basename( $plugin_file );
         $this->name                     = $plugin_data['PluginName'];
 		$this->slug                     = basename( dirname( $plugin_file ) );
 		$this->version                  = $plugin_data['Version'];
+        $this->author                   = $plugin_data['Author'];
+        $this->author_uri               = $plugin_data['AuthorURI'];
     }
 
     /**
@@ -142,14 +150,14 @@ class Upgrader extends \Plugin_Upgrader {
         }
 
         $plugin_info = new \stdClass();
-        $plugin_info->name = 'My Plugin';
-        $plugin_info->slug = 'your-plugin-slug';
+        $plugin_info->name = $this->name;
+        $plugin_info->slug = $this->slug;
         $plugin_info->version = ltrim($update_info->tag_name, 'v');
-        $plugin_info->author = '<a href="https://yourwebsite.com">Your Name</a>';
-        $plugin_info->homepage = 'https://github.com/yourusername/your-plugin-repo';
+        $plugin_info->author = '<a href="' . $this->author_uri . '">' . $this->author . '</a>';
+        $plugin_info->homepage = $this->plugin_uri;
         $plugin_info->download_link = $update_info->zipball_url;
-        $plugin_info->requires = '5.0'; // Set required WP version
-        $plugin_info->tested = '6.3'; // Set the latest tested WP version
+        $plugin_info->requires = '6.5'; // Set required WP version
+        $plugin_info->tested = '6.5'; // Set the latest tested WP version
         $plugin_info->sections = [
             'description' => '<p>' . $update_info->body . '</p>',
             'changelog' => '<p>' . nl2br($update_info->body) . '</p>',
