@@ -2,10 +2,11 @@
 /**
  * Plugin Name: Gravity Forms CiviCRM Integration
  * Plugin URI: https://github.com/agileware/gf-civicrm
- * Description: Extends Gravity Forms to get option lists and defaults from linked CiviCRM Form Processors
+ * Description: Extends Gravity Forms to get option lists and defaults from linked CiviCRM Form Processors in a local CiviCRM installation
+ * Requires plugins: civicrm, gravityforms
  * Author: Agileware
  * Author URI: https://agileware.com.au
- * Version: 1.10.0
+ * Version: 1.10.1
  * Text Domain: gf-civicrm
  * 
  * Copyright (c) Agileware Pty Ltd (email : support@agileware.com.au)

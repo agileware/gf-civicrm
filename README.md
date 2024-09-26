@@ -8,7 +8,8 @@ Provides the following features:
 
 # Requirements
 
-Integration with the CiviCRM Form Processor uses Web Hooks, which requires the [Gravity Forms, Webhooks Add-on](https://www.gravityforms.com/add-ons/webhooks/). This add-on is currently bundled with the [Gravity Forms, Elite License](https://www.gravityforms.com/elite-license-plan/)
+* [CiviCRM](https://civicrm.org/download) **must** be installed locally on the same WordPress site as this plugin. Remote CiviCRM is not supported at this time, [see issue #1](https://github.com/agileware/gf-civicrm/issues/1) 
+* Integration with the CiviCRM Form Processor uses Web Hooks, which requires the [Gravity Forms Webhooks Add-on](https://www.gravityforms.com/add-ons/webhooks/). This add-on is currently bundled with the [Gravity Forms Elite License](https://www.gravityforms.com/elite-license-plan/)
 
 # Setting up a Newsletter Subscription form using Gravity Forms and CiviCRM
 
