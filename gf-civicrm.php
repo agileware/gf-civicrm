@@ -113,6 +113,8 @@ function do_civicrm_replacement( $form, $context ) {
 							'value'      => $value,
 							'isSelected' => ( ( is_array( $default_option ) && in_array( $value, $default_option ) ) || ( $value == $default_option ) ),
 						];
+						// Force the 'Show Values' option to be set, required for the label/value pairs to be saved
+						$field['enableChoiceValue'] = true;
 					}
 
 				} catch ( CiviCRM_API3_Exception $e ) {
