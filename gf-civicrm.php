@@ -494,6 +494,45 @@ function editor_script() {
             $(document).bind('gform_load_field_settings', function() {
                 updateChoiceLabelDisplay();
             });
+
+
+			function handleEditChoicesVisibility(selector) {
+				// Get the selected option value
+				var selectedValue = $(selector).val();
+				
+				// Show/Hide the Edit Choices field depending on the CiviCRM Source field value
+				if (selectedValue === '') {
+					$('.choices-ui__trigger-section').show();
+				} else {
+					$('.choices-ui__trigger-section').hide();
+				}
+			}
+
+			// Target the select element
+			$('#civicrm_optiongroup_selector').on('change', function() {
+				handleEditChoicesVisibility('#civicrm_optiongroup_selector')
+			});
+
+			// MutationObserver to detect visibility changes
+			var observer = new MutationObserver(function(mutationsList) {
+				mutationsList.forEach(function(mutation) {
+					// Check if the CiviCRM Sources field is now visible and handle the change
+					if ($('#civicrm_optiongroup_selector').is(':visible')) {
+						handleEditChoicesVisibility('#civicrm_optiongroup_selector')
+					}
+				});
+			});
+
+			// Start observing the select element for visibility changes
+			var targetNode = document.getElementById('general_tab');
+			// Configuration of the observer
+			var config = {
+				attributes: true,      // Monitor changes to attributes
+				childList: true,       // Monitor changes to child nodes
+				subtree: true,         // Monitor changes in the entire subtree
+				characterData: true    // Monitor changes to text nodes
+			};
+			observer.observe(targetNode, config);
         });
 	</script>
 	<?php
