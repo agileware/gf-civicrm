@@ -30,10 +30,10 @@ Use the following steps to set up a _Newsletter Subscription_ form using the exa
 10. Configure the **Webhook**
 11. Configure the Webhook as shown below. ![Gravity Form, Webhook](images/gravityforms-webhook.png)
 12. In the **Request URL** parameters for the Webhook, replace the following values:
-    1. Insert the website address, **replacing** example.org.au (_seriously, why did you enter that?_)
-    3. **key**, enter the **Site API Key**
-    4. **api_key**, enter the **User API Key**
-    5. Example URL: `https://example.org.au/wp-json/civicrm/v3/rest?entity=FormProcessor&action=newsletter_subscribe&key=SITEKEY&api_key=APIKEY&json=1`
+    1. `{rest_api_url}` - This Gravity Forms, Webhook, Merge Tag will return the WordPress REST endpoint, for example: https://bananas.org.au/wp-json/
+    3. `key`, enter the **CiviCRM Site API Key**
+    4. `api_key`, enter the **CiviCRM API Key**
+    5.  Example URL: `{rest_api_url}civicrm/v3/rest?entity=FormProcessor&action=newsletter_subscribe&key=SITEKEY&api_key=APIKEY&json=1`
 13. Save the Webhook
 14. In CiviCRM, go to the Administer > Automation > Form Processors page, `/wp-admin/admin.php?page=CiviCRM&q=civicrm%2Fadmin%2Fautomation%2Fformprocessor%2F#/formprocessors`
 15. Import example Form Processor, [civicrm-form-processor-newsletter_subscribe.json](example/civicrm-form-processor-newsletter_subscribe.json)
@@ -50,13 +50,13 @@ Use the following steps to set up a _Newsletter Subscription_ form using the exa
 
 # Using Merge Tags for default field values
 
-When setting up your field in Gravity Forms, you can use a merge tag of the form `{civicrm_fp.$processor.$field}` in the **Default Value** section of your Field's Advanced settings.
+When setting up your field in Gravity Forms, you can use a Merge Tag of the form `{civicrm_fp.$processor.$field}` in the **Default Value** section of your Field's Advanced settings.
 
 In the _Newsletter Subscription_ above for example, you could fill in the Email field with the current user's email address recorded in CiviCRM, you would use `{civicrm_fp.newsletter_subscribe.email}`, and set up the Retrieval of Defaults accordingly for the newsletter_subscribe Form Processor in CiviCRM.
 
 The "Retrieval criteria for default data" specified in the form processor will be mapped to URL parameters when your Gravity Form is displayed to your users, such that if you create a criterion named `cid` to retrieve contact details by ID, you'd be able to specify contact ID _1234_ with a request like:
 
-`https://example.org.au/newsletter_subscribe?cid=1234`
+`https://bananas.org.au/newsletter_subscribe?cid=1234`
 
 # Using options defined in CiviCRM for choices in your form fields
 
@@ -82,12 +82,12 @@ If you set defaults for the Form Processor input used as a "CiviCRM Source", the
 
 # Processing form submissions as a specific Contact
 
-Any form processor that should record actions as a specific Contact must implement checksum validation as part of the processor
+Any Form Processor that should record actions as a specific Contact must implement checksum validation as part of the processor
 
-1. Include fields in the form processor that are used for the checksum validation
+1. Include fields in the Form Processor that are used for the checksum validation
     - `cid` for the Contact ID
     - `cs` for the Checksum
-2. These fields should also be included in Gravity Forms, using merge tags from the form processor as defaults
+2. These fields should also be included in Gravity Forms, using Merge Tags from the form processor as defaults
 3. Inside the Form processor "Retrieval of defaults" settings, use the "Contact: get contact ID of the currently logged in user" and "Contact: generate checksum" actions to provide default values to these fields
 4. You can also use the "Retrieval criteria for default data" to add `cid` and `cs` criteria supporting checksum links generated from CiviCRM schedule reminders.
     - Works with any link that includes `?{contact.checksum}&cid={contact.id}` on the page with the Gravity Form.
@@ -99,14 +99,11 @@ An example of this setup is available,
 - Import Gravity form: [gravityforms-update_card.json](example/gravityforms-update_card.json)
 - Import Form Processor: [civicrm-form-processor-update_card.json](example/civicrm-form-processor-update_card.json)
 
-## **Deprecated** - CiviCRM API Key merge tag
+## {civicrm_api_key} - CiviCRM API Key merge tag (Deprecated)
 
-This method is preferred to the previously documented `{civicrm_api_key}` merge tag to use the API Key of the user viewing the form, due to impracticalities discovered in the latter workflow.
+This method is **deprecated**, instead provide a CiviCRM API Key for CiviCRM Contact with sufficient permissions to execute the Form Processor or use the method described in the above section, _Processing form submissions as a specific Contact_.
 
-## **Removed** - "Allow authentication with checksum"
-
-Previous versions presented a checkbox on the CiviCRM settings tab to masquerade as a logged in user based on passed in `cid` and `cs` URL parameters. We found that in some circumstances this workflow could permanently hijack the logged in user's session, **which could result in privilege escalation**.
-The option is no longer allowed; the functionality has been removed from the plugin and an alternative method of checksum authentication can be implemented according to [Processing form submissions as a specific Contact](#processing-form-submissions-as-a-specific-contact) above
+The `{civicrm_api_key}` Merge Tag will return the CiviCRM API Key for the user that submitted the form.
 
 # Troubleshooting
 
