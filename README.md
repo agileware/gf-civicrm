@@ -101,7 +101,7 @@ An example of this setup is available,
 
 ## {civicrm_api_key} - CiviCRM API Key merge tag (Deprecated)
 
-This method is **deprecated**, instead provide a CiviCRM API Key for CiviCRM Contact with sufficient permissions to execute the Form Processor or use the method described in the above section, _Processing form submissions as a specific Contact_.
+This method is **deprecated**, instead provide a CiviCRM API Key for a CiviCRM Contact with sufficient permissions to execute the Form Processor or use the method described in the above section, _Processing form submissions as a specific Contact_.
 
 The `{civicrm_api_key}` Merge Tag will return the CiviCRM API Key for the user that submitted the form.
 
