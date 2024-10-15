@@ -2,10 +2,6 @@
 
 This is a [WordPress](https://wordpress.org) plugin that integrates the [Gravity Forms plugin](https://www.gravityforms.com/) with [CiviCRM](https://civicrm.org) using the [Form Processor extension](https://civicrm.org/extensions/form-processor).
 
-Provides the following features:
-* Extends Gravity Forms to get option lists and defaults from linked CiviCRM Form Processors
-* Will detect if the submitting user is logged in and if so, use their CiviCRM API Key for the form submission
-
 # Requirements
 
 * [CiviCRM](https://civicrm.org/download) **must** be installed locally on the same WordPress site as this plugin. Remote CiviCRM is not supported at this time, [see issue #1](https://github.com/agileware/gf-civicrm/issues/1) 
