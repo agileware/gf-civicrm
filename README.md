@@ -2,6 +2,15 @@
 
 This is a [WordPress](https://wordpress.org) plugin that integrates the [Gravity Forms plugin](https://www.gravityforms.com/) with [CiviCRM](https://civicrm.org) using the [Form Processor extension](https://civicrm.org/extensions/form-processor).
 
+Develop forms that integrate with CiviCRM to add common features to your website like:
+
+* Newsletter subscription form
+* Donation form
+* Contact details update form
+* Credit card update details form
+* Recurring donation update form
+* Update Activity Details form
+
 # Requirements
 
 * [CiviCRM](https://civicrm.org/download) **must** be installed locally on the same WordPress site as this plugin. Remote CiviCRM is not supported at this time, [see issue #1](https://github.com/agileware/gf-civicrm/issues/1) 
