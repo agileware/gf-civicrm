@@ -667,19 +667,19 @@ add_filter( 'gform_replace_merge_tags', 'GFCiviCRM\replace_merge_tags', 10, 7 );
 
 define( 'GF_CIVICRM_FIELDS_ADDON_VERSION', get_file_data( __FILE__, [ 'Version' => 'Version' ] )['Version'] );
 
+add_action( 'gform_loaded', 'GFCiviCRM\addon_bootstrap', 5 );
 
-
-add_action( 'gform_loaded', 'GFCiviCRM\fields_addon_bootstrap', 5 );
-
-function fields_addon_bootstrap() {
+function addon_bootstrap() {
 
 	if ( ! method_exists( 'GFForms', 'include_addon_framework' ) ) {
 		return;
 	}
 
 	require_once( 'class-gf-civicrm-fields.php' );
+    require_once( 'includes/class-gf-civicrm-export-addon.php' );
 
 	GFAddOn::register( 'GFCiviCRM\FieldsAddOn' );
+    GFAddOn::register( 'GFCiviCRM\ExportAddOn' );
 }
 
 /**
