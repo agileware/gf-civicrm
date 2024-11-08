@@ -5,6 +5,8 @@ namespace GFCiviCRM;
 use Civi\Api4\FormProcessorInstance;
 use Civi\FormProcessor\API\FormProcessor;
 use Civi\FormProcessor\Exporter\ExportToJson;
+use Exception;
+use Throwable;
 use GFAddOn;
 use GFAPI;
 use GFCommon;
@@ -216,7 +218,7 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
                 }
 
                 return $result->first()['id'];
-            } catch (\Exception $e) {
+            } catch ( Exception $e) {
                 // Log error if needed and return null if there is an issue
                 error_log("Error fetching FormProcessor `$name`: {$e->getMessage()}");
             }
@@ -244,7 +246,7 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
                 $export = json_encode($exporter->export($id), JSON_PRETTY_PRINT|JSON_UNESCAPED_SLASHES);
 
                 file_put_contents($file_path, $export);
-            } catch (\Exception $e) {
+            } catch ( Exception $e) {
                 error_log("Error fetching FormProcessor `$name`: {$e->getMessage()}");
             }
         }
@@ -347,40 +349,169 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
             $import_forms = filter_input(INPUT_POST, 'import_form', FILTER_CALLBACK, ['options' => [ $this, 'filter_form_names' ]]);
             $import_forms = array_filter($import_forms);
 
+	        $import_directory = trailingslashit($import_directory);
+
             foreach($import_forms as $directory_name) {
-                $form_file = trailingslashit($import_directory) . $directory_name . "/gravityforms-export-${directory_name}.json";
+                $form_file =  $import_directory . $directory_name . "/gravityforms-export-$directory_name.json";
 
-                if( is_readable( $form_file ) ) {
-                    $form_json = file_get_contents($form_file);
-                    $form_json = GFExport::sanitize_forms_json($form_json);
+                try {
+	                $form_ids = $this->import_forms( $form_file );
+                } catch(Throwable $e) {
+                    GFCommon::add_error_message( $e->getMessage() );
+                    continue;
+                }
 
-                    $forms = json_decode($form_json, TRUE);
+                $feeds_file = $import_directory . $directory_name . "/gravityforms-export-feeds-$directory_name.json";
 
-                    $version = $forms['version'] ?? null;
+                if ( file_exists( $feeds_file ) ) {
+                    try {
+	                    $this->import_feeds( $feeds_file, $form_ids );
+                    } catch(Throwable $e) {
+		                GFCommon::add_error_message( $e->getMessage() );
+	                }
+                }
 
-                    unset($forms['version']);
+                $processor_file = $import_directory . $directory_name . "/form-processor-$directory_name.json";
 
-                    foreach ( $forms as $form ) {
-                        $form['markupVersion'] = rgar($form, 'markupVersion') ? $form['markupVersion'] : 2;
-
-                        $form = GFFormsModel::convert_field_objects( $form );
-                        $form = GFFormsModel::sanitize_settings( $form );
-
-                        $id = null;
-
-                        if(!empty($form['id'])) {
-                            $id = $form['id'];
-                            GFAPI::update_form($form);
-                        } else {
-                            $id = GFAPI::add_form($form);
-                        }
+                if ( file_exists( $processor_file ) ) {
+                    try {
+                        $this->import_processor( $processor_file );
+                    } catch(Throwable $e) {
+                        GFCommon::add_error_message( $e->getMessage() );
                     }
                 }
             }
         }
 
         public function filter_form_names( $input ) {
+            // Exclude any filenames with path metacharacters or control characters
             return preg_match('{ [/:@<>] | \p{Z} }x', $input) ? NULL : $input;
+        }
+
+	    /**
+	     * @param string $form_file
+	     *
+	     * @return void
+	     * @throws Exception
+	     */
+	    public function import_forms( string $form_file ): array {
+		    if ( ! is_readable( $form_file ) ) {
+			    throw new Exception( sprintf( __( 'Can not read from form import file %1$s', 'gf-civicrm' ), $form_file ) );
+		    }
+
+            $ids = [];
+
+		    // Import the Form meta. Lifted from GFExport class, but update a form if possible
+
+		    $form_json = file_get_contents( $form_file );
+		    $form_json = GFExport::sanitize_forms_json( $form_json );
+
+		    $forms = json_decode( $form_json, true );
+
+		    $version = $forms['version'] ?? null;
+
+		    unset( $forms['version'] );
+
+		    if ( empty( $forms ) ) {
+			    throw new Exception( sprintf( __( 'No forms found in input file %1$s', 'gf-civicrm' ), $form_file ) );
+            }
+
+		    foreach ( $forms as $form ) {
+			    $form['markupVersion'] = rgar( $form, 'markupVersion' ) ? $form['markupVersion'] : 2;
+
+			    $form = GFFormsModel::convert_field_objects( $form );
+			    $form = GFFormsModel::sanitize_settings( $form );
+
+			    $id = null;
+
+			    if ( ! empty( $form['id'] ) ) {
+				    $id = $form['id'];
+				    GFAPI::update_form( $form );
+			    } else {
+				    $id = GFAPI::add_form( $form );
+			    }
+
+                $ids[] = $id;
+		    }
+
+            return $ids;
+	    }
+
+	    /**
+	     * @param string $feeds_file
+	     * @param string $form_file
+	     *
+	     * @return void
+	     * @throws Exception
+	     */
+	    public function import_feeds( string $feeds_file, array $form_ids ): array {
+		    if ( ! is_readable( $feeds_file ) ) {
+			    throw new Exception( sprintf( __( 'Can not read from feeds import file %1$s', 'gf-civicrm' ), $feeds_file ) );
+		    }
+
+		    $feeds_json = file_get_contents( $feeds_file );
+		    $feeds_json = GFExport::sanitize_forms_json( $feeds_json );
+
+		    $feeds = json_decode( $feeds_json, true );
+
+		    $feeds_version = $feeds['version'] ?? null;
+		    unset( $feeds['version'] );
+
+		    global $wpdb;
+		    $imported_feeds = [];
+
+		    $table = $wpdb->prefix . 'gf_addon_feed';
+
+		    foreach ( $feeds as $idx => $feed ) {
+                if ( empty($feed['form_id'])
+                     || empty($feed['addon_slug'])
+                     || empty($feed['meta'])
+                     || array_search($feed['form_id'], $form_ids) === false ) {
+                    GFCommon::add_error_message( sprintf ( __( 'Incorrect data loading feed %1$d from %2$s' ), $idx, $feeds_file ) );
+                    continue;
+                }
+
+                $query = $wpdb->prepare( 'SELECT 1 FROM ' . $table . ' WHERE id = %d AND form_id = %d', $feed['id'], $feed['form_id'] );
+
+                if( is_null ( $wpdb->get_var( $query ) ) ) {
+                    // If the feed does not belong to a form in the same directory, import it as a new feed.
+                    $feed['id'] = null;
+                }
+
+                $imported_feeds[] = $wpdb->replace(
+                    $table,
+                    [
+	                    'id'         => $feed['id'],
+	                    'form_id'    => $feed['form_id'],
+	                    'is_active'  => $feed['is_active'] ?? 0,
+	                    'meta'       => json_encode( $feed['meta'] ),
+	                    'addon_slug' => $feed['addon_slug'],
+	                    'feed_order' => $feed['feed_order'] ?? null,
+                    ],
+                    [
+                        '%d', // id
+                        '%d', // form_id,
+                        '%d', // is_active,
+                        '%s', // meta,
+                        '%s', // addon_slug,
+                        '%d', // feed_order,
+                    ]
+                );
+		    }
+
+            return $imported_feeds;
+	    }
+
+        function import_processor( string $processor_file ) {
+            if ( ! is_readable( $processor_file ) ) {
+                throw new Exception( sprintf( __('Can not read from form processor import file %1$s', 'gf-civicrm' ), $processor_file ) );
+            }
+
+            if( ! civicrm_initialize() ) {
+                throw new Exception( __( 'Could not initialize CiviCRM' ) );
+            }
+
+            return civicrm_api3('FormProcessorInstance', 'import', [ 'file' => $processor_file, 'import_locally' => '1' ]);
         }
     }
 }
