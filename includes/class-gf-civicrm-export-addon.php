@@ -138,10 +138,20 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
                     "$docroot/$directory_base/$directory_name",
                     $docroot, $directory_base, $directory_name, $action_value, $form_id
                 );
+                $parent_directory = dirname($export_directory);
+                $htaccess = "$parent_directory/.htaccess";
 
                 // Create the directory if it doesn’t exist
                 if ( ! file_exists( $export_directory ) ) {
                     mkdir( $export_directory, 0755, true );
+                }
+
+                // Create the htaccess if it doesn't exist. Restricts access to the exports.
+                $check = file_exists( $htaccess );
+                if ( ! file_exists( $htaccess ) ) {
+                    $htaccess_contents = "Order allow,deny
+Deny from all";
+                    file_put_contents( $htaccess, $htaccess_contents );
                 }
 
                 $forms_export = GFExport::prepare_forms_for_export( [ $form ]);
