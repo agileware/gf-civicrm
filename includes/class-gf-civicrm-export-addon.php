@@ -70,6 +70,14 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
 
             add_action('gform_export_page_import_server', [ $this, 'import_form_server_html' ]);
 
+            if ( isset( $_GET[ 'gf_export_status' ] ) ) {
+                $status = sanitize_text_field( $_GET[ 'gf_export_status' ] );
+
+                add_action( 'admin_notices', function() use ( $status ) {
+                    $this->display_export_status( $status );
+                } );
+            }
+
             add_filter('gform_export_menu', [ self::class, 'settings_tabs' ], 10, 1);
         }
         public static function settings_tabs( $settings_tabs ) {
@@ -163,9 +171,9 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
                 $form_file_path = "$export_directory/gravityforms-export-$directory_name.json";
                 $form_json = json_encode( $forms_export, JSON_PRETTY_PRINT|JSON_UNESCAPED_SLASHES);
                 file_put_contents( $form_file_path, $form_json );
+                $exports["Form"] = "gravityforms-export-$directory_name.json";
 
                 // Save each webhook feed data to separate JSON files using prefix and index
-
                 $feeds_export = [ 'version' => GFForms::$version ];
 
                 // Additional meta from compatibility with import plugin
@@ -174,13 +182,18 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
                 foreach ( $feeds as $feed ) {
                     $feeds_export[] = $feed + $feeds_default;
                     $feeds_file_path = "$export_directory/gravityforms-export-feeds-$directory_name.json";
+                    $feeds_json = json_encode( $feeds_export, JSON_PRETTY_PRINT|JSON_UNESCAPED_SLASHES );
+                    file_put_contents( $feeds_file_path, $feeds_json );
+
+                    $exports["Feed"] = "gravityforms-export-feeds-$directory_name.json";
                 }
 
-                $feeds_json = json_encode( $feeds_export, JSON_PRETTY_PRINT|JSON_UNESCAPED_SLASHES );
-                file_put_contents( $feeds_file_path, $feeds_json );
-
-                $this->export_processors($processors, $export_directory);
+                $exported_processors = $this->export_processors($processors, $export_directory);
+                $exports = array_merge($exports,$exported_processors);
             }
+            
+            // Store the names of all exports for 60 seconds for status reporting
+            set_transient( 'gfcv_exports', $exports, 60 );
 
             // Redirect back to the Export page with a success message
             wp_redirect(
@@ -193,7 +206,30 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
                     admin_url( 'admin.php' )
                 )
             );
+            
             exit;
+        }
+
+        public function display_export_status( $status ) {
+            if ( $status === 'success' ) {
+                $exports = get_transient('gfcv_exports');
+
+                $exports_html = '<table>';
+                foreach ( $exports as $entity => $filename ) {
+                    $exports_html .= "<tr><td style='padding-right:15px;'><strong>{$entity}</strong></td><td>{$filename}</td></tr>";
+                }
+                $exports_html .= '</table>';
+
+                $message = sprintf(
+                    '<p><strong>%1$s</strong></p><p>%2$s</p>%3$s',
+                    esc_html__( 'Your forms - and any related Webhook Feeds and CiviCRM Form Processors - have been exported. ', 'gravityforms' ),
+                    esc_html__( 'The following files were exported.', 'gravityforms' ),
+                    $exports_html,
+                );
+
+                printf( '<div class="notice notice-success gf-notice" id="gform_disable_logging_notice">%s</div>', $message );
+            }
+            
         }
 
         private function get_action_from_url( $url ) {
@@ -242,10 +278,10 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
         /**
          * @param array $processors
          * @param mixed $export_directory
-         * @return void
+         * @return array
          * @throws \CRM_Core_Exception
          */
-        protected function export_processors(array $processors, mixed $export_directory): void
+        protected function export_processors(array $processors, mixed $export_directory)
         {
             if(!class_exists('\Civi\FormProcessor\Exporter\ExportToJson')) {
                 return;
@@ -253,15 +289,19 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
 
             $exporter = new ExportToJson();
 
+            $exports = [];
             foreach ( $processors as $name => $id ) try {
                 $file_path = "$export_directory/form-processor-$name.json";
 
                 $export = json_encode($exporter->export($id), JSON_PRETTY_PRINT|JSON_UNESCAPED_SLASHES);
 
                 file_put_contents($file_path, $export);
+                $exports["Form Processor"] = "form-processor-$name.json";
             } catch ( Exception $e) {
                 error_log("Error fetching FormProcessor `$name`: {$e->getMessage()}");
             }
+
+            return $exports;
         }
 
         public function import_form_server_html() {
