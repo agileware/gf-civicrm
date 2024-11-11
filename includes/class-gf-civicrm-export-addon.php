@@ -149,9 +149,12 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
                 // Create the htaccess if it doesn't exist. Restricts access to the exports.
                 $check = file_exists( $htaccess );
                 if ( ! file_exists( $htaccess ) ) {
-                    $htaccess_contents = "Order allow,deny
-Deny from all";
+                    $htaccess_contents = <<<HTACCESS
+                    Order allow,deny
+                    Deny from all
+                    HTACCESS;
                     file_put_contents( $htaccess, $htaccess_contents );
+                    chmod($htaccess, 0644);
                 }
 
                 $forms_export = GFExport::prepare_forms_for_export( [ $form ]);
