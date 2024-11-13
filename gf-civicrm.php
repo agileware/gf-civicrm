@@ -645,6 +645,18 @@ function replace_merge_tags( $text, $form, $entry, $url_encode, $esc_html, $nl2b
 		$text = str_replace( '{civicrm_api_key}', $apiKey, $text );
 	}
 
+	$gf_civicrm_site_key_merge_tag = '{gf_civicrm_site_key}';
+	if ( strpos( $text, $gf_civicrm_site_key_merge_tag ) !== false ) {
+		$gf_civicrm_site_key = FieldsAddOn::get_instance()->get_plugin_setting( 'gf_civicrm_site_key' );
+		$text = str_replace( $gf_civicrm_site_key_merge_tag, $gf_civicrm_site_key, $text );
+	}
+
+	$gf_civicrm_api_key_merge_tag = '{gf_civicrm_api_key}';
+	if ( strpos( $text, $gf_civicrm_api_key_merge_tag ) !== false ) {
+		$gf_civicrm_api_key = FieldsAddOn::get_instance()->get_plugin_setting( 'gf_civicrm_api_key' );
+		$text = str_replace( $gf_civicrm_api_key_merge_tag, $gf_civicrm_api_key, $text );
+	}
+
 	// TODO - This may pass in multiple options
 	/*
 	return preg_replace_callback(
@@ -654,11 +666,12 @@ function replace_merge_tags( $text, $form, $entry, $url_encode, $esc_html, $nl2b
 
 	);
 	*/
-	return preg_replace_callback(
+	$text = preg_replace_callback(
 		'{ {civicrm_fp(?:_default)? \. ([[:alnum:]_]+) \. ([[:alnum:]_]+) } }x',
 		'GFCiviCRM\fp_tag_default',
 		$text
 	);
+	return $text;
 }
 
 add_filter( 'gform_custom_merge_tags', 'GFCiviCRM\compose_merge_tags', 10, 1 );
