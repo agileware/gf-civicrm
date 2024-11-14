@@ -54,6 +54,9 @@ class Upgrader extends \Plugin_Upgrader {
         add_filter( 'pre_set_site_transient_update_plugins', [$this, 'check_for_update'] );
         add_filter( 'plugins_api', [$this, 'plugins_api_filter'], 10, 3 );
         add_filter( 'upgrader_source_selection', [$this, 'fix_plugin_directory_name'], 10, 4 );
+
+        // 1.10.3 Upgrade
+        add_action( 'upgrader_process_complete', [$this, 'replace_civicrm_keys_in_webhook_urls'], 10, 2 );
     }
 
     /**
@@ -325,5 +328,37 @@ class Upgrader extends \Plugin_Upgrader {
 
         // Return the original source if no changes are needed
         return $source;
+    }
+
+    /**
+     * 1.10.3 Upgrade
+     * Replaces CiviCRM site keys and API keys in Gravity Forms webhook request URLs, for all webhooks feeds.
+     */
+    function replace_civicrm_keys_in_webhook_urls( $upgrader, $hook_extra ) {
+        // Check if we're updating this plugin
+        if ( $hook_extra['action'] != 'update' || $hook_extra['type'] != 'plugin' ) {
+            return;
+        }
+
+        if ( !in_array( $this->plugin, $hook_extra['plugins'], true ) ) {
+            return;
+        }
+
+        // Define the minimum target version for this upgrade action.
+        $target_version = '1.10.3';
+
+        // Get the current version (after the update).
+        $current_version = $this->version;
+
+        // Retrieve the stored version, or initialize it if not set.
+        $previous_version = get_option('gfcv_version', false);
+
+        // If no version is stored, or the previous version is less than the target version, run the upgrade script.
+        if ( $previous_version === false || version_compare($previous_version, $target_version, '<') ) {
+            // Add post-upgrade actions here.
+
+            // Update the stored version to the current version.
+            update_option( 'gfcv_version', $current_version );
+        }
     }
 }
