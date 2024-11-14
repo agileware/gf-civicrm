@@ -1,6 +1,9 @@
 <?php
 namespace GFCiviCRM;
 
+use GFAPI;
+use GFFormsModel;
+
 // Exit if accessed directly
 if ( ! defined( 'ABSPATH' ) ) exit;
 
@@ -55,8 +58,15 @@ class Upgrader extends \Plugin_Upgrader {
         add_filter( 'plugins_api', [$this, 'plugins_api_filter'], 10, 3 );
         add_filter( 'upgrader_source_selection', [$this, 'fix_plugin_directory_name'], 10, 4 );
 
-        // 1.10.3 Upgrade
-        add_action( 'upgrader_process_complete', [$this, 'replace_civicrm_keys_in_webhook_urls'], 10, 2 );
+        // 1.10.3
+        add_action( 'upgrader_process_complete', [$this, 'upgrade_version_1_10_3'], 10, 2 );
+        //add_action( 'admin_init', [ $this, 'execute_webhook_url_merge_tags_replacements' ] ); // TEST ONLY, should run after upgrade
+        add_action( 'admin_init', function() {
+            if ( isset( $_GET['rollback_webhook_urls'] ) ) {
+                $this->rollback_gravity_forms_webhook_urls();
+                echo 'Webhook URLs have been reverted to their original values.';
+            }
+        });
     }
 
     /**
@@ -331,10 +341,9 @@ class Upgrader extends \Plugin_Upgrader {
     }
 
     /**
-     * 1.10.3 Upgrade
-     * Replaces CiviCRM site keys and API keys in Gravity Forms webhook request URLs, for all webhooks feeds.
+     * Runs the 1.10.3 Upgrade
      */
-    function replace_civicrm_keys_in_webhook_urls( $upgrader, $hook_extra ) {
+    function upgrade_version_1_10_3( $upgrader, $hook_extra ) {
         // Check if we're updating this plugin
         if ( $hook_extra['action'] != 'update' || $hook_extra['type'] != 'plugin' ) {
             return;
@@ -356,9 +365,116 @@ class Upgrader extends \Plugin_Upgrader {
         // If no version is stored, or the previous version is less than the target version, run the upgrade script.
         if ( $previous_version === false || version_compare($previous_version, $target_version, '<') ) {
             // Add post-upgrade actions here.
+            $this->execute_webhook_url_merge_tags_replacements();
 
             // Update the stored version to the current version.
             update_option( 'gfcv_version', $current_version );
+        }
+    }
+
+    function backup_gravity_forms_webhook_urls() {
+        // Fetch all Webhook feeds.
+        $feeds = GFAPI::get_feeds(null, null, 'webhook');
+    
+        // Prepare backup data.
+        $backup_data = [];
+    
+        foreach ($feeds as $feed) {
+            $backup_data[$feed['id']] = $feed['meta']['requestUrl'] ?? '';
+        }
+    
+        // Store the backup in the wp_options table.
+        update_option('gf_webhook_urls_backup', $backup_data);
+    }
+    
+    function rollback_gravity_forms_webhook_urls() {
+        // Retrieve the backup data.
+        $backup_data = get_option('gfcv_webhook_urls_backup', []);
+    
+        // Restore the original request URLs.
+        foreach ($backup_data as $feed_id => $original_url) {
+            $feed = GFAPI::get_feed($feed_id);
+    
+            if ($feed && isset($feed['meta']['requestURL'])) {
+                $feed['meta']['requestURL'] = $original_url;
+                GFAPI::update_feed($feed_id, $feed['meta']);
+            }
+        }
+    }
+
+    /**
+     * Replaces CiviCRM site keys and API keys in Gravity Forms webhook request URLs with their
+     * equivalent merge tags, for all webhooks feeds.
+     */
+    function execute_webhook_url_merge_tags_replacements() {
+        $forms = GFAPI::get_forms(); // TODO do we want to do this for inactive/trashed forms too?;
+    
+        // No forms found, do nothing
+        if ( empty( $forms ) ) {
+            return;
+        }
+    
+        // Prepare backup data for possible rollbacks
+        $backup_data = [];
+    
+        foreach ( $forms as $form ) {
+            $form_id = $form['id'];
+            $feeds = GFAPI::get_feeds( form_ids: [ $form_id ] );
+    
+            if( $feeds instanceof \WP_Error ) {
+                $feeds = [];
+            }
+    
+            // Get just the gravityformswebhooks
+            $webhook_feeds = array_filter( $feeds, function( $feed ) {
+                return isset( $feed['addon_slug'] ) && $feed['addon_slug'] === 'gravityformswebhooks';
+            });
+    
+            // No feeds found, do nothing
+            if ( empty( $webhook_feeds ) ) {
+                continue;
+            }
+    
+            foreach ( $webhook_feeds as $feed ) {
+                // Parse the URL to extract query parameters
+                $parsed_url = parse_url( $feed['meta']['requestURL'] ?? '' );
+                if ( ! isset( $parsed_url['query'] ) ) {
+                    continue;
+                }
+    
+                // Parse query parameters into an associative array
+                parse_str( $parsed_url['query'], $query_params );
+    
+                // Return the `key` and `api_key` parameters if they exist
+                $site_key_query_param = $query_params['key'] ?? null;
+                $api_key_query_param = $query_params['api_key'] ?? null;
+    
+                // Replace them with the merge tags
+                $query_params['key'] = $site_key_query_param ? '{gf_civicrm_site_key}' : null;
+                $query_params['api_key'] = $api_key_query_param ? '{gf_civicrm_api_key}' : null;
+    
+                // Modify the webhook URL in the feed settings
+                $old_url = rgar($feed['meta'], 'requestURL'); // Store this for rollback if needed
+                $new_url = add_query_arg($query_params, $parsed_url['path']);
+    
+                // Update the request URL in the feed meta
+                if ( $new_url !== $old_url ) {
+                    $feed['meta']['requestURL'] = $new_url;
+                    // Save the updated feed settings
+                    GFAPI::update_feed($feed['id'], $feed['meta']);
+    
+                    // Log the update
+                    error_log("Updated Gravity Forms Webhook URL for feed ID {$feed['id']} from {$old_url} to {$new_url}");
+    
+                    // Store the old URL for possible rollbacks
+                    $backup_data[$feed['id']] = $old_url;
+                }
+            }
+        }
+    
+        // Store the backup in the wp_options table.
+        if ( !empty($backup_data) ) {
+            update_option('gfcv_webhook_urls_backup', $backup_data);
         }
     }
 }
