@@ -71,6 +71,21 @@ class FieldsAddOn extends GFAddOn {
       'GFCiviCRM\CiviCRM_Payment_Token',
       'field_standard_settings',
     ], 10, 2);
+
+    add_action( 'admin_notices', function() {
+      $gf_civicrm_site_key = FieldsAddOn::get_instance()->get_plugin_setting( 'gf_civicrm_site_key' );
+      $gf_civicrm_api_key = FieldsAddOn::get_instance()->get_plugin_setting( 'gf_civicrm_api_key' );
+      $missing = [];
+      if ( !$gf_civicrm_site_key ) {
+        $missing[] = 'Site Key';
+      }
+      if ( !$gf_civicrm_api_key ) {
+        $missing[] = 'API Key';
+      }
+      if ( !empty( $missing ) ) {
+        $this->warn_keys_settings( $missing );
+      }
+    } );
   }
 
 	public function init() {
@@ -106,6 +121,31 @@ class FieldsAddOn extends GFAddOn {
 		} else {
 			return NULL;
 		}
+	}
+
+  /**
+   * Displays a warning if either or both of the CiviCRM Site Key and CiviCRM API Key settings are empty/null.
+   * 
+   * These are required for the {gf_civicrm_site_key} and {gf_civicrm_api_key} merge tags.
+   * 
+   * @param array $settings        The missing settings.
+   */
+  public function warn_keys_settings( $settings = [] ) {
+    if ( empty($settings) ) {
+      // Do nothing. We don't know what we're warning against.
+    }
+
+    $settings_text = implode(' and ', $settings);
+
+		$message = sprintf(
+      '<p><strong>%1$s%2$s%3$s</strong></p><p>%4$s</p>',
+      $settings_text,
+      count($settings) > 1 ? ' are' : ' is',
+      esc_html__( ' missing in the Gravity Forms CiviCRM Settings.', 'gravityforms' ),
+      esc_html__( 'These are required for the {gf_civicrm_site_key} and {gf_civicrm_api_key} merge tags. If you are using these, please check your configuration.', 'gravityforms' ),
+    );
+
+    printf( '<div class="notice notice-warning gf-notice" id="gform_warn_missing_keys_notice">%s</div>', $message );
 	}
 
   /**
