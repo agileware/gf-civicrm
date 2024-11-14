@@ -371,21 +371,6 @@ class Upgrader extends \Plugin_Upgrader {
             update_option( 'gfcv_version', $current_version );
         }
     }
-
-    function backup_gravity_forms_webhook_urls() {
-        // Fetch all Webhook feeds.
-        $feeds = GFAPI::get_feeds(null, null, 'webhook');
-    
-        // Prepare backup data.
-        $backup_data = [];
-    
-        foreach ($feeds as $feed) {
-            $backup_data[$feed['id']] = $feed['meta']['requestUrl'] ?? '';
-        }
-    
-        // Store the backup in the wp_options table.
-        update_option('gf_webhook_urls_backup', $backup_data);
-    }
     
     function rollback_gravity_forms_webhook_urls() {
         // Retrieve the backup data.
