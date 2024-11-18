@@ -41,7 +41,7 @@ class Upgrader extends \Plugin_Upgrader {
         ] );
 
         $this->plugin_uri               = $plugin_data['PluginURI'];
-        $this->plugin_update_uri        = 'https://api.github.com/repos/' . GF_CIVICRM_PLUGIN_GITHUB_REPO . '/releases/latest';
+        $this->plugin_update_uri        = 'https://api.github.com/repos/' . GF_CIVICRM_PLUGIN_GITHUB_REPO . '/releases?per_page=5'; // GFCV-72 Temp. Allow prereleases for upgrader.
         $this->plugin                   = plugin_basename( $plugin_file );
         $this->name                     = $plugin_data['PluginName'];
 		$this->slug                     = basename( dirname( $plugin_file ) );
@@ -240,6 +240,13 @@ class Upgrader extends \Plugin_Upgrader {
 
         if ( empty( $data ) || isset( $data->message ) ) {
             return false;
+        }
+
+        // Run through the returned releases (including prereleases) and get the latest release by semantic tag
+        foreach ( $data as $release ) {
+            if ( $release->prerelease && version_compare( $this->version, $release->tag_name, '<' ) ) {
+                return $release;
+            }
         }
 
         return $data;
