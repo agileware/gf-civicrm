@@ -430,6 +430,12 @@ class Upgrader extends \Plugin_Upgrader {
     
                 // Parse query parameters into an associative array
                 parse_str( $parsed_url['query'], $query_params );
+
+                // Exit early if this isn't a FormProcessor webhook
+                if ( ! isset( $query_params['entity'] ) ||
+                     $query_params['entity'] !== 'FormProcessor' ) {
+                    continue;
+                }
     
                 // Return the `key` and `api_key` parameters if they exist
                 $site_key_query_param = $query_params['key'] ?? null;
@@ -440,8 +446,9 @@ class Upgrader extends \Plugin_Upgrader {
                 $query_params['api_key'] = $api_key_query_param ? '{gf_civicrm_api_key}' : null;
     
                 // Modify the webhook URL in the feed settings
+                $rest_api_url = '{rest_api_url}civicrm/v3/rest';
                 $old_url = rgar($feed['meta'], 'requestURL'); // Store this for rollback if needed
-                $new_url = add_query_arg($query_params, $parsed_url['path']);
+                $new_url = add_query_arg($query_params, $rest_api_url);
     
                 // Update the request URL in the feed meta
                 if ( $new_url !== $old_url ) {
