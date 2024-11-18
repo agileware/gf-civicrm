@@ -161,20 +161,19 @@ class FieldsAddOn extends GFAddOn {
         'version' => $this->_version,
         'deps'    => ['jquery'],
         'enqueue' => [
-          ['field_types' => ['group_contact_select', 'civicrm_payment_token', 'address']],
+          [ 'field_types' => ['group_contact_select', 'civicrm_payment_token', 'address'] ],
         ],
       ],
-	  [
-		'handle'  	=> 'gf_civicrm_address_fields',
+      [
+        'handle'  	=> 'gf_civicrm_address_fields',
         'src'		=> $this->get_base_url() . '/js/gf-civicrm-address-fields.js',
         'version'	=> $this->_version,
         'deps'		=> ['jquery', 'wp-util'],
-		'in_footer'	=> true,
+        'in_footer'	=> true,
         'enqueue' 	=> [
-		  [$this->gf_civicrm_address_field, 'applyGFCiviCRMAddressField']
+		      [ $this->gf_civicrm_address_field, 'applyGFCiviCRMAddressField' ]
         ],
       ],
-
     ];
 
     return array_merge(parent::scripts(), $scripts);
@@ -250,20 +249,21 @@ class FieldsAddOn extends GFAddOn {
 	}
 
 	public function plugin_settings_fields() {
-		return [ [
-			'title'       => esc_html__( 'CiviCRM Settings', 'gf-civicrm' ),
-			'description' => esc_html__( 'Global settings for CiviCRM add-on', 'gf-civicrm' ),
-			'fields'      => [ [
-				'type'          => 'checkbox',
-				'name'          => 'gf_civicrm_flags',
-				'default_value' => [ 'civicrm_multi_json' ],
-				'choices' => [
-					[
-						'label'   => esc_html__( 'Use JSON encoding for Checkbox and Multiselect values in webhooks (recommended)', 'gf_civicrm' ),
-						'name'    => 'civicrm_multi_json',
-					],
-				],
-			] ],
+		return [ 
+      [
+        'title'       => esc_html__( 'CiviCRM Settings', 'gf-civicrm' ),
+        'description' => esc_html__( 'Global settings for CiviCRM add-on', 'gf-civicrm' ),
+        'fields'      => [ [
+          'type'          => 'checkbox',
+          'name'          => 'gf_civicrm_flags',
+          'default_value' => [ 'civicrm_multi_json' ],
+          'choices' => [
+            [
+              'label'   => esc_html__( 'Use JSON encoding for Checkbox and Multiselect values in webhooks (recommended)', 'gf_civicrm' ),
+              'name'    => 'civicrm_multi_json',
+            ],
+          ],
+        ] ],
       ],
       [
         'title'       => esc_html__( 'CiviCRM Site Key', 'gf-civicrm' ),
@@ -282,6 +282,7 @@ class FieldsAddOn extends GFAddOn {
           'name'          => 'gf_civicrm_api_key',
           'default_value' => '',
         ] ],
-      ] ];
+      ],
+    ];
 	}
 }
