@@ -60,9 +60,10 @@ class Upgrader extends \Plugin_Upgrader {
 
         // 1.10.3
         add_action( 'upgrader_process_complete', [$this, 'upgrade_version_1_10_3'], 10, 2 );
-        //add_action( 'admin_init', [ $this, 'execute_webhook_url_merge_tags_replacements' ] ); // TEST ONLY, should run after upgrade
+        // add_action( 'admin_init', [ $this, 'execute_webhook_url_merge_tags_replacements' ] ); // TEST ONLY, should run after upgrade
         add_action( 'admin_init', function() {
-            if ( isset( $_GET['rollback_webhook_urls'] ) ) {
+            // Optionally rollback webhook urls to the previous saved version
+            if ( isset( $_GET['rollback_webhook_urls'] ) && isset( $_GET['page'] ) && $_GET['page'] === 'gf_settings' ) {
                 $this->rollback_gravity_forms_webhook_urls();
                 echo 'Webhook URLs have been reverted to their original values.';
             }
