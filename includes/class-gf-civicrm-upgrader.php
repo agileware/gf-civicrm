@@ -201,6 +201,11 @@ class Upgrader extends \Plugin_Upgrader {
 				return false;
 			}
 
+            // If we retrieved an array (i.e. if prereleases are enabled), then grab the latest
+            if ( is_array( $version_info ) ) {
+                $version_info = reset($version_info);
+            }
+
 			// This is required to support auto-updates since WordPress 5.5.
 			$version_info->plugin   = $this->name;
 			$version_info->id       = $this->name;
@@ -377,6 +382,9 @@ class Upgrader extends \Plugin_Upgrader {
 
             // Update the stored version to the current version.
             update_option( 'gfcv_version', $current_version );
+
+            // Log the upgrade.
+            error_log('Gravity Forms CiviCRM Integration upgrade 1.10.3 complete.');
         }
     }
     
