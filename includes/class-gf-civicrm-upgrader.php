@@ -40,8 +40,17 @@ class Upgrader extends \Plugin_Upgrader {
             'AuthorURI'     => 'Author URI'
         ] );
 
+        // Get plugin Update URI
+        $settings = get_option( 'gravityformsaddon_gf-civicrm_settings' );
+        $enable_prereleases = rgar( $settings, 'enable_prereleases' );
+        if ( $enable_prereleases ) {
+            $plugin_update_uri = 'https://api.github.com/repos/' . GF_CIVICRM_PLUGIN_GITHUB_REPO . '/releases?per_page=5'; // GFCV-72 Temp. Allow prereleases for upgrader.
+        } else {
+            $plugin_update_uri = 'https://api.github.com/repos/' . GF_CIVICRM_PLUGIN_GITHUB_REPO . '/releases/latest';
+        }
+
         $this->plugin_uri               = $plugin_data['PluginURI'];
-        $this->plugin_update_uri        = 'https://api.github.com/repos/' . GF_CIVICRM_PLUGIN_GITHUB_REPO . '/releases?per_page=5'; // GFCV-72 Temp. Allow prereleases for upgrader.
+        $this->plugin_update_uri        = $plugin_update_uri;
         $this->plugin                   = plugin_basename( $plugin_file );
         $this->name                     = $plugin_data['PluginName'];
 		$this->slug                     = basename( dirname( $plugin_file ) );

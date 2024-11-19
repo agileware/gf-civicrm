@@ -262,6 +262,11 @@ class FieldsAddOn extends GFAddOn {
               'label'   => esc_html__( 'Use JSON encoding for Checkbox and Multiselect values in webhooks (recommended)', 'gf_civicrm' ),
               'name'    => 'civicrm_multi_json',
             ],
+            [
+              'label'   => esc_html__( 'Enable prereleases for updates.', 'gf_civicrm' ),
+              'name'    => 'enable_prereleases',
+              'tooltip' => esc_html__( 'Opt-in to including prereleases/beta releases in updates.', 'simpleaddon' ),
+            ],
           ],
         ] ],
       ],
