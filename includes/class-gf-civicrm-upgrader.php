@@ -258,7 +258,7 @@ class Upgrader extends \Plugin_Upgrader {
 
         // Run through the returned releases (including prereleases) and get the latest release by semantic tag
         foreach ( $data as $release ) {
-            if ( $release->prerelease && version_compare( $this->version, $release->tag_name, '<' ) ) {
+            if ( isset( $release->prerelease ) && $release->prerelease && version_compare( $this->version, $release->tag_name, '<' ) ) {
                 return $release;
             }
         }
