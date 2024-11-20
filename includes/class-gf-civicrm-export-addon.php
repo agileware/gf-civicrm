@@ -70,13 +70,17 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
 
             add_action('gform_export_page_import_server', [ $this, 'import_form_server_html' ]);
 
-            if ( isset( $_GET[ 'gf_export_status' ] ) ) {
-                $status = sanitize_text_field( $_GET[ 'gf_export_status' ] );
+            add_action( 'admin_notices', function() {
+                if ( $_GET['subview'] === 'export_form' ) {
+                    $this->display_export_status();
+                }
+            } );
 
-                add_action( 'admin_notices', function() use ( $status ) {
-                    $this->display_export_status( $status );
-                } );
-            }
+            add_action( 'admin_notices', function() {
+                if ( $_GET['subview'] === 'import_server' ) {
+                    $this->display_import_status();
+                }
+            } );
 
             add_filter('gform_export_menu', [ self::class, 'settings_tabs' ], 10, 1);
         }
@@ -111,6 +115,7 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
 
             $forms = GFFormsModel::get_form_meta_by_id( $forms );
 
+            $exports = [];
             foreach ( $forms as $form ) {
                 $form_id = $form['id'];
                 $feeds = GFAPI::get_feeds( form_ids: [ $form_id ] );
@@ -171,7 +176,7 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
                 $form_file_path = "$export_directory/gravityforms-export-$directory_name.json";
                 $form_json = json_encode( $forms_export, JSON_PRETTY_PRINT|JSON_UNESCAPED_SLASHES);
                 file_put_contents( $form_file_path, $form_json );
-                $exports["Form"] = "gravityforms-export-$directory_name.json";
+                $exports['Form'][$directory_name] = "gravityforms-export-$directory_name.json";
 
                 // Save each webhook feed data to separate JSON files using prefix and index
                 $feeds_export = [ 'version' => GFForms::$version ];
@@ -185,21 +190,23 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
                     $feeds_json = json_encode( $feeds_export, JSON_PRETTY_PRINT|JSON_UNESCAPED_SLASHES );
                     file_put_contents( $feeds_file_path, $feeds_json );
 
-                    $exports["Feed"] = "gravityforms-export-feeds-$directory_name.json";
+                    $exports['Feed'][$directory_name] = "gravityforms-export-feeds-$directory_name.json";
                 }
 
                 $exported_processors = $this->export_processors($processors, $export_directory);
-                $exports = array_merge($exports,$exported_processors);
+                foreach ( $exported_processors as $id => $processor ) {
+                    $exports["Form Processor"][$id] = $processor;
+                }
             }
             
             // Store the names of all exports for 60 seconds for status reporting
             set_transient( 'gfcv_exports', $exports, 60 );
+            set_transient( 'gfcv_exports_status', 'success', 60 );
 
             // Redirect back to the Export page with a success message
             wp_redirect(
                 add_query_arg(
                     [
-                        'gf_export_status' => 'success',
                         'page' => 'gf_export',
                         'subview' => 'export_form',
                     ],
@@ -208,28 +215,6 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
             );
             
             exit;
-        }
-
-        public function display_export_status( $status ) {
-            if ( $status === 'success' ) {
-                $exports = get_transient('gfcv_exports');
-
-                $exports_html = '<table>';
-                foreach ( $exports as $entity => $filename ) {
-                    $exports_html .= "<tr><td style='padding-right:15px;'><strong>{$entity}</strong></td><td>{$filename}</td></tr>";
-                }
-                $exports_html .= '</table>';
-
-                $message = sprintf(
-                    '<p><strong>%1$s</strong></p><p>%2$s</p>%3$s',
-                    esc_html__( 'Your forms - and any related Webhook Feeds and CiviCRM Form Processors - have been exported. ', 'gravityforms' ),
-                    esc_html__( 'The following files were exported.', 'gravityforms' ),
-                    $exports_html,
-                );
-
-                printf( '<div class="notice notice-success gf-notice" id="gform_disable_logging_notice">%s</div>', $message );
-            }
-            
         }
 
         private function get_action_from_url( $url ) {
@@ -296,7 +281,7 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
                 $export = json_encode($exporter->export($id), JSON_PRETTY_PRINT|JSON_UNESCAPED_SLASHES);
 
                 file_put_contents($file_path, $export);
-                $exports["Form Processor"] = "form-processor-$name.json";
+                $exports[$name] = "form-processor-$name.json";
             } catch ( Exception $e) {
                 error_log("Error fetching FormProcessor `$name`: {$e->getMessage()}");
             }
@@ -404,12 +389,19 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
 
 	        $import_directory = trailingslashit($import_directory);
 
+            $imports = [];
             foreach($import_forms as $directory_name) {
                 $form_file =  $import_directory . $directory_name . "/gravityforms-export-$directory_name.json";
 
                 try {
 	                $form_ids = $this->import_forms( $form_file );
+                    
+                    foreach ($form_ids as $form_id) {
+                        $form = GFAPI::get_form( $form_id );
+                        $imports['Form'][$form_id] = $form['title'];
+                    }
                 } catch(Throwable $e) {
+                    set_transient( 'gfcv_imports_status', 'failure', 60 );
                     GFCommon::add_error_message( $e->getMessage() );
                     continue;
                 }
@@ -418,8 +410,14 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
 
                 if ( file_exists( $feeds_file ) ) {
                     try {
-	                    $this->import_feeds( $feeds_file, $form_ids );
+	                    $feeds = $this->import_feeds( $feeds_file, $form_ids );
+
+                        foreach ($feeds as $feed) {
+                            $form = GFAPI::get_form( $feed['form_id'] );
+                            $imports['Feed'][$feed['id']] = sprintf('%1$s for the form %2$s', $feed['meta']['feedName'], $form['title']);
+                        }
                     } catch(Throwable $e) {
+                        set_transient( 'gfcv_imports_status', 'failure', 60 );
 		                GFCommon::add_error_message( $e->getMessage() );
 	                }
                 }
@@ -428,12 +426,34 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
 
                 if ( file_exists( $processor_file ) ) {
                     try {
-                        $this->import_processor( $processor_file );
+                        $form_processors = $this->import_processor( $processor_file );
+                        $imports["Form Processor"] = $form_processors;
+
+                        foreach ( $form_processors['import'] as $processor ) {
+                            $form = GFAPI::get_form( $feed['form_id'] );
+                            $imports['Feed'][$feed['id']] = sprintf('%1$s for the form %2$s', $feed['meta']['feedName'], $form['title']);
+                        }
                     } catch(Throwable $e) {
+                        set_transient( 'gfcv_imports_status', 'failure', 60 );
                         GFCommon::add_error_message( $e->getMessage() );
                     }
                 }
             }
+
+            // Store the names of all exports for 60 seconds for status reporting
+            set_transient( 'gfcv_imports', $imports, 60 );
+            set_transient( 'gfcv_imports_status', 'success', 60 );
+
+            // Redirect back to the Export page with a success message
+            wp_redirect(
+                add_query_arg(
+                    [
+                        'page' => 'gf_export',
+                        'subview' => 'import_server',
+                    ],
+                    admin_url( 'admin.php' )
+                )
+            );
         }
 
         public function filter_form_names( $input ) {
@@ -444,7 +464,7 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
 	    /**
 	     * @param string $form_file
 	     *
-	     * @return void
+	     * @return array
 	     * @throws Exception
 	     */
 	    public function import_forms( string $form_file ): array {
@@ -455,7 +475,6 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
             $ids = [];
 
 		    // Import the Form meta. Lifted from GFExport class, but update a form if possible
-
 		    $form_json = file_get_contents( $form_file );
 		    $form_json = GFExport::sanitize_forms_json( $form_json );
 
@@ -478,8 +497,13 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
 			    $id = null;
 
 			    if ( ! empty( $form['id'] ) ) {
-				    $id = $form['id'];
-				    GFAPI::update_form( $form );
+                    // check if form with id already exists
+                    if ( GFAPI::form_id_exists( $form['id'] ) ) {
+                        $id = $form['id'];
+				        GFAPI::update_form( $form );
+                    } else {
+                        $id = GFAPI::add_form( $form );
+                    }
 			    } else {
 				    $id = GFAPI::add_form( $form );
 			    }
@@ -494,7 +518,7 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
 	     * @param string $feeds_file
 	     * @param string $form_file
 	     *
-	     * @return void
+	     * @return array
 	     * @throws Exception
 	     */
 	    public function import_feeds( string $feeds_file, array $form_ids ): array {
@@ -513,8 +537,6 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
 		    global $wpdb;
 		    $imported_feeds = [];
 
-		    $table = $wpdb->prefix . 'gf_addon_feed';
-
 		    foreach ( $feeds as $idx => $feed ) {
                 if ( empty($feed['form_id'])
                      || empty($feed['addon_slug'])
@@ -524,32 +546,53 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
                     continue;
                 }
 
-                $query = $wpdb->prepare( 'SELECT 1 FROM ' . $table . ' WHERE id = %d AND form_id = %d', $feed['id'], $feed['form_id'] );
+                // Get all feeds for the given form_id
+                $current_form_feeds = GFAPI::get_feeds( null, $feed['form_id'] );
 
-                if( is_null ( $wpdb->get_var( $query ) ) ) {
-                    // If the feed does not belong to a form in the same directory, import it as a new feed.
-                    $feed['id'] = null;
+                $feed_name = $feed['meta']['feedName'];
+                $feed_addon_slug = $feed['addon_slug'];
+
+                if ( ! is_wp_error($current_form_feeds) && !is_null($current_form_feeds) && !empty( $current_form_feeds ) ) {
+                    $feed_id = $feed['id'];
+
+                    // Check if a feed with the same ID, name, and addon_slug is attached to this form
+                    $filtered_current = array_filter( $current_form_feeds, 
+                        function ($item) use ($feed_id, $feed_name, $feed_addon_slug)  {
+                            return $item['id'] === $feed_id 
+                                && $item['meta']['feedName'] === $feed_name 
+                                && $item['addon_slug'] === $feed_addon_slug;
+                        }
+                    );
+
+                    // Since Feed IDs may be mismatched on import, we're going to also check for just the feed name and addon_slug
+                    if ( empty( $filtered_current ) ) {
+                        $filtered_current = array_filter( $current_form_feeds, 
+                            function ($item) use ($feed_name, $feed_addon_slug)  {
+                                return $item['meta']['feedName'] === $feed_name 
+                                    && $item['addon_slug'] === $feed_addon_slug;
+                            }
+                        );
+                    }
+
+                    if ( !empty( $filtered_current ) ) {
+                        $existing_feed = reset( $filtered_current ); // Just the first one
+                        $feed_id = $feed['id'] = $existing_feed['id'];
+                    } else {
+                        // If we still have no results, import it as a new feed
+                        $feed_id = $feed['id'] = null;
+                    }
                 }
 
-                $imported_feeds[] = $wpdb->replace(
-                    $table,
-                    [
-	                    'id'         => $feed['id'],
-	                    'form_id'    => $feed['form_id'],
-	                    'is_active'  => $feed['is_active'] ?? 0,
-	                    'meta'       => json_encode( $feed['meta'] ),
-	                    'addon_slug' => $feed['addon_slug'],
-	                    'feed_order' => $feed['feed_order'] ?? null,
-                    ],
-                    [
-                        '%d', // id
-                        '%d', // form_id,
-                        '%d', // is_active,
-                        '%s', // meta,
-                        '%s', // addon_slug,
-                        '%d', // feed_order,
-                    ]
-                );
+                
+                if ( is_null( $feed_id ) ) {
+                    // Import a new feed
+                    $feed_id = GFAPI::add_feed( $feed['form_id'], $feed['meta'], $feed['addon_slug'] );
+                } else {
+                    // Update the existing feed
+                    GFAPI::update_feed( $feed_id, $feed['meta'], $feed['form_id'] );
+                }
+
+                $imported_feeds[] = GFAPI::get_feed( $feed_id );
 		    }
 
             return $imported_feeds;
@@ -565,6 +608,54 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
             }
 
             return civicrm_api3('FormProcessorInstance', 'import', [ 'file' => $processor_file, 'import_locally' => '1' ]);
+        }
+
+        public function display_export_status() {
+            if ( get_transient('gfcv_exports_status') === 'success' ) {
+                $exports = get_transient('gfcv_exports');
+
+                $exports_html = '<table>';
+                foreach ( $exports as $entity_type => $entity ) {
+                    foreach ($entity as $type => $filename) {
+                        $exports_html .= "<tr><td style='padding-right:15px;'><strong>{$entity_type}</strong></td><td>{$filename}</td></tr>";
+                    }
+                }
+                $exports_html .= '</table>';
+
+                $message = sprintf(
+                    '<p><strong>%1$s</strong></p><p>%2$s</p>%3$s',
+                    esc_html__( 'Your forms - and any related Webhook Feeds and CiviCRM Form Processors - have been exported. ', 'gravityforms' ),
+                    esc_html__( 'The following files were exported.', 'gravityforms' ),
+                    $exports_html,
+                );
+
+                printf( '<div class="notice notice-success gf-notice" id="gform_disable_logging_notice">%s</div>', $message );
+            }
+            
+        }
+
+        public function display_import_status() {
+            if ( get_transient('gfcv_imports_status') === 'success' ) {
+                $imports = get_transient('gfcv_imports');
+
+                $imports_html = '<table>';
+                foreach ( $imports as $entity_type => $entity ) {
+                    foreach ($entity as $type => $filename) {
+                        $imports_html .= "<tr><td style='padding-right:15px;'><strong>{$entity_type}</strong></td><td>{$filename}</td></tr>";
+                    }
+                }
+                $imports_html .= '</table>';
+
+                $message = sprintf(
+                    '<p><strong>%1$s</strong></p><p>%2$s</p>%3$s',
+                    esc_html__( 'Your forms - and any related Webhook Feeds and CiviCRM Form Processors - have been imported. ', 'gravityforms' ),
+                    esc_html__( 'The following files were imported.', 'gravityforms' ),
+                    $imports_html,
+                );
+
+                printf( '<div class="notice notice-success gf-notice" id="gform_disable_logging_notice">%s</div>', $message );
+            }
+            
         }
     }
 }
