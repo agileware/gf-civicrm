@@ -378,6 +378,9 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
         }
 
         protected function do_import( $import_directory ): void {
+            delete_transient('gfcv_imports_status_success');
+            delete_transient('gfcv_imports_status_failure');
+
             if ( ! GFCommon::current_user_can_any( 'gravityforms_edit_forms' ) ) {
                 wp_die( 'You do not have sufficient permissions to import forms.' );
             }
@@ -390,6 +393,7 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
 	        $import_directory = trailingslashit($import_directory);
 
             $imports = [];
+            $failures = [];
             foreach($import_forms as $directory_name) {
                 $form_file =  $import_directory . $directory_name . "/gravityforms-export-$directory_name.json";
 
@@ -401,9 +405,8 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
                         $imports['Form'][$form_id] = $form['title'];
                     }
                 } catch(Throwable $e) {
-                    set_transient( 'gfcv_imports_status', 'failure', 60 );
-                    GFCommon::add_error_message( $e->getMessage() );
-                    continue;
+                    $failures['Form'] = $e->getMessage();
+                    GFCommon::log_debug( __METHOD__ . '(): GF CiviCRM Import Errors => ' . $e->getMessage() );
                 }
 
                 $feeds_file = $import_directory . $directory_name . "/gravityforms-export-feeds-$directory_name.json";
@@ -417,8 +420,8 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
                             $imports['Feed'][$feed['id']] = sprintf('%1$s for the form %2$s', $feed['meta']['feedName'], $form['title']);
                         }
                     } catch(Throwable $e) {
-                        set_transient( 'gfcv_imports_status', 'failure', 60 );
-		                GFCommon::add_error_message( $e->getMessage() );
+                        $failures['Feed'] = $e->getMessage();
+                        GFCommon::log_debug( __METHOD__ . '(): GF CiviCRM Import Errors => ' . $e->getMessage() );
 	                }
                 }
 
@@ -426,23 +429,30 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
 
                 if ( file_exists( $processor_file ) ) {
                     try {
-                        $form_processors = $this->import_processor( $processor_file );
-                        $imports["Form Processor"] = $form_processors;
+                        $form_processor = $this->import_processor( $processor_file );
+                        $fp_instance = \Civi\Api4\FormProcessorInstance::get(FALSE)
+                            ->addWhere('id', '=', $form_processor['import']['new_id']) // the imported id may be different to the original id in the import file
+                            ->execute()
+                            ->first();
 
-                        foreach ( $form_processors['import'] as $processor ) {
-                            $form = GFAPI::get_form( $feed['form_id'] );
-                            $imports['Feed'][$feed['id']] = sprintf('%1$s for the form %2$s', $feed['meta']['feedName'], $form['title']);
-                        }
+                        $imports["Form Processor"][$fp_instance['id']] = sprintf('%1$s - %2$s', $fp_instance['title'], $fp_instance['name']);
                     } catch(Throwable $e) {
-                        set_transient( 'gfcv_imports_status', 'failure', 60 );
-                        GFCommon::add_error_message( $e->getMessage() );
+                        $failures["Form Processor"] = $e->getMessage();
+                        GFCommon::log_debug( __METHOD__ . '(): GF CiviCRM Import Errors => ' . $e->getMessage() );
                     }
                 }
             }
 
-            // Store the names of all exports for 60 seconds for status reporting
-            set_transient( 'gfcv_imports', $imports, 60 );
-            set_transient( 'gfcv_imports_status', 'success', 60 );
+            // Store the names of imports for 60 seconds for status reporting
+            // Do it this way so we can report on both successes and failures
+            if ( !empty($failures) ) {
+                set_transient( 'gfcv_imports_failures', $failures, 60 );
+                set_transient( 'gfcv_imports_status_failure', true, 60 );
+            }
+            if (!empty($imports) ){
+                set_transient( 'gfcv_imports', $imports, 60 );
+                set_transient( 'gfcv_imports_status_success', true, 60 );
+            }
 
             // Redirect back to the Export page with a success message
             wp_redirect(
@@ -469,7 +479,7 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
 	     */
 	    public function import_forms( string $form_file ): array {
 		    if ( ! is_readable( $form_file ) ) {
-			    throw new Exception( sprintf( __( 'Can not read from form import file %1$s', 'gf-civicrm' ), $form_file ) );
+			    throw new Exception( sprintf( __( 'Can not read from form import file %1$s', 'gf-civicrm' ), basename( $form_file ) ) );
 		    }
 
             $ids = [];
@@ -485,7 +495,7 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
 		    unset( $forms['version'] );
 
 		    if ( empty( $forms ) ) {
-			    throw new Exception( sprintf( __( 'No forms found in input file %1$s', 'gf-civicrm' ), $form_file ) );
+			    throw new Exception( sprintf( __( 'No forms found in input file %1$s', 'gf-civicrm' ), basename( $form_file ) ) );
             }
 
 		    foreach ( $forms as $form ) {
@@ -523,7 +533,7 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
 	     */
 	    public function import_feeds( string $feeds_file, array $form_ids ): array {
 		    if ( ! is_readable( $feeds_file ) ) {
-			    throw new Exception( sprintf( __( 'Can not read from feeds import file %1$s', 'gf-civicrm' ), $feeds_file ) );
+			    throw new Exception( sprintf( __( 'Can not read from feeds import file %1$s. Aborting feed imports.', 'gf-civicrm' ), basename( $feeds_file ) ) );
 		    }
 
 		    $feeds_json = file_get_contents( $feeds_file );
@@ -542,7 +552,7 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
                      || empty($feed['addon_slug'])
                      || empty($feed['meta'])
                      || array_search($feed['form_id'], $form_ids) === false ) {
-                    GFCommon::add_error_message( sprintf ( __( 'Incorrect data loading feed %1$d from %2$s' ), $idx, $feeds_file ) );
+                    GFCommon::add_error_message( sprintf ( __( 'Incorrect data loading feed id %1$d from %2$s. Aborting feed imports.' ), $feed['id'], basename( $feeds_file ) ) );
                     continue;
                 }
 
@@ -598,9 +608,15 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
             return $imported_feeds;
 	    }
 
+        /**
+	     * @param string $processor_file
+	     *
+	     * @return array
+	     * @throws Exception
+	     */
         function import_processor( string $processor_file ) {
             if ( ! is_readable( $processor_file ) ) {
-                throw new Exception( sprintf( __('Can not read from form processor import file %1$s', 'gf-civicrm' ), $processor_file ) );
+                throw new Exception( sprintf( __('Can not read from form processor import file %1$s', 'gf-civicrm' ), basename( $processor_file ) ) );
             }
 
             if( ! civicrm_initialize() ) {
@@ -635,27 +651,44 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
         }
 
         public function display_import_status() {
-            if ( get_transient('gfcv_imports_status') === 'success' ) {
+            if ( get_transient('gfcv_imports_status_success') ) {
                 $imports = get_transient('gfcv_imports');
 
-                $imports_html = '<table>';
+                $html = '<table>';
                 foreach ( $imports as $entity_type => $entity ) {
                     foreach ($entity as $type => $filename) {
-                        $imports_html .= "<tr><td style='padding-right:15px;'><strong>{$entity_type}</strong></td><td>{$filename}</td></tr>";
+                        $html .= "<tr><td style='padding-right:15px;'><strong>{$entity_type}</strong></td><td>{$filename}</td></tr>";
                     }
                 }
-                $imports_html .= '</table>';
+                $html .= '</table>';
 
                 $message = sprintf(
                     '<p><strong>%1$s</strong></p><p>%2$s</p>%3$s',
                     esc_html__( 'Your forms - and any related Webhook Feeds and CiviCRM Form Processors - have been imported. ', 'gravityforms' ),
                     esc_html__( 'The following files were imported.', 'gravityforms' ),
-                    $imports_html,
+                    $html,
                 );
 
                 printf( '<div class="notice notice-success gf-notice" id="gform_disable_logging_notice">%s</div>', $message );
             }
-            
+
+            if ( get_transient('gfcv_imports_status_failure') ) {
+                $imports = get_transient('gfcv_imports_failures');
+
+                $html = '<table>';
+                foreach ( $imports as $entity_type => $message ) {
+                    $html .= "<tr><td style='padding-right:15px;'><strong>{$entity_type}</strong></td><td>{$message}</td></tr>";
+                }
+                $html .= '</table>';
+
+                $message = sprintf(
+                    '<p><strong>%1$s</strong></p>%2$s',
+                    esc_html__( 'The following files failed to import.', 'gravityforms' ),
+                    $html,
+                );
+
+                printf( '<div class="notice notice-warning gf-notice" id="gform_disable_logging_notice">%s</div>', $message );
+            }
         }
     }
 }
