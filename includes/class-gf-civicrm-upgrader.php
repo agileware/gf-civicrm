@@ -243,6 +243,9 @@ class Upgrader extends \Plugin_Upgrader {
                 'Accept' => 'application/vnd.github+json',
             ],
         ];
+        if ( defined(GITHUB_ACCESS_TOKEN_TESTING_ONLY) ) {
+            $args['headers']['Authorization'] = 'token ' . GITHUB_ACCESS_TOKEN_TESTING_ONLY; // Use GitHub Access Token
+        }
         $response = wp_remote_get( $this->plugin_update_uri, $args );
 
         if ( is_wp_error( $response ) ) {
