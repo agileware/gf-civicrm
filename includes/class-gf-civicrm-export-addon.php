@@ -120,7 +120,7 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
                 $form_id = $form['id'];
                 $feeds = GFAPI::get_feeds( form_ids: [ $form_id ] );
 
-                if( $feeds instanceof \WP_Error ) {
+                if ( $feeds instanceof \WP_Error ) {
                     $feeds = [];
                 }
 
@@ -141,7 +141,7 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
 
                 $processors = array_filter($processors);
 
-                $action_value ??= sanitize_title($form['title'], $form_id);
+                $action_value ??= sanitize_title( $form['title'], $form_id );
 
                 // Define the subdirectory path (either action value or form ID)
                 $directory_base = 'CRM/form-processor';
@@ -160,7 +160,6 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
                 }
 
                 // Create the htaccess if it doesn't exist. Restricts access to the exports.
-                $check = file_exists( $htaccess );
                 if ( ! file_exists( $htaccess ) ) {
                     $htaccess_contents = <<<HTACCESS
                     Order allow,deny
@@ -254,7 +253,7 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
                 return $result->first()['id'];
             } catch ( Exception $e) {
                 // Log error if needed and return null if there is an issue
-                error_log("Error fetching FormProcessor `$name`: {$e->getMessage()}");
+                GFCommon::log_debug( __METHOD__ . "(): GF CiviCRM Errors => Error fetching FormProcessor `$name`: " . $e->getMessage() );
             }
 
             return null;
@@ -283,7 +282,7 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
                 file_put_contents($file_path, $export);
                 $exports[$name] = "form-processor-$name.json";
             } catch ( Exception $e) {
-                error_log("Error fetching FormProcessor `$name`: {$e->getMessage()}");
+                GFCommon::log_debug( __METHOD__ . "(): GF CiviCRM Export Errors => Error exporting FormProcessor `$name`: " . $e->getMessage() );
             }
 
             return $exports;
@@ -639,10 +638,11 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
                 $exports_html .= '</table>';
 
                 $message = sprintf(
-                    '<p><strong>%1$s</strong></p><p>%2$s</p>%3$s',
+                    '<p><strong>%1$s</strong></p><p>%2$s</p>%3$s<p>%4$s</p>',
                     esc_html__( 'Your forms - and any related Webhook Feeds and CiviCRM Form Processors - have been exported. ', 'gravityforms' ),
-                    esc_html__( 'The following files were exported.', 'gravityforms' ),
+                    esc_html__( 'The following files were successfully exported.', 'gravityforms' ),
                     $exports_html,
+                    esc_html__( 'Make sure to check for any missing export files, and for any malformed exports.', 'gravityforms' ),
                 );
 
                 printf( '<div class="notice notice-success gf-notice" id="gform_disable_logging_notice">%s</div>', $message );
