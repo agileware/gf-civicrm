@@ -243,7 +243,7 @@ class Upgrader extends \Plugin_Upgrader {
                 'Accept' => 'application/vnd.github+json',
             ],
         ];
-        if ( defined(GITHUB_ACCESS_TOKEN_TESTING_ONLY) ) {
+        if ( defined( 'GITHUB_ACCESS_TOKEN_TESTING_ONLY' ) ) {
             $args['headers']['Authorization'] = 'token ' . GITHUB_ACCESS_TOKEN_TESTING_ONLY; // Use GitHub Access Token
         }
         $response = wp_remote_get( $this->plugin_update_uri, $args );
@@ -259,12 +259,16 @@ class Upgrader extends \Plugin_Upgrader {
             return false;
         }
 
-        // Run through the returned releases (including prereleases) and get the latest release by semantic tag
-        foreach ( $data as $release ) {
-            if ( isset( $release->prerelease ) && $release->prerelease && version_compare( $this->version, $release->tag_name, '<' ) ) {
-                return $release;
+        // If we retrieved an array (i.e. if prereleases are enabled), then grab the latest
+        if ( is_array( $data ) ) {
+            // Run through the returned releases (including prereleases) and get the latest release by semantic tag
+            foreach ( $data as $release ) {
+                if ( isset( $release->prerelease ) && $release->prerelease && version_compare( $this->version, $release->tag_name, '<' ) ) {
+                    return $release;
+                }
             }
         }
+        
 
         return $data;
     }
