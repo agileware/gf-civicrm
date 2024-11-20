@@ -265,7 +265,7 @@ class FieldsAddOn extends GFAddOn {
             [
               'label'   => esc_html__( 'Enable prereleases for updates.', 'gf_civicrm' ),
               'name'    => 'enable_prereleases',
-              'tooltip' => esc_html__( 'Opt-in to including prereleases/beta releases in updates.', 'simpleaddon' ),
+              'tooltip' => esc_html__( 'Opt-in to including prereleases/beta releases for GF CiviCRM updates. Please note that prereleases may be unstable, so make sure to take a backup of your database before performing updates with this option enabled.', 'simpleaddon' ),
             ],
           ],
         ] ],
@@ -281,7 +281,7 @@ class FieldsAddOn extends GFAddOn {
       ],
       [
         'title'       => esc_html__( 'CiviCRM API Key', 'gf-civicrm' ),
-        'description' => esc_html__( 'Provide the CiviCRM API key for making API calls, can be output using the merge tag {gf_civicrm_api_key}. This is the default API key. To generate an API key for the current user, use the {civicrm_api_key} merge tag.', 'gf-civicrm' ),
+        'description' => esc_html__( 'Provide the CiviCRM API key for making API calls, can be output using the merge tag {gf_civicrm_api_key}.', 'gf-civicrm' ),
         'fields'      => [ [
           'type'          => 'text',
           'name'          => 'gf_civicrm_api_key',
