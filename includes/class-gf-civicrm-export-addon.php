@@ -13,6 +13,7 @@ use GFCommon;
 use GFExport;
 use GFForms;
 use GFFormsModel;
+use RGFormsModel;
 use Gravity_Forms\Gravity_Forms\Config\GF_Config;
 
 if ( ! class_exists( 'GFForms' ) ) {
@@ -39,45 +40,23 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
             return self::$_instance;
         }
 
-        public function scripts() {
-            $scripts = [
-                [
-                    'handle' => 'gf_civicrm_export_addon',
-                    'src' => $this->get_base_url(__DIR__ ) . '/js/gf-civicrm-export-addon.js',
-                    'version' => $this->_version,
-                    'deps' => [ 'wp-i18n' ],
-                    'enqueue' => [
-                        [ $this, 'should_enqueue_scripts' ]
-                    ],
-                    'strings' => [
-                        'action' => admin_url( 'admin-post.php?action=gf_civicrm_export' ),
-                    ],
-                ]
-            ];
-
-            return array_merge(parent::scripts(), $scripts);
-        }
-
-        public function should_enqueue_scripts() {
-            return is_admin() && rgget( 'page' ) == 'gf_export' && rgget( 'subview' ) == 'export_form';
-        }
-
         public function init_admin()
         {
             parent::init_admin();
 
             add_action('admin_post_gf_civicrm_export', [ $this, 'export_form_and_feeds' ]);
 
+            add_action('gform_export_page_export_gfcivicrm', [ $this, 'export_gfcivicrm_form_html' ]);
             add_action('gform_export_page_import_server', [ $this, 'import_form_server_html' ]);
 
             add_action( 'admin_notices', function() {
-                if ( $_GET['subview'] === 'export_form' ) {
+                if ( isset($_GET['subview']) && $_GET['subview'] === 'export_gfcivicrm' ) {
                     $this->display_export_status();
                 }
             } );
 
             add_action( 'admin_notices', function() {
-                if ( $_GET['subview'] === 'import_server' ) {
+                if ( isset($_GET['subview']) && $_GET['subview'] === 'import_server' ) {
                     $this->display_import_status();
                 }
             } );
@@ -86,6 +65,7 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
         }
         public static function settings_tabs( $settings_tabs ) {
             if( GFCommon::current_user_can_any('gravityforms_edit_forms') ) {
+                $settings_tabs[25] = [ 'name' => 'export_gfcivicrm', 'label' => __( 'Export GF CiviCRM', 'gf-civicrm' ) ];
                 $settings_tabs[50] = [ 'name' => 'import_server', 'label' => __( 'Import from Server', 'gf-civicrm' ) ];
             }
 
@@ -207,7 +187,7 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
                 add_query_arg(
                     [
                         'page' => 'gf_export',
-                        'subview' => 'export_form',
+                        'subview' => 'export_gfcivicrm',
                     ],
                     admin_url( 'admin.php' )
                 )
@@ -286,6 +266,106 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
             }
 
             return $exports;
+        }
+
+        /**
+         * Replicate the Gravity Forms Export Forms subview. Add in our modifications.
+         */
+        public function export_gfcivicrm_form_html() {
+
+            if ( ! GFCommon::current_user_can_any( 'gravityforms_edit_forms' ) ) {
+                wp_die( __('You do not have sufficient permissions to access this page.') );
+            }
+
+            $docroot = $_SERVER['DOCUMENT_ROOT'];
+            $directory_base = 'CRM/form-processor';
+
+            $export_directory = apply_filters(
+                'gf-civicrm/import-directory',
+                "$docroot/$directory_base",
+                $docroot, $directory_base
+            );
+
+            GFExport::page_header();
+            GFExport::maybe_process_automated_export();
+            ?>
+            <script type="text/javascript">
+    
+                ( function( $, window, undefined ) {
+    
+                    $( document ).on( 'click keypress', '#gf_export_forms_all', function( e ) {
+    
+                        var checked  = e.target.checked,
+                            label    = $( 'label[for="gf_export_forms_all"]' ),
+                            formList = $( '#export_form_list' );
+    
+                        // Set label.
+                        label.find( 'strong' ).html( checked ? label.data( 'deselect' ) : label.data( 'select' ) );
+    
+                        // Change checkbox status.
+                        $( 'input[name]', formList ).prop( 'checked', checked );
+    
+                    } );
+    
+                }( jQuery, window ));
+    
+            </script>
+
+            <div class="gform-settings__content">
+                <form method="post" id="tab_gform_export" class="gform_settings_form">
+                    <?php wp_nonce_field( 'gf_export_forms', 'gf_export_forms_nonce' ); ?>
+                    <div class="gform-settings-panel gform-settings-panel--full">
+                        <header class="gform-settings-panel__header"><legend class="gform-settings-panel__title"><?php esc_html_e( 'Export CiviCRM Integrated Forms', 'gravityforms' )?></legend></header>
+                        <div class="gform-settings-panel__content">
+                            <div class="gform-settings-description">
+                                <?php esc_html_e( 'Select the forms you would like to export from the server at “%1$s”. Associated webhook feeds and CiviCRM form processors will also be exported. Note that this will overwrite all forms, feeds, and CiviCRM form processors included with the form exports already on the filesystem.', 'gravityforms' ); ?>
+                            </div>
+                            <table class="form-table">
+                                <tr valign="top">
+                                    <th scope="row">
+                                        <label for="export_fields"><?php esc_html_e( 'Select Forms', 'gravityforms' ); ?></label> <?php gform_tooltip( 'export_select_forms' ) ?>
+                                    </th>
+                                    <td>
+                                        <ul id="export_form_list">
+                                            <li>
+                                                <input type="checkbox" id="gf_export_forms_all" />
+                                                <label for="gf_export_forms_all" data-deselect="<?php esc_attr_e( 'Deselect All', 'gravityforms' ); ?>" data-select="<?php esc_attr_e( 'Select All', 'gravityforms' ); ?>"><?php esc_html_e( 'Select All', 'gravityforms' ); ?></label>
+                                            </li>
+                                            <?php
+                                            $forms = RGFormsModel::get_forms( null, 'title' );
+    
+                                            /**
+                                             * Modify list of forms available for export.
+                                             *
+                                             * @since 2.4.7
+                                             *
+                                             * @param array $forms Forms to display on Export Forms page.
+                                             */
+                                            $forms = apply_filters( 'gform_export_forms_forms', $forms );
+    
+                                            foreach ( $forms as $form ) {
+                                                ?>
+                                                <li>
+                                                    <input type="checkbox" name="gf_form_id[]" id="gf_form_id_<?php echo absint( $form->id ) ?>" value="<?php echo absint( $form->id ) ?>" />
+                                                    <label for="gf_form_id_<?php echo absint( $form->id ) ?>"><?php echo esc_html( $form->title ) ?></label>
+                                                </li>
+                                                <?php
+                                            }
+                                            ?>
+                                        </ul>
+                                    </td>
+                                </tr>
+                            </table>
+    
+                            <br /><br />
+                            <button class="button primary" formaction="/wp-admin/admin-post.php?action=gf_civicrm_export">Export Form &amp; Feeds to Server</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <?php
+    
+            GFExport::page_footer();
         }
 
         public function import_form_server_html() {
