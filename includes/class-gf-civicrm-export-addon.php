@@ -123,9 +123,9 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
 
                 $action_value ??= sanitize_title( $form['title'], $form_id );
 
-                // Define the subdirectory path (either action value or form ID)
+                // Define the subdirectory path by form title and either action value or form ID
                 $directory_base = 'CRM/form-processor';
-                $directory_name = $action_value ?: $form['title'];
+                $directory_name = implode('--', [$action_value, $form_id]);
                 $export_directory = apply_filters(
                     'gf-civicrm/export-directory',
                     "$docroot/$directory_base/$directory_name",
