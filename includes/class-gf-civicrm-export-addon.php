@@ -96,6 +96,7 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
             $forms = GFFormsModel::get_form_meta_by_id( $forms );
 
             $exports = [];
+            $failures = [];
             foreach ( $forms as $form ) {
                 $form_id = $form['id'];
                 $feeds = GFAPI::get_feeds( form_ids: [ $form_id ] );
@@ -154,8 +155,12 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
                 // Save the form data JSON file with prefix
                 $form_file_path = "$export_directory/gravityforms-export-$directory_name.json";
                 $form_json = json_encode( $forms_export, JSON_PRETTY_PRINT|JSON_UNESCAPED_SLASHES);
-                file_put_contents( $form_file_path, $form_json );
-                $exports['Form'][$directory_name] = "gravityforms-export-$directory_name.json";
+                $status = file_put_contents( $form_file_path, $form_json );
+                if ( !$status ) {
+                    $failures['Form'][$form['id']] = $form['title'];
+                } else {
+                    $exports['Form'][$form['id']] = $form['title'];
+                }
 
                 // Save each webhook feed data to separate JSON files using prefix and index
                 $feeds_export = [ 'version' => GFForms::$version ];
@@ -167,20 +172,37 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
                     $feeds_export[] = $feed + $feeds_default;
                     $feeds_file_path = "$export_directory/gravityforms-export-feeds-$directory_name.json";
                     $feeds_json = json_encode( $feeds_export, JSON_PRETTY_PRINT|JSON_UNESCAPED_SLASHES );
-                    file_put_contents( $feeds_file_path, $feeds_json );
-
-                    $exports['Feed'][$directory_name] = "gravityforms-export-feeds-$directory_name.json";
+                    $status = file_put_contents( $feeds_file_path, $feeds_json );
+                    if ( !$status ) {
+                        $failures['Feed'][$feed['id']] = $feed['meta']['feedName'];
+                    } else {
+                        $exports['Feed'][$feed['id']] = $feed['meta']['feedName'];
+                    }
                 }
 
                 $exported_processors = $this->export_processors($processors, $export_directory);
-                foreach ( $exported_processors as $id => $processor ) {
-                    $exports["Form Processor"][$id] = $processor;
+                foreach ( $exported_processors as $status => $processors ) {
+                    foreach ( $processors as $id => $processor ) {
+                        if ( $status === 'success' ) {
+                            $exports["Form Processor"][$id] = $processor;
+                        }
+                        else {
+                            $failures["Form Processor"][$id] = $processor;
+                        }
+                    }
                 }
             }
-            
-            // Store the names of all exports for 60 seconds for status reporting
-            set_transient( 'gfcv_exports', $exports, 60 );
-            set_transient( 'gfcv_exports_status', 'success', 60 );
+
+            // Store the names of exports for 60 seconds for status reporting
+            // Do it this way so we can report on both successes and failures
+            if ( !empty($failures) ) {
+                set_transient( 'gfcv_exports_failures', $failures, 60 );
+                set_transient( 'gfcv_exports_status_failure', true, 60 );
+            }
+            if (!empty($exports) ){
+                set_transient( 'gfcv_exports', $exports, 60 );
+                set_transient( 'gfcv_exports_status_success', true, 60 );
+            }
 
             // Redirect back to the Export page with a success message
             wp_redirect(
@@ -260,9 +282,11 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
                 $export = json_encode($exporter->export($id), JSON_PRETTY_PRINT|JSON_UNESCAPED_SLASHES);
 
                 file_put_contents($file_path, $export);
-                $exports[$name] = "form-processor-$name.json";
+                $exports['success'][$name] = "form-processor-$name.json";
+                $exports['failure'][$name] = $name;
             } catch ( Exception $e) {
                 GFCommon::log_debug( __METHOD__ . "(): GF CiviCRM Export Errors => Error exporting FormProcessor `$name`: " . $e->getMessage() );
+                $exports['failure'][$name] = $name;
             }
 
             return $exports;
@@ -318,7 +342,7 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
                         <header class="gform-settings-panel__header"><legend class="gform-settings-panel__title"><?php esc_html_e( 'Export CiviCRM Integrated Forms', 'gravityforms' )?></legend></header>
                         <div class="gform-settings-panel__content">
                             <div class="gform-settings-description">
-                                <?php esc_html_e( 'Select the forms you would like to export from the server at “%1$s”. Associated webhook feeds and CiviCRM form processors will also be exported. Note that this will overwrite all forms, feeds, and CiviCRM form processors included with the form exports already on the filesystem.', 'gravityforms' ); ?>
+                                <?php echo sprintf( esc_html__( 'Select the forms you would like to export from the server to “%1$s”. Associated webhook feeds and CiviCRM form processors will also be exported. Note that this will overwrite all forms, feeds, and CiviCRM form processors included with the form exports already on the filesystem.', 'gravityforms' ), $directory_base ); ?>
                             </div>
                             <table class="form-table">
                                 <tr valign="top">
@@ -706,26 +730,46 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
         }
 
         public function display_export_status() {
-            if ( get_transient('gfcv_exports_status') === 'success' ) {
+            if ( get_transient('gfcv_exports_status_success') ) {
                 $exports = get_transient('gfcv_exports');
 
-                $exports_html = '<table>';
+                $html = '<table>';
                 foreach ( $exports as $entity_type => $entity ) {
                     foreach ($entity as $type => $filename) {
-                        $exports_html .= "<tr><td style='padding-right:15px;'><strong>{$entity_type}</strong></td><td>{$filename}</td></tr>";
+                        $html .= "<tr><td style='padding-right:15px;'><strong>{$entity_type}</strong></td><td>{$filename}</td></tr>";
                     }
                 }
-                $exports_html .= '</table>';
+                $html .= '</table>';
 
                 $message = sprintf(
                     '<p><strong>%1$s</strong></p><p>%2$s</p>%3$s<p>%4$s</p>',
                     esc_html__( 'Your forms - and any related Webhook Feeds and CiviCRM Form Processors - have been exported. ', 'gravityforms' ),
                     esc_html__( 'The following files were successfully exported.', 'gravityforms' ),
-                    $exports_html,
+                    $html,
                     esc_html__( 'Make sure to check for any missing export files, and for any malformed exports.', 'gravityforms' ),
                 );
 
                 printf( '<div class="notice notice-success gf-notice" id="gform_disable_logging_notice">%s</div>', $message );
+            }
+
+            if ( get_transient('gfcv_exports_status_failure') ) {
+                $exports = get_transient('gfcv_exports_failures');
+
+                $html = '<table>';
+                foreach ( $exports as $entity_type => $entity ) {
+                    foreach ($entity as $type => $filename) {
+                        $html .= "<tr><td style='padding-right:15px;'><strong>{$entity_type}</strong></td><td>{$filename}</td></tr>";
+                    }
+                }
+                $html .= '</table>';
+
+                $message = sprintf(
+                    '<p><strong>%1$s</strong></p>%2$s',
+                    esc_html__( 'The following failed to export.', 'gravityforms' ),
+                    $html,
+                );
+
+                printf( '<div class="notice notice-warning gf-notice" id="gform_disable_logging_notice">%s</div>', $message );
             }
             
         }
