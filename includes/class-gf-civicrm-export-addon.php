@@ -123,43 +123,56 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
                 $processors = array_filter($processors);
 
                 $action_value ??= sanitize_title( $form['title'], $form_id );
+                $form_slug = sanitize_title( $form['title'] );
+                $form_slug = str_replace( '-', '_', $form_slug ); // Replace dashes with underscores
 
-                // Define the subdirectory path by form title and either action value or form ID
-                $directory_base = 'CRM/form-processor';
-                $directory_name = implode('--', [$action_value, $form_id]);
+                // Define the subdirectory paths by form title. Form processors exported to a separate subdirectory.
+                $directory_base = 'CRM/gf-civicrm-exports';
+                $fp_directory = 'form-processors';
+                $directory_name = $form_slug;
                 $export_directory = apply_filters(
                     'gf-civicrm/export-directory',
                     "$docroot/$directory_base/$directory_name",
-                    $docroot, $directory_base, $directory_name, $action_value, $form_id
+                    $docroot, $directory_base, $directory_name, $action_value, $form_slug, $form_id
                 );
-                $parent_directory = dirname($export_directory);
-                $htaccess = "$parent_directory/.htaccess";
+                $fp_export_directory = apply_filters(
+                    'gf-civicrm/fp-export-directory',
+                    "$docroot/$directory_base/$fp_directory",
+                    $docroot, $directory_base, $directory_name, $fp_directory, $action_value, $form_slug, $form_id
+                );
 
-                // Create the directory if it doesn’t exist
-                if ( ! file_exists( $export_directory ) ) {
-                    mkdir( $export_directory, 0755, true );
-                }
+                // Generate the directories and protect with htaccess
+                foreach ( [$export_directory, $fp_export_directory] as $directory ) {
+                    $parent_directory = dirname($directory);
+                    $htaccess = "$parent_directory/.htaccess";
 
-                // Create the htaccess if it doesn't exist. Restricts access to the exports.
-                if ( ! file_exists( $htaccess ) ) {
-                    $htaccess_contents = <<<HTACCESS
-                    Order allow,deny
-                    Deny from all
-                    HTACCESS;
-                    file_put_contents( $htaccess, $htaccess_contents );
-                    chmod($htaccess, 0644);
+                    // Create the directory if it doesn’t exist
+                    if ( ! file_exists( $directory ) ) {
+                        mkdir( $directory, 0755, true );
+                    }
+
+                    // Create the htaccess if it doesn't exist. Restricts access to the exports.
+                    if ( ! file_exists( $htaccess ) ) {
+                        $htaccess_contents = <<<HTACCESS
+                        Order allow,deny
+                        Deny from all
+                        HTACCESS;
+                        file_put_contents( $htaccess, $htaccess_contents );
+                        chmod($htaccess, 0644);
+                    }
                 }
 
                 $forms_export = GFExport::prepare_forms_for_export( [ $form ]);
 
                 // Save the form data JSON file with prefix
-                $form_file_path = "$export_directory/gravityforms-export-$directory_name.json";
+                $form_file_name = "form--$directory_name.json";
+                $form_file_path = "$export_directory/$form_file_name";
                 $form_json = json_encode( $forms_export, JSON_PRETTY_PRINT|JSON_UNESCAPED_SLASHES);
                 $status = file_put_contents( $form_file_path, $form_json );
                 if ( !$status ) {
                     $failures['Form'][$form['id']] = $form['title'];
                 } else {
-                    $exports['Form'][$form['id']] = $form['title'];
+                    $exports['Form'][$form['id']] = $form_file_name;
                 }
 
                 // Save each webhook feed data to separate JSON files using prefix and index
@@ -170,17 +183,18 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
 
                 foreach ( $feeds as $feed ) {
                     $feeds_export[] = $feed + $feeds_default;
-                    $feeds_file_path = "$export_directory/gravityforms-export-feeds-$directory_name.json";
+                    $feeds_file_name = "feed--$directory_name.json";
+                    $feeds_file_path = "$export_directory/$feeds_file_name";
                     $feeds_json = json_encode( $feeds_export, JSON_PRETTY_PRINT|JSON_UNESCAPED_SLASHES );
                     $status = file_put_contents( $feeds_file_path, $feeds_json );
                     if ( !$status ) {
                         $failures['Feed'][$feed['id']] = $feed['meta']['feedName'];
                     } else {
-                        $exports['Feed'][$feed['id']] = $feed['meta']['feedName'];
+                        $exports['Feed'][$feed['id']] = $feeds_file_name;
                     }
                 }
 
-                $exported_processors = $this->export_processors($processors, $export_directory);
+                $exported_processors = $this->export_processors($processors, $fp_export_directory);
                 foreach ( $exported_processors as $status => $processors ) {
                     foreach ( $processors as $id => $processor ) {
                         if ( $status === 'success' ) {
@@ -277,13 +291,12 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
 
             $exports = [];
             foreach ( $processors as $name => $id ) try {
-                $file_path = "$export_directory/form-processor-$name.json";
+                $file_path = "$export_directory/$name.json";
 
                 $export = json_encode($exporter->export($id), JSON_PRETTY_PRINT|JSON_UNESCAPED_SLASHES);
 
                 file_put_contents($file_path, $export);
-                $exports['success'][$name] = "form-processor-$name.json";
-                $exports['failure'][$name] = $name;
+                $exports['success'][$name] = "$name.json";
             } catch ( Exception $e) {
                 GFCommon::log_debug( __METHOD__ . "(): GF CiviCRM Export Errors => Error exporting FormProcessor `$name`: " . $e->getMessage() );
                 $exports['failure'][$name] = $name;
@@ -399,7 +412,7 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
             }
 
             $docroot = $_SERVER['DOCUMENT_ROOT'];
-            $directory_base = 'CRM/form-processor';
+            $directory_base = 'CRM/gf-civicrm-exports';
 
             $import_directory = apply_filters(
                 'gf-civicrm/import-directory',
@@ -449,15 +462,16 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
         }
 
         protected  function importable_forms( $import_directory ): array {
-            $import_files = glob( $import_directory . '/*/gravityforms-export*.json' );
+            $import_files = glob( $import_directory . '/*/*.json' );
 
-            $import_files = preg_grep('{ / (?<directory_name> [^/]+) / gravityforms-export- \g{directory_name} \. json $ }xi', $import_files);
+            $import_files = preg_grep('{ / (?<directory_name> [^/]+) / form-- \g{directory_name} \. json $ }xi', $import_files);
 
             $importable = [];
 
             foreach($import_files as $file) {
                 $matches = [];
-                preg_match('{ / gravityforms-export- ( [^/]+ ) \. json $ }xi', $file, $matches);
+                // Grab the key from the file name
+                preg_match('{ / form-- ( [^/]+ ) \. json $ }xi', $file, $matches);
                 [, $key] = $matches;
 
                 $forms = json_decode(file_get_contents($file), TRUE);
@@ -498,7 +512,7 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
             $imports = [];
             $failures = [];
             foreach($import_forms as $directory_name) {
-                $form_file =  $import_directory . $directory_name . "/gravityforms-export-$directory_name.json";
+                $form_file =  $import_directory . $directory_name . "/form--$directory_name.json";
 
                 try {
 	                $form_ids = $this->import_forms( $form_file );
@@ -512,7 +526,7 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
                     GFCommon::log_debug( __METHOD__ . '(): GF CiviCRM Import Errors => ' . $e->getMessage() );
                 }
 
-                $feeds_file = $import_directory . $directory_name . "/gravityforms-export-feeds-$directory_name.json";
+                $feeds_file = $import_directory . $directory_name . "/feed--$directory_name.json";
 
                 if ( file_exists( $feeds_file ) ) {
                     try {
@@ -528,7 +542,8 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
 	                }
                 }
 
-                $processor_file = $import_directory . $directory_name . "/form-processor-$directory_name.json";
+                // TODO Fix this
+                /*$processor_file = $import_directory . "/form-processors/$directory_name.json";
 
                 if ( file_exists( $processor_file ) ) {
                     try {
@@ -543,7 +558,7 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
                         $failures["Form Processor"] = $e->getMessage();
                         GFCommon::log_debug( __METHOD__ . '(): GF CiviCRM Import Errors => ' . $e->getMessage() );
                     }
-                }
+                }*/
             }
 
             // Store the names of imports for 60 seconds for status reporting
