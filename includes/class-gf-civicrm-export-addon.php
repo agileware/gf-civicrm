@@ -40,6 +40,43 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
             return self::$_instance;
         }
 
+        public function styles() {
+            $styles = [
+                [
+                    'handle'  => 'gf_civicrm_export_addon',
+                    'src'     => $this->get_base_url(__DIR__) . '/css/gf-civicrm-export-addon.css',
+                    'version' => rand(0, 999),
+                    'enqueue' => [ 
+                        [ $this, 'should_enqueue_scripts' ], // Specify where to enqueue
+                    ],
+                ],
+            ];
+
+            return array_merge(parent::styles(), $styles);
+        }
+
+        public function scripts() {
+            $scripts = [
+                [
+                    'handle' => 'gf_civicrm_export_addon',
+                    'src' => $this->get_base_url(__DIR__ ) . '/js/gf-civicrm-export-addon.js',
+                    'version' => $this->_version,
+                    'deps' => [ 'wp-i18n' ],
+                    'enqueue' => [
+                        [ $this, 'should_enqueue_scripts' ] // Specify where to enqueue
+                    ],
+                    'strings' => [
+                        'action' => admin_url( 'admin-post.php?action=gf_civicrm_export' ),
+                    ],
+                ]
+            ];
+            return array_merge(parent::scripts(), $scripts);
+        }
+
+        public function should_enqueue_scripts() {
+            return is_admin() && rgget( 'page' ) == 'gf_export' && rgget( 'subview' ) == 'import_server';
+        }
+
         public function init_admin()
         {
             parent::init_admin();

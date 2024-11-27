@@ -1,0 +1,18 @@
+#import_form_list,
+#import_form_processors_list {
+    li {
+        display: grid;
+        grid-auto-flow: column;
+        gap: 1em;
+        align-items: baseline;
+        justify-content: space-between;
+
+        .align-right {
+            text-align: right;
+        }
+
+        select {
+            width: auto;
+        }
+    }
+}
