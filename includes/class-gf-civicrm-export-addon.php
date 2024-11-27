@@ -63,6 +63,7 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
 
             add_filter('gform_export_menu', [ self::class, 'settings_tabs' ], 10, 1);
         }
+
         public static function settings_tabs( $settings_tabs ) {
             if( GFCommon::current_user_can_any('gravityforms_edit_forms') ) {
                 $settings_tabs[25] = [ 'name' => 'export_gfcivicrm', 'label' => __( 'Export GF CiviCRM', 'gf-civicrm' ) ];
@@ -162,19 +163,6 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
                     }
                 }
 
-                $forms_export = GFExport::prepare_forms_for_export( [ $form ]);
-
-                // Save the form data JSON file with prefix
-                $form_file_name = "form--$directory_name.json";
-                $form_file_path = "$export_directory/$form_file_name";
-                $form_json = json_encode( $forms_export, JSON_PRETTY_PRINT|JSON_UNESCAPED_SLASHES);
-                $status = file_put_contents( $form_file_path, $form_json );
-                if ( !$status ) {
-                    $failures['Form'][$form['id']] = $form['title'];
-                } else {
-                    $exports['Form'][$form['id']] = $form_file_name;
-                }
-
                 // Save each webhook feed data to separate JSON files using prefix and index
                 $feeds_export = [ 'version' => GFForms::$version ];
 
@@ -183,7 +171,7 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
 
                 foreach ( $feeds as $feed ) {
                     $feeds_export[] = $feed + $feeds_default;
-                    $feeds_file_name = "feed--$directory_name.json";
+                    $feeds_file_name = "feeds--$directory_name.json";
                     $feeds_file_path = "$export_directory/$feeds_file_name";
                     $feeds_json = json_encode( $feeds_export, JSON_PRETTY_PRINT|JSON_UNESCAPED_SLASHES );
                     $status = file_put_contents( $feeds_file_path, $feeds_json );
@@ -192,6 +180,8 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
                     } else {
                         $exports['Feed'][$feed['id']] = $feeds_file_name;
                     }
+
+                    $form['gf-civicrm-export-webhook-feeds'][] = $feed['meta']['feedName'];
                 }
 
                 $exported_processors = $this->export_processors($processors, $fp_export_directory);
@@ -201,9 +191,23 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
                             $exports["Form Processor"][$id] = $processor;
                         }
                         else {
-                            $failures["Form Processor"][$id] = $processor;
+                            $failures["Form Processor"][$id] = $id;
                         }
+                        $form['gf-civicrm-export-form-processors'][] = $id;
                     }
+                }
+
+                // Save the form data JSON file
+                $forms_export = GFExport::prepare_forms_for_export( [ $form ]);
+
+                $form_file_name = "form--$directory_name.json";
+                $form_file_path = "$export_directory/$form_file_name";
+                $form_json = json_encode( $forms_export, JSON_PRETTY_PRINT|JSON_UNESCAPED_SLASHES);
+                $status = file_put_contents( $form_file_path, $form_json );
+                if ( !$status ) {
+                    $failures['Form'][$form['id']] = $form['title'];
+                } else {
+                    $exports['Form'][$form['id']] = $form_file_name;
                 }
             }
 
@@ -426,7 +430,36 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
                 $this->do_import($import_directory);
             }
 
+            $forms = RGFormsModel::get_forms( null, 'title' );
+    
+            /**
+             * Modify list of forms available for export.
+             *
+             * @since 2.4.7
+             *
+             * @param array $forms Forms to display on Export Forms page.
+             */
+            $forms = apply_filters( 'gform_export_forms_forms', $forms );
+
+            $select_forms = '<option value="create">Create new form</option>'; // Placeholder option.
+            foreach ( $forms as $form ) {
+                $title_value = sanitize_title( $form->title );
+                $title_value = str_replace( '-', '_', $title_value ); // Replace dashes with underscores
+                $select_forms .= '<option value="' . $title_value . '">' . esc_html( $form->title ) . '</option>';
+            }
+
+            // Check for any existing form processors with this name
+            $form_processors = \Civi\Api4\FormProcessorInstance::get(FALSE)
+                ->addSelect('id', 'name', 'title')
+                ->execute();
+            $select_form_processors = '<option value="create">Create new form processor</option>'; // Placeholder option.
+            foreach ( $form_processors as $processor ) {
+                $select_form_processors .= '<option value="' . $processor['name'] . '">' . esc_html( $processor['title'] ) . '</option>';
+            }
+            
+
             $importable_forms = $this->importable_forms($import_directory);
+            $importable_form_processors = $this->importable_form_processors($import_directory);
 
             ?>
             <div class="gform-settings__content">
@@ -435,20 +468,56 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
                     <div class="gform-settings-panel gform-settings-panel--full">
                         <div class="gform-settings-panel__header"><h2 class="gform-settings-panel__title"><?= esc_html__('Import from Server' ) ?></h2></div>
                         <div class="gform-settings-panel__content">
-                            <div class="gform-settings-description"><?= sprintf( esc_html__( 'Select the forms you would like to export from the server at “%1$s”. Note that this will overwrite all forms, feeds, and CiviCRM form processors included with the form on the filesystem.', 'gf-civicrm' ), $directory_base ); ?></div>
+                            <div class="gform-settings-description"><?= sprintf( esc_html__( 'Select the forms you would like to import from the server at “%1$s”. Note that this will overwrite the current database entries for all existing forms, feeds, and CiviCRM form processors included with the form export files.', 'gf-civicrm' ), $directory_base ); ?></div>
                             <fieldset>
-                                <legend><strong><?= esc_html__('Select Forms', 'gf-civicrm') ?></strong></legend>
+                                <legend><h3><?= esc_html__('Select Forms', 'gf-civicrm') ?></h3></legend>
                                 <p><?= esc_html__('These forms were detected on the filesystem:') ?></p>
-                                <ul>
-                                    <?php foreach($importable_forms as $key => [ 'title' => $title, 'id' => $id, 'existing' => $existing  ]) { ?>
+                                <ul id="import_form_list">
+                                    <?php foreach($importable_forms as $key => $values) { 
+                                        $feeds = implode(", ", $values['feeds']);
+                                        $sanitized_feeds = implode(", ", array_map('sanitize_text_field', $values['feeds']));
+                                        $form_processors = implode(", ", $values['form_processors']);
+                                        ?>
                                         <li>
-                                            <input type="checkbox" id="import-form-<?= $id ?>" name="import_form[]" value="<?= $key ?>">
-                                            <label for="import-form-<?= $id ?>">
-                                                <?php printf(
-                                                        ($existing ? __('%1$s – will replace existing form “%2$s”', 'gf-civicrm') :'%1$s'),
-                                                        $title, $existing);
-                                                ?>
-                                            </label>
+                                            <div>
+                                                <input type="checkbox" id="import-form-<?= $values['id'] ?>" name="import_form[<?= $key ?>]" value="<?= $key ?>" data-formprocessors="<?= $form_processors ?>" data-feeds="<?= $sanitized_feeds ?>">
+                                                <label for="import-form-<?= $values['id'] ?>">
+                                                    <?php 
+                                                    printf(
+                                                            ($values['existing'] ? __('<strong>%1$s</strong> - Includes feeds: %2$s', 'gf-civicrm') :'%1$s'),
+                                                            $values['title'], $feeds);
+                                                    ?>
+                                                </label>
+                                            </div>
+                                            <div class="align-right">
+                                                <label for="import-form-into-<?= $values['id'] ?>">
+                                                    <?php echo __('Replace form', 'gf-civicrm'); ?>
+                                                </label>
+                                                <select name="import_form_into[<?= $key ?>]" id="import-form-into-<?= $values['id'] ?>">
+                                                    <?php echo $select_forms; ?>
+                                                </select>
+                                            </div>
+                                        </li>
+                                    <?php } ?>
+                                </ul>
+                            </fieldset>
+                            <fieldset>
+                                <legend><h3><?= esc_html__('Select Form Processors', 'gf-civicrm') ?></h3></legend>
+                                <p><?= esc_html__('These form processors were detected on the filesystem:') ?></p>
+                                <ul id="import_form_processors_list">
+                                    <?php foreach($importable_form_processors as $key => $values) { 
+                                        ?>
+                                        <li>
+                                            <div>
+                                                <input type="checkbox" id="import-form-processor-<?= $key ?>" name="import_form_processor[]" value="<?= $key ?>">
+                                                <label for="import-form-processor-<?= $key ?>">
+                                                    <?php 
+                                                    printf(
+                                                            ($values['existing'] ? __('<strong>%1$s</strong>', 'gf-civicrm') :'%1$s'),
+                                                            $values['title']);
+                                                    ?>
+                                                </label>
+                                            </div>
                                         </li>
                                     <?php } ?>
                                 </ul>
@@ -487,6 +556,47 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
                     'title' => $form['title'] ?? $key,
                     'id' => $form['id'] ?? null,
                     'existing' => (isset($existing['title']) ? $existing['title'] : null),
+                    'feeds' => $form['gf-civicrm-export-webhook-feeds'],
+                    'form_processors' => $form['gf-civicrm-export-form-processors'],
+                ];
+
+            }
+
+            return $importable;
+        }
+
+        protected  function importable_form_processors( $import_directory ): array {
+            $import_files = glob( $import_directory . '/form-processors/*.json' );
+
+            $import_files = preg_grep('{ / (?<directory_name> [^/]+) / *. json $ }xi', $import_files);
+
+            $importable = [];
+
+            foreach($import_files as $file) {
+                $matches = [];
+                // Grab the key from the file name
+                preg_match('{ / ( [^/]+ ) \. json $ }xi', $file, $matches);
+                [, $key] = $matches;
+
+                $processor = json_decode(file_get_contents($file), TRUE);
+
+                if(empty($processor)) {
+                    continue;
+                }
+
+                // Check for any existing form processor with this name
+                $existing = \Civi\Api4\FormProcessorInstance::get(FALSE)
+                    ->addSelect('id', 'name', 'title')
+                    ->addWhere('name', '=', 'update_card')
+                    ->execute()
+                    ->first();
+
+                $importable[$key] = [
+                    'title' => $processor['title'] ?? $key,
+                    'id' => $processor['id'] ?? null,
+                    'existing' => (isset($existing['title']) ? $existing['title'] : null),
+                    'existing_name' => (isset($existing['name']) ? $existing['name'] : null),
+                    'existing_id' => (isset($existing['id']) ? $existing['id'] : null),
                 ];
 
             }
@@ -505,7 +615,13 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
             check_admin_referer('gf_civicrm_import');
 
             $import_forms = filter_input(INPUT_POST, 'import_form', FILTER_CALLBACK, ['options' => [ $this, 'filter_form_names' ]]);
-            $import_forms = array_filter($import_forms);
+            $import_form_processors = filter_input(INPUT_POST, 'import_form_processor', FILTER_CALLBACK, ['options' => [ $this, 'filter_form_names' ]]);
+            if ( !$import_forms && !$import_form_processors ) {
+                echo 'No imports selected'; // TODO make this a proper message
+                return; // No forms selected for import
+            }
+            $import_forms = $import_forms ? array_filter($import_forms) : null;
+            $import_form_processors = $import_form_processors ? array_filter($import_form_processors) : null;
 
 	        $import_directory = trailingslashit($import_directory);
 
@@ -515,7 +631,7 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
                 $form_file =  $import_directory . $directory_name . "/form--$directory_name.json";
 
                 try {
-	                $form_ids = $this->import_forms( $form_file );
+	                $form_ids = $this->import_forms( $form_file, $directory_name );
                     
                     foreach ($form_ids as $form_id) {
                         $form = GFAPI::get_form( $form_id );
@@ -526,7 +642,7 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
                     GFCommon::log_debug( __METHOD__ . '(): GF CiviCRM Import Errors => ' . $e->getMessage() );
                 }
 
-                $feeds_file = $import_directory . $directory_name . "/feed--$directory_name.json";
+                $feeds_file = $import_directory . $directory_name . "/feeds--$directory_name.json";
 
                 if ( file_exists( $feeds_file ) ) {
                     try {
@@ -541,24 +657,28 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
                         GFCommon::log_debug( __METHOD__ . '(): GF CiviCRM Import Errors => ' . $e->getMessage() );
 	                }
                 }
+            }
 
-                // TODO Fix this
-                /*$processor_file = $import_directory . "/form-processors/$directory_name.json";
+            // Handle importing form processors
+            foreach($import_form_processors as $processor_name) {
+                $processor_file = $import_directory . "/form-processors/$processor_name.json";
 
-                if ( file_exists( $processor_file ) ) {
-                    try {
-                        $form_processor = $this->import_processor( $processor_file );
-                        $fp_instance = \Civi\Api4\FormProcessorInstance::get(FALSE)
-                            ->addWhere('id', '=', $form_processor['import']['new_id']) // the imported id may be different to the original id in the import file
-                            ->execute()
-                            ->first();
+                if ( !file_exists( $processor_file ) ) {
+                    continue;
+                }
 
-                        $imports["Form Processor"][$fp_instance['id']] = sprintf('%1$s - %2$s', $fp_instance['title'], $fp_instance['name']);
-                    } catch(Throwable $e) {
-                        $failures["Form Processor"] = $e->getMessage();
-                        GFCommon::log_debug( __METHOD__ . '(): GF CiviCRM Import Errors => ' . $e->getMessage() );
-                    }
-                }*/
+                try {
+                    $form_processor = $this->import_processor( $processor_file );
+                    $fp_instance = \Civi\Api4\FormProcessorInstance::get(FALSE)
+                        ->addWhere('id', '=', $form_processor['import']['new_id']) // the imported id may be different to the original id in the import file
+                        ->execute()
+                        ->first();
+
+                    $imports["Form Processor"][$fp_instance['id']] = sprintf('%1$s - %2$s', $fp_instance['title'], $fp_instance['name']);
+                } catch(Throwable $e) {
+                    $failures["Form Processor"] = $e->getMessage();
+                    GFCommon::log_debug( __METHOD__ . '(): GF CiviCRM Import Errors => ' . $e->getMessage() );
+                }
             }
 
             // Store the names of imports for 60 seconds for status reporting
@@ -595,7 +715,7 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
 	     * @return array
 	     * @throws Exception
 	     */
-	    public function import_forms( string $form_file ): array {
+	    public function import_forms( string $form_file, string $import_target = '' ): array {
 		    if ( ! is_readable( $form_file ) ) {
 			    throw new Exception( sprintf( __( 'Can not read from form import file %1$s', 'gf-civicrm' ), basename( $form_file ) ) );
 		    }
@@ -616,6 +736,20 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
 			    throw new Exception( sprintf( __( 'No forms found in input file %1$s', 'gf-civicrm' ), basename( $form_file ) ) );
             }
 
+            /**
+             * We can't guarantee that form IDs match up between the files to import and the database.
+             * Gravity Forms uses unique form titles, though. We'll match against the form title as a slug.
+             * Unfortunately that does mean we have to get ALL feeds, process them, and check against the sanitized titles.
+             */
+            $existing_forms = GFAPI::get_forms(null); // Including inactive forms
+            for ( $i = 0; $i < count($existing_forms); $i++ ) { 
+                $existing = $existing_forms[$i];
+                $title_slug = sanitize_title($existing['title']);
+                $title_slug = str_replace( '-', '_', $title_slug ); // Replace dashes with underscores
+                $existing['title_slug'] = $title_slug;
+                $existing_forms[$i] = $existing;
+            }
+
 		    foreach ( $forms as $form ) {
 			    $form['markupVersion'] = rgar( $form, 'markupVersion' ) ? $form['markupVersion'] : 2;
 
@@ -624,6 +758,29 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
 
 			    $id = null;
 
+                $title_slug = sanitize_title($existing['title']);
+                $title_slug = str_replace( '-', '_', $title_slug ); // Replace dashes with underscores
+
+                // TODO check if an existing form matches the import_target if provided. If so, get the form from existing_forms based on the slug.
+                // TODO Test if this works for ID mismatch
+
+                if ( ! empty( $import_target ) ) {
+                    $filtered = array_filter( $existing_forms, function($item) use ($import_target) {
+                        return $item['title_slug'] === $import_target;
+                    });
+
+                    if ( !empty ( $filtered[0] ) ) {
+                        // Update the existing form
+                        $id = $filtered[0]['id']; // we're returning this id
+                        $form['id'] = $id;
+				        GFAPI::update_form( $form );
+                    } else {
+                        // Create a new form
+                        $id = GFAPI::add_form( $form );
+                    }
+                }
+
+                /*
 			    if ( ! empty( $form['id'] ) ) {
                     // check if form with id already exists
                     if ( GFAPI::form_id_exists( $form['id'] ) ) {
@@ -634,7 +791,7 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
                     }
 			    } else {
 				    $id = GFAPI::add_form( $form );
-			    }
+			    }*/
 
                 $ids[] = $id;
 		    }
