@@ -288,6 +288,15 @@ class FieldsAddOn extends GFAddOn {
           'default_value' => '',
         ] ],
       ],
+      [
+        'title'       => esc_html__( 'Import/Export Directory', 'gf-civicrm' ),
+        'description' => nl2br(esc_html__( "Define the path to the import/export directory, relative to the server document root. Used by Export GF CiviCRM and Import GF CiviCRM.\n\nYou can modify the subdirectories using the 'gf-civicrm/export-directory' and 'gf-civicrm/fp-export-directory' filters.", 'gf-civicrm' )),
+        'fields'      => [ [
+          'type'          => 'text',
+          'name'          => 'gf_civicrm_import_export_directory',
+          'default_value' => 'CRM/gf-civicrm-exports',
+        ] ],
+      ],
     ];
 	}
 }

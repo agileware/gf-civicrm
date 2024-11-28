@@ -165,16 +165,16 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
                 $form_slug = str_replace( '-', '_', $form_slug ); // Replace dashes with underscores
 
                 // Define the subdirectory paths by form title. Form processors exported to a separate subdirectory.
-                $directory_base = 'CRM/gf-civicrm-exports';
+                $directory_base = FieldsAddOn::get_instance()->get_plugin_setting( 'gf_civicrm_import_export_directory' );
                 $fp_directory = 'form-processors';
                 $directory_name = $form_slug;
                 $export_directory = apply_filters(
-                    'gf-civicrm/export-directory',
+                    'gf-civicrm/import-export-directory',
                     "$docroot/$directory_base/$directory_name",
                     $docroot, $directory_base, $directory_name, $action_value, $form_slug, $form_id
                 );
                 $fp_export_directory = apply_filters(
-                    'gf-civicrm/fp-export-directory',
+                    'gf-civicrm/fp-import-export-directory',
                     "$docroot/$directory_base/$fp_directory",
                     $docroot, $directory_base, $directory_name, $fp_directory, $action_value, $form_slug, $form_id
                 );
@@ -248,9 +248,9 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
                 $form_json = json_encode( $forms_export, JSON_PRETTY_PRINT|JSON_UNESCAPED_SLASHES);
                 $status = file_put_contents( $form_file_path, $form_json );
                 if ( !$status ) {
-                    $failures['Form'][$form['id']] = $form['title'];
+                    $failures['GF Form'][$form['id']] = $form['title'];
                 } else {
-                    $exports['Form'][$form['id']] = $form_file_name;
+                    $exports['GF Form'][$form['id']] = $form_file_name;
                 }
             }
 
@@ -368,7 +368,7 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
             }
 
             $docroot = $_SERVER['DOCUMENT_ROOT'];
-            $directory_base = 'CRM/form-processor';
+            $directory_base = FieldsAddOn::get_instance()->get_plugin_setting( 'gf_civicrm_import_export_directory' );
 
             GFExport::page_header();
             GFExport::maybe_process_automated_export();
@@ -462,10 +462,15 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
             }
 
             $docroot = $_SERVER['DOCUMENT_ROOT'];
-            $directory_base = 'CRM/gf-civicrm-exports';
+            $directory_base = FieldsAddOn::get_instance()->get_plugin_setting( 'gf_civicrm_import_export_directory' );
 
             $import_directory = apply_filters(
-                'gf-civicrm/import-directory',
+                'gf-civicrm/import-export-directory',
+                "$docroot/$directory_base",
+                $docroot, $directory_base
+            );
+            $fp_import_directory  = apply_filters(
+                'gf-civicrm/fp-import-export-directory',
                 "$docroot/$directory_base",
                 $docroot, $directory_base
             );
@@ -496,7 +501,7 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
             
 
             $importable_forms = $this->importable_forms($import_directory);
-            $importable_form_processors = $this->importable_form_processors($import_directory);
+            $importable_form_processors = $this->importable_form_processors($fp_import_directory);
 
             ?>
             <div class="gform-settings__content">
@@ -686,13 +691,14 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
 	                $form_id = $this->import_form( $form_file, $import_target );
                     
                     $form = GFAPI::get_form( $form_id );
-                    $imports['Form'][$form_id] = $form['title'] . ' - source: ' . $form_file_name;
+                    $imports['GF Form'][$form_id] = $form['title'] . ' - source: ' . $form_file_name;
                 } catch ( Throwable $e ) {
-                    $failures['Form'] = 'Failed to import Form => ' . $e->getMessage();
+                    $failures['GF Form'] = 'Failed to import Form => ' . $e->getMessage();
                     GFCommon::log_debug( __METHOD__ . '(): GF CiviCRM Import Errors => ' . $e->getMessage() );
                 }
 
-                $feeds_file = $import_directory . $directory_name . "/feeds--$directory_name.json";
+                $feeds_file_name = "feeds--$directory_name.json";
+                $feeds_file = $import_directory . $directory_name . "/$feeds_file_name";
 
                 // If we don't have a form ID, there's nothing to import feeds into, so we skip.
                 if ( file_exists( $feeds_file ) && $form_id ) {
@@ -701,10 +707,10 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
 
                         foreach ($feeds as $feed) {
                             $form = GFAPI::get_form( $feed['form_id'] );
-                            $imports['Feed'][$feed['id']] = sprintf('%1$s for the form %2$s', $feed['meta']['feedName'], $form['title']);
+                            $imports['Feed'][$feed['id']] = sprintf('%1$s for the form %2$s - source: %3$s', $feed['meta']['feedName'], $form['title'], $form_file_name);
                         }
                     } catch ( Throwable $e ) {
-                        $failures['Feed'] = $e->getMessage();
+                        $failures['Feed'] = 'Failed to import Feed => ' . $e->getMessage();
                         GFCommon::log_debug( __METHOD__ . '(): GF CiviCRM Import Errors => ' . $e->getMessage() );
 	                }
                 }
@@ -712,7 +718,8 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
 
             // Handle importing form processors
             foreach ( $import_form_processors as $processor_name ) {
-                $processor_file = $import_directory . "/form-processors/$processor_name.json";
+                $processor_file_name = "$processor_name.json";
+                $processor_file = $import_directory . "/form-processors/$processor_file_name";
 
                 if ( !file_exists( $processor_file ) ) {
                     continue;
@@ -725,9 +732,9 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
                         ->execute()
                         ->first();
 
-                    $imports["Form Processor"][$fp_instance['id']] = sprintf('%1$s - %2$s', $fp_instance['title'], $fp_instance['name']);
+                    $imports["Form Processor"][$fp_instance['id']] = sprintf('%1$s (%2$s ID: %3$s - source: %4$s)', $fp_instance['title'], $fp_instance['name'], $fp_instance['id'], $processor_file_name);
                 } catch ( Throwable $e ) {
-                    $failures["Form Processor"] = $e->getMessage();
+                    $failures["Form Processor"] = 'Failed to import FormProcessor => ' . $e->getMessage();
                     GFCommon::log_debug( __METHOD__ . '(): GF CiviCRM Import Errors => ' . $e->getMessage() );
                 }
             }
