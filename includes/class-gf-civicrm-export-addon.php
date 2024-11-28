@@ -137,12 +137,12 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
             $failures = [];
             foreach ( $forms as $form ) {
                 $form_id = $form['id'];
-                $feeds = GFAPI::get_feeds( form_ids: [ $form_id ] );
 
+                // Get feeds attached to this form
+                $feeds = GFAPI::get_feeds( form_ids: [ $form_id ] );
                 if ( $feeds instanceof \WP_Error ) {
                     $feeds = [];
                 }
-
                 $webhook_feeds = array_filter( $feeds, function( $feed ) {
                     return isset( $feed['addon_slug'] ) && $feed['addon_slug'] === 'gravityformswebhooks';
                 });
@@ -200,12 +200,9 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
                     }
                 }
 
-                // Save each webhook feed data to separate JSON files using prefix and index
+                // Save each webhook feed data for this form into the one file
                 $feeds_export = [ 'version' => GFForms::$version ];
-
-                // Additional meta from compatibility with import plugin
-                $feeds_default =  [ 'migrate_feed_type' => 'official' ];
-
+                $feeds_default =  [ 'migrate_feed_type' => 'official' ]; // Additional meta from compatibility with import plugin
                 $feeds_status_final = false;
                 unset( $form['gf-civicrm-export-webhook-feeds'] );
                 foreach ( $feeds as $feed ) {
@@ -228,6 +225,7 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
                     $exports['Feed'][$feed['id']] = $feeds_file_name;
                 }
 
+                // Save the form processor data JSON file to the form-processors directory
                 unset( $form['gf-civicrm-export-form-processors'] );
                 $exported_processors = $this->export_processors($processors, $fp_export_directory);
                 foreach ( $exported_processors as $status => $processors ) {
@@ -236,7 +234,7 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
                             $exports["Form Processor"][$id] = $processor;
                         }
                         else {
-                            $failures["Form Processor"][$id] = $id;
+                            $failures["Form Processor"][$id] = $processor;
                         }
                         $form['gf-civicrm-export-form-processors'][] = $id;
                     }
@@ -281,6 +279,9 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
             exit;
         }
 
+        /**
+         * Get the action value from the Request URL. This is a reference to the form processor.
+         */
         private function get_action_from_url( $url ) {
             // Parse the URL to extract query parameters
             $parsed_url = parse_url( $url );
@@ -295,6 +296,9 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
             return $query_params['action'] ?? null;
         }
 
+        /**
+         * Get the form processor by name.
+         */
         private function get_form_processor( $name )
         {
             // Initialize CiviCRM if needed
@@ -348,7 +352,7 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
                 $exports['success'][$name] = "$name.json";
             } catch ( Exception $e) {
                 GFCommon::log_debug( __METHOD__ . "(): GF CiviCRM Export Errors => Error exporting FormProcessor `$name`: " . $e->getMessage() );
-                $exports['failure'][$name] = $name;
+                $exports['failure'][$name] = 'Error exporting FormProcessor => ' . $name . ': ' . $e->getMessage();
             }
 
             return $exports;
@@ -365,12 +369,6 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
 
             $docroot = $_SERVER['DOCUMENT_ROOT'];
             $directory_base = 'CRM/form-processor';
-
-            $export_directory = apply_filters(
-                'gf-civicrm/import-directory',
-                "$docroot/$directory_base",
-                $docroot, $directory_base
-            );
 
             GFExport::page_header();
             GFExport::maybe_process_automated_export();
