@@ -206,6 +206,8 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
                 // Additional meta from compatibility with import plugin
                 $feeds_default =  [ 'migrate_feed_type' => 'official' ];
 
+                $feeds_status_final = false;
+                unset( $form['gf-civicrm-export-webhook-feeds'] );
                 foreach ( $feeds as $feed ) {
                     $feeds_export[] = $feed + $feeds_default;
                     $feeds_file_name = "feeds--$directory_name.json";
@@ -213,14 +215,20 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
                     $feeds_json = json_encode( $feeds_export, JSON_PRETTY_PRINT|JSON_UNESCAPED_SLASHES );
                     $status = file_put_contents( $feeds_file_path, $feeds_json );
                     if ( !$status ) {
+                        // Log a failure
                         $failures['Feed'][$feed['id']] = $feed['meta']['feedName'];
                     } else {
-                        $exports['Feed'][$feed['id']] = $feeds_file_name;
+                        $feeds_status_final = true;
+                        // Store the feedname with the form in the export
+                        $form['gf-civicrm-export-webhook-feeds'][] = $feed['meta']['feedName'];
                     }
-
-                    $form['gf-civicrm-export-webhook-feeds'][] = $feed['meta']['feedName'];
+                }
+                // Log a single status message for the final file
+                if ( $feeds_status_final ) {
+                    $exports['Feed'][$feed['id']] = $feeds_file_name;
                 }
 
+                unset( $form['gf-civicrm-export-form-processors'] );
                 $exported_processors = $this->export_processors($processors, $fp_export_directory);
                 foreach ( $exported_processors as $status => $processors ) {
                     foreach ( $processors as $id => $processor ) {
