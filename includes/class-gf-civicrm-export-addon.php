@@ -597,9 +597,9 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
                 $importable[$key] = [
                     'title' => $form['title'] ?? $key,
                     'id' => $form['id'] ?? null,
-                    'existing' => (isset($existing['title']) ? $existing['title'] : null),
-                    'feeds' => $form['gf-civicrm-export-webhook-feeds'],
-                    'form_processors' => $form['gf-civicrm-export-form-processors'],
+                    'existing' => $existing['title'] ?? '',
+                    'feeds' => $form['gf-civicrm-export-webhook-feeds'] ?? [],
+                    'form_processors' => $form['gf-civicrm-export-form-processors'] ?? [],
                 ];
 
             }
@@ -639,9 +639,9 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
                 $importable[$key] = [
                     'title' => $processor['title'] ?? $key,
                     'id' => $processor['id'] ?? null,
-                    'existing' => (isset($existing['title']) ? $existing['title'] : null),
-                    'existing_name' => (isset($existing['name']) ? $existing['name'] : null),
-                    'existing_id' => (isset($existing['id']) ? $existing['id'] : null),
+                    'existing' => $existing['title'] ?? '',
+                    'existing_name' => $existing['name'] ?? '',
+                    'existing_id' => $existing['id'] ?? null,
                 ];
 
             }
