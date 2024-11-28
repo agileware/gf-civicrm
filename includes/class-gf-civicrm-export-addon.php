@@ -446,6 +446,9 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
             GFExport::page_footer();
         }
 
+        /**
+         * Generate the Import subview form HTML.
+         */
         public function import_form_server_html() {
 
             if ( ! GFCommon::current_user_can_any( 'gravityforms_edit_forms' ) ) {
@@ -478,7 +481,7 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
              */
             $forms = apply_filters( 'gform_export_forms_forms', $forms );
 
-            $select_forms = '<option value="create">Create new form</option>'; // Placeholder option.
+            $select_forms = '<option value="create">-- Create new form --</option>'; // Placeholder option.
             foreach ( $forms as $form ) {
                 $title_value = sanitize_title( $form->title );
                 $title_value = str_replace( '-', '_', $title_value ); // Replace dashes with underscores
@@ -550,8 +553,8 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
                                                 <label for="import-form-processor-<?= $key ?>">
                                                     <?php 
                                                     printf(
-                                                            ($values['existing'] ? __('<strong>%1$s</strong>', 'gf-civicrm') :'%1$s'),
-                                                            $values['title']);
+                                                            __('<strong>%1$s</strong> - Will replace the existing form processor <strong>%2$s</strong> (ID: %3$s) on import.', 'gf-civicrm'),
+                                                            $values['title'], $values['existing_name'], $values['existing_id']);
                                                     ?>
                                                 </label>
                                             </div>
@@ -567,6 +570,9 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
         <?php
         }
 
+        /**
+         * Check the filesystem on the server for import files in our designated directory.
+         */
         protected  function importable_forms( $import_directory ): array {
             $import_files = glob( $import_directory . '/*/*.json' );
 
@@ -602,6 +608,9 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
             return $importable;
         }
 
+        /**
+         * Check the filesystem on the server for Form Processor import files in our designated directory.
+         */
         protected  function importable_form_processors( $import_directory ): array {
             $import_files = glob( $import_directory . '/form-processors/*.json' );
 
@@ -641,7 +650,11 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
             return $importable;
         }
 
+        /**
+         * Handles the import.
+         */
         protected function do_import( $import_directory ): void {
+            // Clear status messaging transients
             delete_transient('gfcv_imports_status_success');
             delete_transient('gfcv_imports_status_failure');
 
@@ -697,7 +710,7 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
             }
 
             // Handle importing form processors
-            foreach($import_form_processors as $processor_name) {
+            foreach ( $import_form_processors as $processor_name ) {
                 $processor_file = $import_directory . "/form-processors/$processor_name.json";
 
                 if ( !file_exists( $processor_file ) ) {
@@ -712,7 +725,7 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
                         ->first();
 
                     $imports["Form Processor"][$fp_instance['id']] = sprintf('%1$s - %2$s', $fp_instance['title'], $fp_instance['name']);
-                } catch(Throwable $e) {
+                } catch ( Throwable $e ) {
                     $failures["Form Processor"] = $e->getMessage();
                     GFCommon::log_debug( __METHOD__ . '(): GF CiviCRM Import Errors => ' . $e->getMessage() );
                 }
@@ -998,7 +1011,7 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
                 $message = sprintf(
                     '<p><strong>%1$s</strong></p><p>%2$s</p>%3$s',
                     esc_html__( 'Your forms - and any related Webhook Feeds and CiviCRM Form Processors - have been imported. ', 'gravityforms' ),
-                    esc_html__( 'The following files were imported.', 'gravityforms' ),
+                    esc_html__( 'The following were imported.', 'gravityforms' ),
                     $html,
                 );
 
