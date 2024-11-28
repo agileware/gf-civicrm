@@ -1,11 +1,31 @@
+#tab_import_gfcivicrm {
+    fieldset {
+        margin-block: 2em;
+        border-bottom: 1px solid lightgray;
+    }
+
+    legend {
+        > * {
+            margin: 0;
+        }
+    }
+}
+
+
 #import_form_list,
 #import_form_processors_list {
     li {
         display: grid;
         grid-auto-flow: column;
-        gap: 1em;
+        gap: 2em;
         align-items: baseline;
         justify-content: space-between;
+        margin-bottom: 1em;
+
+        &:not(:last-child) {
+            padding-bottom: 1em;
+            border-bottom: 1px dotted lightgray
+        }
 
         .align-right {
             text-align: right;
@@ -13,6 +33,10 @@
 
         select {
             width: auto;
+        }
+
+        label {
+            margin-right: 0.5em;
         }
     }
 }
