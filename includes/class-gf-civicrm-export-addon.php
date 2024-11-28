@@ -74,7 +74,7 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
         }
 
         public function should_enqueue_scripts() {
-            return is_admin() && rgget( 'page' ) == 'gf_export' && rgget( 'subview' ) == 'import_server';
+            return is_admin() && rgget( 'page' ) == 'gf_export' && rgget( 'subview' ) == 'import_gfcivicrm';
         }
 
         public function init_admin()
@@ -84,7 +84,7 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
             add_action('admin_post_gf_civicrm_export', [ $this, 'export_form_and_feeds' ]);
 
             add_action('gform_export_page_export_gfcivicrm', [ $this, 'export_gfcivicrm_form_html' ]);
-            add_action('gform_export_page_import_server', [ $this, 'import_form_server_html' ]);
+            add_action('gform_export_page_import_gfcivicrm', [ $this, 'import_gfcivicrm_form_html' ]);
 
             add_action( 'admin_notices', function() {
                 if ( isset($_GET['subview']) && $_GET['subview'] === 'export_gfcivicrm' ) {
@@ -93,7 +93,7 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
             } );
 
             add_action( 'admin_notices', function() {
-                if ( isset($_GET['subview']) && $_GET['subview'] === 'import_server' ) {
+                if ( isset($_GET['subview']) && $_GET['subview'] === 'import_gfcivicrm' ) {
                     $this->display_import_status();
                 }
             } );
@@ -104,7 +104,7 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
         public static function settings_tabs( $settings_tabs ) {
             if( GFCommon::current_user_can_any('gravityforms_edit_forms') ) {
                 $settings_tabs[25] = [ 'name' => 'export_gfcivicrm', 'label' => __( 'Export GF CiviCRM', 'gf-civicrm' ) ];
-                $settings_tabs[50] = [ 'name' => 'import_server', 'label' => __( 'Import from Server', 'gf-civicrm' ) ];
+                $settings_tabs[50] = [ 'name' => 'import_gfcivicrm', 'label' => __( 'Import GF CiviCRM', 'gf-civicrm' ) ];
             }
 
             return $settings_tabs;
@@ -396,7 +396,7 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
                         <header class="gform-settings-panel__header"><legend class="gform-settings-panel__title"><?php esc_html_e( 'Export CiviCRM Integrated Forms', 'gravityforms' )?></legend></header>
                         <div class="gform-settings-panel__content">
                             <div class="gform-settings-description">
-                                <?php echo sprintf( esc_html__( 'Select the forms you would like to export from the server to “%1$s”. Associated webhook feeds and CiviCRM form processors will also be exported. Note that this will overwrite all forms, feeds, and CiviCRM form processors included with the form exports already on the filesystem.', 'gravityforms' ), $directory_base ); ?>
+                                <?php echo sprintf( esc_html__( 'Select the forms you would like to export from the server to “%1$s”. Associated webhook feeds and CiviCRM form processors will also be exported. Note that this will overwrite all forms, feeds, and CiviCRM form processors included with the form exports already on the file system.', 'gravityforms' ), $directory_base ); ?>
                             </div>
                             <table class="form-table">
                                 <tr valign="top">
@@ -436,7 +436,7 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
                             </table>
     
                             <br /><br />
-                            <button class="button primary" formaction="/wp-admin/admin-post.php?action=gf_civicrm_export">Export Form &amp; Feeds to Server</button>
+                            <button class="button primary" formaction="/wp-admin/admin-post.php?action=gf_civicrm_export">Export Selected to Server</button>
                         </div>
                     </div>
                 </form>
@@ -449,7 +449,7 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
         /**
          * Generate the Import subview form HTML.
          */
-        public function import_form_server_html() {
+        public function import_gfcivicrm_form_html() {
 
             if ( ! GFCommon::current_user_can_any( 'gravityforms_edit_forms' ) ) {
                 wp_die( __('You do not have sufficient permissions to access this page.') );
@@ -485,16 +485,7 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
             foreach ( $forms as $form ) {
                 $title_value = sanitize_title( $form->title );
                 $title_value = str_replace( '-', '_', $title_value ); // Replace dashes with underscores
-                $select_forms .= '<option value="' . $title_value . '">' . esc_html( $form->title ) . '</option>';
-            }
-
-            // Check for any existing form processors with this name
-            $form_processors = \Civi\Api4\FormProcessorInstance::get(FALSE)
-                ->addSelect('id', 'name', 'title')
-                ->execute();
-            $select_form_processors = '<option value="create">Create new form processor</option>'; // Placeholder option.
-            foreach ( $form_processors as $processor ) {
-                $select_form_processors .= '<option value="' . $processor['name'] . '">' . esc_html( $processor['title'] ) . '</option>';
+                $select_forms .= '<option value="' . $title_value . '">' . esc_html( $form->title ) . ' (ID: ' . $form->id . ')</option>';
             }
             
 
@@ -506,12 +497,12 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
                 <form method="post" style="margin-top: 10px;" class="gform_settings_form">
                 <?php wp_nonce_field('gf_civicrm_import'); ?>
                     <div class="gform-settings-panel gform-settings-panel--full">
-                        <div class="gform-settings-panel__header"><h2 class="gform-settings-panel__title"><?= esc_html__('Import from Server' ) ?></h2></div>
+                        <div class="gform-settings-panel__header"><h2 class="gform-settings-panel__title"><?= esc_html__('Import CiviCRM Integrated Forms' ) ?></h2></div>
                         <div class="gform-settings-panel__content">
                             <div class="gform-settings-description"><?= sprintf( esc_html__( 'Select the forms you would like to import from the server at “%1$s”. Note that this will overwrite the current database entries for all existing forms, feeds, and CiviCRM form processors included with the form export files.', 'gf-civicrm' ), $directory_base ); ?></div>
                             <fieldset>
                                 <legend><h3><?= esc_html__('Select Forms', 'gf-civicrm') ?></h3></legend>
-                                <p><?= esc_html__('These forms were detected on the filesystem:') ?></p>
+                                <p><?= esc_html__('These forms were detected on the file system:') ?></p>
                                 <ul id="import_form_list">
                                     <?php foreach($importable_forms as $key => $values) { 
                                         $feeds = implode(", ", $values['feeds']);
@@ -531,7 +522,7 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
                                             </div>
                                             <div class="align-right">
                                                 <label for="import-form-into-<?= $values['id'] ?>">
-                                                    <?php echo __('Replace form', 'gf-civicrm'); ?>
+                                                    <?php echo __('<strong>Replace form</strong>', 'gf-civicrm'); ?>
                                                 </label>
                                                 <select name="import_form_into[<?= $key ?>]" id="import-form-into-<?= $values['id'] ?>">
                                                     <?php echo $select_forms; ?>
@@ -543,7 +534,7 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
                             </fieldset>
                             <fieldset>
                                 <legend><h3><?= esc_html__('Select Form Processors', 'gf-civicrm') ?></h3></legend>
-                                <p><?= esc_html__('These form processors were detected on the filesystem:') ?></p>
+                                <p><?= esc_html__('These form processors were detected on the file system:') ?></p>
                                 <ul id="import_form_processors_list">
                                     <?php foreach($importable_form_processors as $key => $values) { 
                                         ?>
@@ -562,7 +553,7 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
                                     <?php } ?>
                                 </ul>
                             </fieldset>
-                            <input class="button primary" type="submit" value="<?= __( 'Import Forms' ) ?>">
+                            <input class="button primary" type="submit" value="<?= __( 'Import Selected from Server' ) ?>">
                         </div>
                     </div>
                 </form>
@@ -751,7 +742,7 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
                 add_query_arg(
                     [
                         'page' => 'gf_export',
-                        'subview' => 'import_server',
+                        'subview' => 'import_gfcivicrm',
                     ],
                     admin_url( 'admin.php' )
                 )
@@ -811,9 +802,6 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
             $import_form = GFFormsModel::sanitize_settings( $import_form );
 
             $id = null;
-
-            $title_slug = sanitize_title($import_form['title']);
-            $title_slug = str_replace( '-', '_', $title_slug ); // Replace dashes with underscores
 
             // Always activate imported forms
             $import_form['is_active'] = true;
@@ -875,7 +863,7 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
             /**
              * Deactivate the existing feeds. If they're updated, they will be reactivated.
              * 
-             * If there is a failure during import below, these existing feeds will still be deactivated.
+             * If there is a failure during import below, these existing feeds may still be deactivated.
              * 
              */
             if ( ! is_wp_error($current_form_feeds) ) {
