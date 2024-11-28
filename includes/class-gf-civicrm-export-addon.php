@@ -929,14 +929,19 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
                         $feed_id = $feed['id'] = null;
                     }
                 }
-
                 
                 if ( is_null( $feed_id ) ) {
                     // Import a new feed
-                    $feed_id = GFAPI::add_feed( $form_id, $feed['meta'], $feed['addon_slug'] );
+                    $status = $feed_id = GFAPI::add_feed( $form_id, $feed['meta'], $feed['addon_slug'] );
                 } else {
-                    // Update the existing feed
-                    GFAPI::update_feed( $feed_id, $feed['meta'], $form_id );
+                    // Update the existing feed. Make sure it's enabled first, because otherwise update_feed() will fail.
+                    // Unfortunately no way to set the is_active flag to false/null on update_feed()
+                    GFAPI::update_feed_property( $feed_id, 'is_active', 1 );
+                    $status = GFAPI::update_feed( $feed_id, $feed['meta'], $form_id );
+                }
+
+                if ( is_wp_error($status) ) {
+                    throw new Exception( sprintf( '%1$s : %2$s. Please check your feeds on this form.', basename( $feeds_file ), $status->get_error_message() ) );
                 }
 
                 // Ensure the feed is activated
