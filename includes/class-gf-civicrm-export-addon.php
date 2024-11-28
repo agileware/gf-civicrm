@@ -633,7 +633,7 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
                 // Check for any existing form processor with this name
                 $existing = \Civi\Api4\FormProcessorInstance::get(FALSE)
                     ->addSelect('id', 'name', 'title')
-                    ->addWhere('name', '=', 'update_card')
+                    ->addWhere('name', '=', $key)
                     ->execute()
                     ->first();
 
@@ -677,32 +677,36 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
 
             $imports = [];
             $failures = [];
-            foreach($import_forms as $directory_name) {
-                $form_file =  $import_directory . $directory_name . "/form--$directory_name.json";
+
+            // Handle importing selected forms and their associated feeds.
+            foreach ( $import_forms as $directory_name ) {
+                $form_file_name = "form--$directory_name.json";
+                $form_file =  $import_directory . $directory_name . "/" . $form_file_name;
 
                 try {
-	                $form_ids = $this->import_forms( $form_file, $directory_name );
+                    // Get the import target for this form
+                    $import_target = isset($_POST['import_form_into'][$directory_name]) ? $_POST['import_form_into'][$directory_name] : '';
+	                $form_id = $this->import_form( $form_file, $import_target );
                     
-                    foreach ($form_ids as $form_id) {
-                        $form = GFAPI::get_form( $form_id );
-                        $imports['Form'][$form_id] = $form['title'];
-                    }
-                } catch(Throwable $e) {
-                    $failures['Form'] = $e->getMessage();
+                    $form = GFAPI::get_form( $form_id );
+                    $imports['Form'][$form_id] = $form['title'] . ' - source: ' . $form_file_name;
+                } catch ( Throwable $e ) {
+                    $failures['Form'] = 'Failed to import Form => ' . $e->getMessage();
                     GFCommon::log_debug( __METHOD__ . '(): GF CiviCRM Import Errors => ' . $e->getMessage() );
                 }
 
                 $feeds_file = $import_directory . $directory_name . "/feeds--$directory_name.json";
 
-                if ( file_exists( $feeds_file ) ) {
+                // If we don't have a form ID, there's nothing to import feeds into, so we skip.
+                if ( file_exists( $feeds_file ) && $form_id ) {
                     try {
-	                    $feeds = $this->import_feeds( $feeds_file, $form_ids );
+	                    $feeds = $this->import_feeds( $feeds_file, $form_id );
 
                         foreach ($feeds as $feed) {
                             $form = GFAPI::get_form( $feed['form_id'] );
                             $imports['Feed'][$feed['id']] = sprintf('%1$s for the form %2$s', $feed['meta']['feedName'], $form['title']);
                         }
-                    } catch(Throwable $e) {
+                    } catch ( Throwable $e ) {
                         $failures['Feed'] = $e->getMessage();
                         GFCommon::log_debug( __METHOD__ . '(): GF CiviCRM Import Errors => ' . $e->getMessage() );
 	                }
@@ -760,36 +764,37 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
         }
 
 	    /**
+         * Import the Form meta. Lifted from GFExport class, but update a form if possible
+         * 
 	     * @param string $form_file
 	     *
-	     * @return array
+	     * @return int
 	     * @throws Exception
 	     */
-	    public function import_forms( string $form_file, string $import_target = '' ): array {
+	    public function import_form( string $form_file, string $import_target = '' ) {
 		    if ( ! is_readable( $form_file ) ) {
 			    throw new Exception( sprintf( __( 'Can not read from form import file %1$s', 'gf-civicrm' ), basename( $form_file ) ) );
 		    }
 
-            $ids = [];
-
-		    // Import the Form meta. Lifted from GFExport class, but update a form if possible
 		    $form_json = file_get_contents( $form_file );
 		    $form_json = GFExport::sanitize_forms_json( $form_json );
 
-		    $forms = json_decode( $form_json, true );
+		    $import_form_raw = json_decode( $form_json, true );
 
-		    $version = $forms['version'] ?? null;
-
-		    unset( $forms['version'] );
-
-		    if ( empty( $forms ) ) {
+		    if ( empty( $import_form_raw ) ) {
 			    throw new Exception( sprintf( __( 'No forms found in input file %1$s', 'gf-civicrm' ), basename( $form_file ) ) );
             }
+
+            $import_form = reset( $import_form_raw  );
+
+            // Unset the version from the array so we don't loop through it
+		    unset( $import_form['version'] );
 
             /**
              * We can't guarantee that form IDs match up between the files to import and the database.
              * Gravity Forms uses unique form titles, though. We'll match against the form title as a slug.
-             * Unfortunately that does mean we have to get ALL feeds, process them, and check against the sanitized titles.
+             * Unfortunately that does mean we have to get ALL feeds, process them, and check against the sanitized titles,
+             * since there's currently no API function to get forms by name.
              */
             $existing_forms = GFAPI::get_forms(null); // Including inactive forms
             for ( $i = 0; $i < count($existing_forms); $i++ ) { 
@@ -800,53 +805,45 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
                 $existing_forms[$i] = $existing;
             }
 
-		    foreach ( $forms as $form ) {
-			    $form['markupVersion'] = rgar( $form, 'markupVersion' ) ? $form['markupVersion'] : 2;
+		    $import_form['markupVersion'] = rgar( $import_form, 'markupVersion' ) ? $import_form['markupVersion'] : 2;
 
-			    $form = GFFormsModel::convert_field_objects( $form );
-			    $form = GFFormsModel::sanitize_settings( $form );
+            $import_form = GFFormsModel::convert_field_objects( $import_form );
+            $import_form = GFFormsModel::sanitize_settings( $import_form );
 
-			    $id = null;
+            $id = null;
 
-                $title_slug = sanitize_title($existing['title']);
-                $title_slug = str_replace( '-', '_', $title_slug ); // Replace dashes with underscores
+            $title_slug = sanitize_title($import_form['title']);
+            $title_slug = str_replace( '-', '_', $title_slug ); // Replace dashes with underscores
 
-                // TODO check if an existing form matches the import_target if provided. If so, get the form from existing_forms based on the slug.
-                // TODO Test if this works for ID mismatch
+            // Always activate imported forms
+            $import_form['is_active'] = true;
 
-                if ( ! empty( $import_target ) ) {
-                    $filtered = array_filter( $existing_forms, function($item) use ($import_target) {
-                        return $item['title_slug'] === $import_target;
-                    });
+            if ( ! empty( $import_target ) ) {
+                $filtered = array_filter( $existing_forms, function($item) use ($import_target) {
+                    return $item['title_slug'] === $import_target;
+                });
 
-                    if ( !empty ( $filtered[0] ) ) {
-                        // Update the existing form
-                        $id = $filtered[0]['id']; // we're returning this id
-                        $form['id'] = $id;
-				        GFAPI::update_form( $form );
-                    } else {
-                        // Create a new form
-                        $id = GFAPI::add_form( $form );
-                    }
+                if ( !empty ( $filtered ) ) {
+                    // Update the existing form. 
+                    // Only the form id will remain the same, all other configurations will be overridden by the import file.
+                    $filtered = reset($filtered);
+                    $id = $filtered['id']; // we're returning this id
+                    $import_form['id'] = $id;
+                    $status = GFAPI::update_form( $import_form );
+                } else {
+                    // Create a new form
+                    $status = $id = GFAPI::add_form( $import_form );
                 }
+            }  else {
+                // Create a new form
+                $status = $id = GFAPI::add_form( $import_form );
+            }
 
-                /*
-			    if ( ! empty( $form['id'] ) ) {
-                    // check if form with id already exists
-                    if ( GFAPI::form_id_exists( $form['id'] ) ) {
-                        $id = $form['id'];
-				        GFAPI::update_form( $form );
-                    } else {
-                        $id = GFAPI::add_form( $form );
-                    }
-			    } else {
-				    $id = GFAPI::add_form( $form );
-			    }*/
+            if ( is_wp_error($status) ) {
+                throw new Exception( sprintf( '%1$s : %2$s', basename( $form_file ), $status->get_error_message() ) );
+            }
 
-                $ids[] = $id;
-		    }
-
-            return $ids;
+            return $id;
 	    }
 
 	    /**
@@ -856,7 +853,7 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
 	     * @return array
 	     * @throws Exception
 	     */
-	    public function import_feeds( string $feeds_file, array $form_ids ): array {
+	    public function import_feeds( string $feeds_file, int $form_id ): array {
 		    if ( ! is_readable( $feeds_file ) ) {
 			    throw new Exception( sprintf( __( 'Can not read from feeds import file %1$s. Aborting feed imports.', 'gf-civicrm' ), basename( $feeds_file ) ) );
 		    }
@@ -864,30 +861,45 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
 		    $feeds_json = file_get_contents( $feeds_file );
 		    $feeds_json = GFExport::sanitize_forms_json( $feeds_json );
 
-		    $feeds = json_decode( $feeds_json, true );
+		    $import_feeds = json_decode( $feeds_json, true );
 
-		    $feeds_version = $feeds['version'] ?? null;
-		    unset( $feeds['version'] );
+            // Unset the version from the array so we don't loop through it
+		    unset( $import_feeds['version'] );
 
 		    global $wpdb;
 		    $imported_feeds = [];
 
-		    foreach ( $feeds as $idx => $feed ) {
+            // Get all feeds for the given form_id
+            $current_form_feeds = GFAPI::get_feeds( null, $form_id );
+
+            /**
+             * Deactivate the existing feeds. If they're updated, they will be reactivated.
+             * 
+             * If there is a failure during import below, these existing feeds will still be deactivated.
+             * 
+             */
+            if ( ! is_wp_error($current_form_feeds) ) {
+                for ( $i=0; $i < count($current_form_feeds); $i++ ) { 
+                    $current_feed = $current_form_feeds[$i];
+                    GFAPI::update_feed_property( $current_feed['id'], 'is_active', 0 );
+                    $current_form_feeds[$i] = $current_feed;
+                }
+            }
+
+		    foreach ( $import_feeds as $idx => $feed ) {
                 if ( empty($feed['form_id'])
                      || empty($feed['addon_slug'])
-                     || empty($feed['meta'])
-                     || array_search($feed['form_id'], $form_ids) === false ) {
+                     || empty($feed['meta']) ) {
                     GFCommon::add_error_message( sprintf ( __( 'Incorrect data loading feed id %1$d from %2$s. Aborting feed imports.' ), $feed['id'], basename( $feeds_file ) ) );
                     continue;
                 }
 
-                // Get all feeds for the given form_id
-                $current_form_feeds = GFAPI::get_feeds( null, $feed['form_id'] );
-
+                // Get basic identifying info
                 $feed_name = $feed['meta']['feedName'];
                 $feed_addon_slug = $feed['addon_slug'];
+                $feed_id = null;
 
-                if ( ! is_wp_error($current_form_feeds) && !is_null($current_form_feeds) && !empty( $current_form_feeds ) ) {
+                if ( ! is_wp_error($current_form_feeds) && ! empty( $current_form_feeds ) ) {
                     $feed_id = $feed['id'];
 
                     // Check if a feed with the same ID, name, and addon_slug is attached to this form
@@ -921,12 +933,14 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
                 
                 if ( is_null( $feed_id ) ) {
                     // Import a new feed
-                    $feed_id = GFAPI::add_feed( $feed['form_id'], $feed['meta'], $feed['addon_slug'] );
+                    $feed_id = GFAPI::add_feed( $form_id, $feed['meta'], $feed['addon_slug'] );
                 } else {
                     // Update the existing feed
-                    GFAPI::update_feed( $feed_id, $feed['meta'], $feed['form_id'] );
+                    GFAPI::update_feed( $feed_id, $feed['meta'], $form_id );
                 }
 
+                // Ensure the feed is activated
+                GFAPI::update_feed_property( $feed_id, 'is_active', 1 );
                 $imported_feeds[] = GFAPI::get_feed( $feed_id );
 		    }
 
