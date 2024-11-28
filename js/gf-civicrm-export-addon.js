@@ -47,7 +47,13 @@ document.addEventListener("DOMContentLoaded", function () {
         const selectElement = document.getElementById(selectId_form);
 
         if (selectElement) {
-            selectElement.value = checkbox.value;
+            // Set the default selection if we can find a match in the select list. Otherwise default to create.
+            var option_exists = selectElement.querySelector('[value="' + checkbox.value + '"]');
+            if ( option_exists ) { 
+                selectElement.value = checkbox.value;
+            } else {
+                selectElement.value = 'create';
+            }
         } else {
             console.log("Related select element not found.");
         }
@@ -69,6 +75,5 @@ document.addEventListener("DOMContentLoaded", function () {
             console.log("Related select element not found.");
         }
     });
-
     
 });
