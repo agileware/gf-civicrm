@@ -424,7 +424,7 @@ class Upgrader extends \Plugin_Upgrader {
      * equivalent merge tags, for all webhooks feeds.
      */
     function execute_webhook_url_merge_tags_replacements() {
-        $forms = GFAPI::get_forms(); // TODO do we want to do this for inactive/trashed forms too?;
+        $forms = GFAPI::get_forms( null ); // Include inactive forms, but not trashed forms.
     
         // No forms found, do nothing
         if ( empty( $forms ) ) {
@@ -475,6 +475,11 @@ class Upgrader extends \Plugin_Upgrader {
                 // Replace them with the merge tags
                 $query_params['key'] = $site_key_query_param ? '{gf_civicrm_site_key}' : null;
                 $query_params['api_key'] = $api_key_query_param ? '{gf_civicrm_api_key}' : null;
+
+                // Update the Site Key and API Key plugin settings
+                if ( $form['is_active'] ) {
+                    $this->update_sitekey_apikey_plugin_settings( $site_key_query_param, $api_key_query_param);
+                }
     
                 // Modify the webhook URL in the feed settings
                 $rest_api_url = '{rest_api_url}civicrm/v3/rest';
@@ -500,5 +505,24 @@ class Upgrader extends \Plugin_Upgrader {
         if ( !empty($backup_data) ) {
             update_option('gfcv_webhook_urls_backup', $backup_data);
         }
+    }
+
+    /**
+     * Updates the CiviCRM Site Key and API Key plugin settings.
+     */
+    function update_sitekey_apikey_plugin_settings( $site_key, $api_key ) {
+        // Get the current settings
+        $current_settings = FieldsAddOn::get_instance()->get_plugin_settings();
+
+        // Update the Site Key and API Key settings, only IF they aren't already populated
+        if ( !isset( $current_settings['gf_civicrm_site_key'] ) || empty( $current_settings['gf_civicrm_site_key'] ) ) {
+            $current_settings['gf_civicrm_site_key'] = $site_key;
+        }
+
+        if ( !isset( $current_settings['gf_civicrm_api_key'] ) || empty( $current_settings['gf_civicrm_api_key'] ) ) {
+            $current_settings['gf_civicrm_api_key'] = $api_key;
+        }
+        
+        FieldsAddOn::get_instance()->update_plugin_settings($current_settings);
     }
 }
