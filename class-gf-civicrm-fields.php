@@ -306,6 +306,12 @@ class FieldsAddOn extends GFAddOn {
           'type'          => 'text',
           'name'          => 'gf_civicrm_alerts_email',
           'default_value' => '',
+          'validation_callback' => function( $field, $value ) {
+            // Validate the value is actually an email
+            if ( ! is_email( trim( $value ) ) ) {
+              $field->set_error( __( 'Please enter a valid email address.', 'gravityforms' ) );
+            }
+          }
         ] ],
       ],
       [
