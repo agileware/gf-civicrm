@@ -815,19 +815,42 @@ function webhook_alerts( $response, $feed, $entry, $form ) {
 		return;
 	}
 
+	$error_code = '';
 	$error_message 	= '';
+
 	// Get the error message, and log it in the Gravity Forms logs
 	if ( is_wp_error( $response ) ) {
+		// If it's a WP Error
+		$error_code = $response->get_error_code();
         $error_message = $response->get_error_message();
 
 		GFCommon::log_debug( __METHOD__ . '(): WP_Error detected.' );
     } else if ( isset( $response['response']['code'] ) && $response['response']['code'] >= 300 ) {
-		$error_message = $response['body'];
+		// If we get an error response
+		$response_data = json_decode( $response['body'], true );
+		
+		$error_code = $response['response']['code'];
+		$error_message = $response['response']['message'] . "\n" . ( $response_data['message'] ?? '' );
         
+		GFCommon::log_debug( __METHOD__ . '(): Error detected.' );
+	} else if ( strpos( $response['body'], 'is_error' ) != false ) {
+		// If is_error appears in the response body 
+		// This may happen if the webhook response appears as a success, but the response value from the REST url is actually an error.
+
+		// Extract the required values
+		$response_data = json_decode( $response['body'], true );
+		$is_error = $response_data['is_error'] ?? false;
+
+		// Validate is_error before doing anything
+		if ( $is_error ) {
+			$error_code = $response_data['error_code'] ?? '';
+			$error_message = $response_data['error_message'] ?? '';
+		}
+
 		GFCommon::log_debug( __METHOD__ . '(): Error detected.' );
 	}
 
-	if ( !empty( $error_message ) ) {
+	if ( !empty( $error_code ) ) {
 		GFCommon::log_debug( __METHOD__ . '(): Error Message: ' . $error_message );
 
 		// Build the alert email
@@ -837,9 +860,10 @@ function webhook_alerts( $response, $feed, $entry, $form ) {
 		$entry_id = $entry['id'];
 
 		$body    = sprintf(
-					'Webhook feed on %s failed.' . "\n\n" . 'Error: %s' . "\n\n" . 'Feed: "%s" (ID: %s) from form "%s" (ID: %s)' . "\n" . 'Request URL: %s' . "\n" . 'Failed Entry ID: %s',
+					'Webhook feed on %s failed.' . "\n\n%s%s\n" . 'Feed: "%s" (ID: %s) from form "%s" (ID: %s)' . "\n" . 'Request URL: %s' . "\n" . 'Failed Entry ID: %s',
 					get_site_url(),
-					$error_message, 
+					$error_code ? "Error Code: " . $error_code . "\n": '', 
+					$error_message ? "Error: " . $error_message . "\n": '', 
 					$feed['meta']['feedName'], 
 					$feed['id'], 
 					$form['title'], 
