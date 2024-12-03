@@ -289,6 +289,26 @@ class FieldsAddOn extends GFAddOn {
         ] ],
       ],
       [
+        'title'       => esc_html__( 'Webhook Alerts', 'gf-civicrm' ),
+        'description' => nl2br(esc_html__( "Webhook alerts will be sent to the email provided below.", 'gf-civicrm' )),
+        'fields'      => [ [
+          'type'          => 'checkbox',
+          'name'          => 'gf_civicrm_alerts',
+          'choices' => [
+            [
+              'label'   => esc_html__( 'Enable email alerts', 'gf_civicrm' ),
+              'name'    => 'enable_emails',
+              'default_value' => true,
+            ],
+          ],
+        ],
+        [
+          'type'          => 'text',
+          'name'          => 'gf_civicrm_alerts_email',
+          'default_value' => '',
+        ] ],
+      ],
+      [
         'title'       => esc_html__( 'Import/Export Directory', 'gf-civicrm' ),
         'description' => nl2br(esc_html__( "Define the path to the import/export directory, relative to the server document root. Used by Export GF CiviCRM and Import GF CiviCRM.\n\nYou can modify the subdirectories using the 'gf-civicrm/export-directory' and 'gf-civicrm/fp-export-directory' filters.", 'gf-civicrm' )),
         'fields'      => [ [

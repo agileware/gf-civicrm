@@ -798,3 +798,60 @@ add_action( 'gform_admin_error_messages', function( $messages ) {
 
 	return $messages;
 } );
+
+/**
+ * Handles sending webhook alerts for failures to the alerts email address provided in the GF CiviCRM Settings.
+ */
+function webhook_alerts( $response, $feed, $entry, $form ) {
+	if ( !class_exists( 'GFCiviCRM\FieldsAddOn' ) ) {
+		return;
+	}
+
+	$plugin_settings = FieldsAddOn::get_instance()->get_plugin_settings();
+
+	// Do not continue if enable_emails is not true, or if no alerts email has been provided
+	if ( !isset($plugin_settings['enable_emails']) || !$plugin_settings['enable_emails'] || 
+	     !isset($plugin_settings['gf_civicrm_alerts_email']) || empty($plugin_settings['gf_civicrm_alerts_email']) ) {
+		return;
+	}
+
+	$error_message 	= '';
+	// Get the error message, and log it in the Gravity Forms logs
+	if ( is_wp_error( $response ) ) {
+        $error_message = $response->get_error_message();
+
+		GFCommon::log_debug( __METHOD__ . '(): WP_Error detected.' );
+    } else if ( isset( $response['response']['code'] ) && $response['response']['code'] >= 300 ) {
+		$error_message = $response['body'];
+        
+		GFCommon::log_debug( __METHOD__ . '(): Error detected.' );
+	}
+
+	if ( !empty( $error_message ) ) {
+		GFCommon::log_debug( __METHOD__ . '(): Error Message: ' . $error_message );
+
+		// Build the alert email
+		$to     		= $plugin_settings['gf_civicrm_alerts_email'];
+		$subject 		= sprintf('Webhook failed on %s', get_site_url());
+		$request_url = $feed['meta']['requestURL'];
+		$entry_id = $entry['id'];
+
+		$body    = sprintf(
+					'Webhook feed on %s failed.' . "\n\n" . 'Error: %s' . "\n\n" . 'Feed: "%s" (ID: %s) from form "%s" (ID: %s)' . "\n" . 'Request URL: %s' . "\n" . 'Failed Entry ID: %s',
+					get_site_url(),
+					$error_message, 
+					$feed['meta']['feedName'], 
+					$feed['id'], 
+					$form['title'], 
+					$form['id'], 
+					$request_url,
+					$entry_id
+				);
+
+		// Send an email to the nominated alerts email address
+		wp_mail( $to, $subject, $body );
+	}
+	
+}
+
+add_action( 'gform_webhooks_post_request', 'GFCiviCRM\webhook_alerts', 10, 4);
