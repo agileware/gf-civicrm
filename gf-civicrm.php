@@ -807,9 +807,12 @@ function webhook_alerts( $response, $feed, $entry, $form ) {
 		return;
 	}
 
-	$plugin_settings = FieldsAddOn::get_instance()->get_plugin_settings();
+	// Add the webhook result to the entry meta
+	$webhook_feed_result = [ 'body' => esc_html__(print_r( $response['body'], true )), 'response' => esc_html__(print_r( $response['response'], true )) ];
+	gform_update_meta( $entry['id'], 'webhook_feed_result', $webhook_feed_result );
 
 	// Do not continue if enable_emails is not true, or if no alerts email has been provided
+	$plugin_settings = FieldsAddOn::get_instance()->get_plugin_settings();
 	if ( !isset($plugin_settings['enable_emails']) || !$plugin_settings['enable_emails'] || 
 	     !isset($plugin_settings['gf_civicrm_alerts_email']) || empty($plugin_settings['gf_civicrm_alerts_email']) ) {
 		return;
@@ -856,8 +859,8 @@ function webhook_alerts( $response, $feed, $entry, $form ) {
 		// Build the alert email
 		$to     		= $plugin_settings['gf_civicrm_alerts_email'];
 		$subject 		= sprintf('Webhook failed on %s', get_site_url());
-		$request_url = $feed['meta']['requestURL'];
-		$entry_id = $entry['id'];
+		$request_url 	= $feed['meta']['requestURL'];
+		$entry_id 		= $entry['id'];
 
 		$body    = sprintf(
 					'Webhook feed on %s failed.' . "\n\n%s%s\n" . 'Feed: "%s" (ID: %s) from form "%s" (ID: %s)' . "\n" . 'Request URL: %s' . "\n" . 'Failed Entry ID: %s',
@@ -875,7 +878,50 @@ function webhook_alerts( $response, $feed, $entry, $form ) {
 		// Send an email to the nominated alerts email address
 		wp_mail( $to, $subject, $body );
 	}
-	
 }
 
 add_action( 'gform_webhooks_post_request', 'GFCiviCRM\webhook_alerts', 10, 4);
+
+/**
+ * Register custom Entry meta fields.
+ */
+add_filter( 'gform_entry_meta', function( $entry_meta, $form_id ) {
+    $entry_meta['webhook_feed_result'] = [
+        'label'       => esc_html__( 'Webhook Result', 'your-text-domain' ),
+        'is_numeric'  => false,
+        'update_entry_meta_callback' => null, // Optional callback for updating.
+        'filter'      => true, // Enable filtering in the Entries UI
+    ];
+    return $entry_meta;
+}, 10, 2 );
+
+/**
+ * Display the webhook feed result as a metabox when viewing an entry.
+ */
+add_filter( 'gform_entry_detail_meta_boxes', function( $meta_boxes, $entry, $form ) {
+    // Add a new meta box for the webhook result.
+    $meta_boxes['webhook_feed_result'] = [
+        'title'    => esc_html__( 'Webhook Result', 'gf-civicrm' ),
+        'callback' => 'GFCiviCRM\display_webhook_result_meta_box',
+        'context'  => 'normal', // Can be 'normal', 'side', or 'advanced'.
+		'priority' => 'low', // Ensure the meta box appears at the bottom of the section.
+    ];
+
+    return $meta_boxes;
+}, 10, 3 );
+
+function display_webhook_result_meta_box( $args ) {
+    $entry = $args['entry']; // Current entry object.
+
+    // Retrieve the webhook result meta data.
+    $webhook_result = rgar( $entry, 'webhook_feed_result' );
+
+    if ( ! empty( $webhook_result ) && is_array( $webhook_result ) ) {
+        // Display the response code and message.
+        echo '<pre style="text-wrap: auto;">';
+		print_r( $webhook_result );
+		echo '</pre>';
+    } else {
+        echo '<p>' . esc_html__( 'No webhook result available.', 'your-text-domain' ) . '</p>';
+    }
+}
