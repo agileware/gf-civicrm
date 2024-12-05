@@ -818,7 +818,7 @@ function webhook_alerts( $response, $feed, $entry, $form ) {
 		return;
 	}
 
-	$error_code = '';
+	$error_code = null;
 	$error_message 	= '';
 
 	// Get the error message, and log it in the Gravity Forms logs
@@ -828,7 +828,9 @@ function webhook_alerts( $response, $feed, $entry, $form ) {
         $error_message = $response->get_error_message();
 
 		GFCommon::log_debug( __METHOD__ . '(): WP_Error detected.' );
-    } else if ( isset( $response['response']['code'] ) && $response['response']['code'] >= 300 ) {
+    }
+	
+	if ( isset( $response['response']['code'] ) && $response['response']['code'] >= 300 && strpos( $response['body'], 'is_error' ) == false ) {
 		// If we get an error response
 		$response_data = json_decode( $response['body'], true );
 		
@@ -836,7 +838,9 @@ function webhook_alerts( $response, $feed, $entry, $form ) {
 		$error_message = $response['response']['message'] . "\n" . ( $response_data['message'] ?? '' );
         
 		GFCommon::log_debug( __METHOD__ . '(): Error detected.' );
-	} else if ( strpos( $response['body'], 'is_error' ) != false ) {
+	}
+	
+	if ( strpos( $response['body'], 'is_error' ) != false ) {
 		// If is_error appears in the response body 
 		// This may happen if the webhook response appears as a success, but the response value from the REST url is actually an error.
 
@@ -853,7 +857,7 @@ function webhook_alerts( $response, $feed, $entry, $form ) {
 		GFCommon::log_debug( __METHOD__ . '(): Error detected.' );
 	}
 
-	if ( !empty( $error_code ) ) {
+	if ( $error_code !== null ) {
 		GFCommon::log_debug( __METHOD__ . '(): Error Message: ' . $error_message );
 
 		// Build the alert email
