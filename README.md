@@ -110,6 +110,31 @@ This method is **deprecated**, instead provide a CiviCRM API Key for a CiviCRM C
 
 The `{civicrm_api_key}` Merge Tag will return the CiviCRM API Key for the user that submitted the form.
 
+# Importing and Exporting CiviCRM Integrated Gravity Forms
+
+Gravity Forms with Webhook Feeds that call CiviCRM Form Processors can be now be exported onto your file system all at once.
+
+To configure the base Import/Export Directory,
+
+1. Go to Forms > Settings. Open the CiviCRM subview.
+1. Edit the Import/Export Directory setting. This is relative to the root directory.
+
+To export your Forms, Feeds, and Form Processors,
+
+1. Go to Forms > Import/Export. Open the Export GF CiviCRM subview.
+1. Select the Forms you wish to export.
+1. Click on the "Export Selected" button to begin the export. This will export the Form, related Feeds, and related Form Processors to the Import/Export Directory.
+
+These exported files can then be imported from the Import/Export Directory. **CAUTION:** This will overwrite any existing data that you import into. Take a backup before doing an import.
+
+1. Go to Forms > Import/Export. Open the Import GF CiviCRM subview.
+1. Select the Forms you wish to import. This will include related Feeds.
+    - You can select an existing form to import into. **CAUTION:** This will overwrite all the data on the existing form. Take a backup before doing this.
+    - You can choose to create a new form from the import file.
+1. Select the Form Processors you wish to import. **CAUTION:** If a form processor exists with the same name on your system, it will be overwritten by the import file on import. Take a backup before doing this.
+1. Click on the "Import Selected" button to begin the import. This will import the selected Forms and their related Feeds, and selected Form Processors.
+
+
 # Troubleshooting
 
 To troubleshoot this integration, enable the Gravity Forms Logging on the page `/wp-admin/admin.php?page=gf_settings&subview=settings` and then check the Web Hooks logs when the Gravity Form is submitted. Logs are available on this page, `/wp-admin/admin.php?page=gf_settings&subview=gravityformslogging`
@@ -118,6 +143,16 @@ This should help you identify the cause of most issues integrating the Gravity F
 CiviCRM expects permalink settings to be set to "Post name" by default in order to address the `wp-json` directory. Enable this setting on the page `/wp-admin/options-permalink.php` if it is not set already.
 
 If you are a Web Developer and know how to set up and use [PHP Xdebug](https://xdebug.org/), it is useful to debug the Form Processor called by the Web Hook by appending &XDEBUG_SESSION=1 to the Web Hook URL in the Gravity Forms, Webhooks Feeds. This will trigger the Xdebug session to start.
+
+## Logging Webhook Results
+
+Webhook responses will be saved onto each entry's meta. You can view the response in the UI under Webhook Result when viewing a single entry. This can be useful as part of debugging failed webhook requests.
+
+## Webhook Alerts
+
+Sometimes webhook requests fail. They may also appear to succeed, but return an error from the Form Processor. You can choose to receive email alert notifications when this happens by enabling Webhook Alerts on this page `/wp-admin/admin.php?page=gf_settings&subview=gf-civicrm`. Provide an email address to direct alerts.
+
+The alert email will include the error message, the Feed, and the Entry ID.
 
 # License
 
