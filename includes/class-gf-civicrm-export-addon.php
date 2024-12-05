@@ -442,7 +442,7 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
                             </table>
     
                             <br /><br />
-                            <button class="button primary" formaction="/wp-admin/admin-post.php?action=gf_civicrm_export">Export Selected to Server</button>
+                            <button class="button primary" formaction="/wp-admin/admin-post.php?action=gf_civicrm_export">Export Selected</button>
                         </div>
                     </div>
                 </form>
@@ -538,7 +538,7 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
                                                 }
                                                 ?>
                                             </div>
-                                            <div class="align-right">
+                                            <div>
                                                 <label for="import-form-into-<?= $values['id'] ?>">
                                                     <?php echo __('<strong>Replace form</strong>', 'gf-civicrm'); ?>
                                                 </label>

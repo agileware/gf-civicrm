@@ -807,8 +807,14 @@ function webhook_alerts( $response, $feed, $entry, $form ) {
 		return;
 	}
 
+	$response_data = $response['body'] ? json_decode($response['body'], true) : '';
+
 	// Add the webhook result to the entry meta
-	$webhook_feed_result = [ 'body' => esc_html__(print_r( $response['body'], true )), 'response' => esc_html__(print_r( $response['response'], true )) ];
+	$webhook_feed_result = [ 
+		'date' => $response['headers']['data']['date'],
+		'body' => $response_data, 
+		'response' => $response['response']
+	];
 	gform_update_meta( $entry['id'], 'webhook_feed_result', $webhook_feed_result );
 
 	// Do not continue if enable_emails is not true, or if no alerts email has been provided
