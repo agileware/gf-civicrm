@@ -897,7 +897,7 @@ add_action( 'gform_webhooks_post_request', 'GFCiviCRM\webhook_alerts', 10, 4);
  */
 add_filter( 'gform_entry_meta', function( $entry_meta, $form_id ) {
     $entry_meta['webhook_feed_result'] = [
-        'label'       => esc_html__( 'Webhook Result', 'your-text-domain' ),
+        'label'       => esc_html__( 'Webhook Result', 'gf-civicrm' ),
         'is_numeric'  => false,
         'update_entry_meta_callback' => null, // Optional callback for updating.
         'filter'      => true, // Enable filtering in the Entries UI
@@ -932,6 +932,6 @@ function display_webhook_result_meta_box( $args ) {
 		print_r( $webhook_result );
 		echo '</pre>';
     } else {
-        echo '<p>' . esc_html__( 'No webhook result available.', 'your-text-domain' ) . '</p>';
+        echo '<p>' . esc_html__( 'No webhook result available.', 'gf-civicrm' ) . '</p>';
     }
 }
