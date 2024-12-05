@@ -40,3 +40,18 @@
         }
     }
 }
+
+#gform_import_export_status_notice {
+    .grid {
+        .row {
+            display: grid;
+            grid-template-columns: 100px auto;
+            padding: 0.2em;
+
+            &:nth-of-type(2n) {
+                background: rgb(39, 106, 82, 0.05);
+            }
+        }
+    }
+}
+

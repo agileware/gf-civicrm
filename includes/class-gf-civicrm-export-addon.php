@@ -74,7 +74,7 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
         }
 
         public function should_enqueue_scripts() {
-            return is_admin() && rgget( 'page' ) == 'gf_export' && rgget( 'subview' ) == 'import_gfcivicrm';
+            return is_admin() && rgget( 'page' ) == 'gf_export' && (rgget( 'subview' ) == 'import_gfcivicrm' || rgget( 'subview' ) == 'export_gfcivicrm');
         }
 
         public function init_admin()
@@ -526,10 +526,17 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
                                                 <label for="import-form-<?= $values['id'] ?>">
                                                     <?php 
                                                     printf(
-                                                            ($values['existing'] ? __('<strong>%1$s</strong> - Includes feeds: %2$s', 'gf-civicrm') :'%1$s'),
-                                                            $values['title'], $feeds);
+                                                            __('<strong>%s</strong> (<i>source: %s</i>)', 'gf-civicrm'),
+                                                            $values['title'], $values['filename']);
                                                     ?>
                                                 </label>
+                                                <?php 
+                                                if ( !empty($feeds) ) {
+                                                    printf(
+                                                        __('<br>Includes feeds: %s', 'gf-civicrm'),
+                                                        $feeds);
+                                                }
+                                                ?>
                                             </div>
                                             <div class="align-right">
                                                 <label for="import-form-into-<?= $values['id'] ?>">
@@ -555,16 +562,23 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
                                                 <label for="import-form-processor-<?= $key ?>">
                                                     <?php 
                                                     printf(
-                                                            __('<strong>%1$s</strong> - Will replace the existing form processor <strong>%2$s</strong> (ID: %3$s) on import.', 'gf-civicrm'),
-                                                            $values['title'], $values['existing_name'], $values['existing_id']);
+                                                        __('<strong>%s</strong> (<i>source: %s</i>)', 'gf-civicrm'),
+                                                        $values['title'], $values['filename']);
                                                     ?>
                                                 </label>
+                                                <?php 
+                                                if ( $values['existing_id'] !== null ) {
+                                                    printf(
+                                                        __('<br>Will replace the existing form processor <strong>%s</strong> (ID: %s) on import.', 'gf-civicrm'),
+                                                        $values['existing_name'], $values['existing_id']);
+                                                }
+                                                ?>
                                             </div>
                                         </li>
                                     <?php } ?>
                                 </ul>
                             </fieldset>
-                            <input class="button primary" type="submit" value="<?= __( 'Import Selected from Server' ) ?>">
+                            <input class="button primary" type="submit" value="<?= __( 'Import Selected' ) ?>">
                         </div>
                     </div>
                 </form>
@@ -603,6 +617,7 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
                     'existing' => $existing['title'] ?? '',
                     'feeds' => $form['gf-civicrm-export-webhook-feeds'] ?? [],
                     'form_processors' => $form['gf-civicrm-export-form-processors'] ?? [],
+                    'filename' => basename($file)
                 ];
 
             }
@@ -640,11 +655,12 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
                     ->first();
 
                 $importable[$key] = [
-                    'title' => $processor['title'] ?? $key,
+                    'title' => $processor['name'] ?? $key,
                     'id' => $processor['id'] ?? null,
                     'existing' => $existing['title'] ?? '',
                     'existing_name' => $existing['name'] ?? '',
                     'existing_id' => $existing['id'] ?? null,
+                    'filename' => basename($file),
                 ];
 
             }
@@ -691,7 +707,7 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
 	                $form_id = $this->import_form( $form_file, $import_target );
                     
                     $form = GFAPI::get_form( $form_id );
-                    $imports['GF Form'][$form_id] = $form['title'] . ' - source: ' . $form_file_name;
+                    $imports['GF Form'][$form_id] = sprintf(__('<strong>%s</strong> (<i>source: %s</i>)'), $form['title'], $form_file_name);
                 } catch ( Throwable $e ) {
                     $failures['GF Form'] = 'Failed to import Form => ' . $e->getMessage();
                     GFCommon::log_debug( __METHOD__ . '(): GF CiviCRM Import Errors => ' . $e->getMessage() );
@@ -707,7 +723,7 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
 
                         foreach ($feeds as $feed) {
                             $form = GFAPI::get_form( $feed['form_id'] );
-                            $imports['Feed'][$feed['id']] = sprintf('%1$s for the form %2$s - source: %3$s', $feed['meta']['feedName'], $form['title'], $form_file_name);
+                            $imports['Feed'][$feed['id']] = sprintf('<strong>%s</strong> for the form %s (<i>source: %s</i>)', $feed['meta']['feedName'], $form['title'], $form_file_name);
                         }
                     } catch ( Throwable $e ) {
                         $failures['Feed'] = 'Failed to import Feed => ' . $e->getMessage();
@@ -725,6 +741,13 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
                     continue;
                 }
 
+                // Check for any existing form processor with this name
+                $existing = \Civi\Api4\FormProcessorInstance::get(FALSE)
+                    ->addSelect('id', 'name', 'title')
+                    ->addWhere('name', '=', $processor_name)
+                    ->execute()
+                    ->first();
+
                 try {
                     $form_processor = $this->import_processor( $processor_file );
                     $fp_instance = \Civi\Api4\FormProcessorInstance::get(FALSE)
@@ -732,7 +755,12 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
                         ->execute()
                         ->first();
 
-                    $imports["Form Processor"][$fp_instance['id']] = sprintf('%1$s (%2$s ID: %3$s - source: %4$s)', $fp_instance['title'], $fp_instance['name'], $fp_instance['id'], $processor_file_name);
+                    if ( $existing ) {
+                        $imports["Form Processor"][$fp_instance['id']] = sprintf('<strong>%s</strong> (ID:%s) (<i>was replaced by source: %s</i>)', $fp_instance['name'], $fp_instance['id'], $processor_file_name);
+                    } else {
+                        $imports["Form Processor"][$fp_instance['id']] = sprintf('<strong>%s</strong> (ID:%s) (<i>was created from source: %s</i>)', $fp_instance['name'], $fp_instance['id'], $processor_file_name);
+                    }
+                    
                 } catch ( Throwable $e ) {
                     $failures["Form Processor"] = 'Failed to import FormProcessor => ' . $e->getMessage();
                     GFCommon::log_debug( __METHOD__ . '(): GF CiviCRM Import Errors => ' . $e->getMessage() );
@@ -975,35 +1003,34 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
             if ( get_transient('gfcv_exports_status_success') ) {
                 $exports = get_transient('gfcv_exports');
 
-                $html = '<table>';
+                $html = '<div class="grid">';
                 foreach ( $exports as $entity_type => $entity ) {
-                    foreach ($entity as $type => $filename) {
-                        $html .= "<tr><td style='padding-right:15px;'><strong>{$entity_type}</strong></td><td>{$filename}</td></tr>";
+                    foreach ($entity as $type => $status) {
+                        $html .= "<div class='row'><span style='padding-right:15px;'><strong>{$entity_type}</strong></span><span>{$status}</span></div>";
                     }
                 }
-                $html .= '</table>';
+                $html .= '</div>';
 
                 $message = sprintf(
-                    '<p><strong>%1$s</strong></p><p>%2$s</p>%3$s<p>%4$s</p>',
+                    '<p><strong>%1$s</strong></p><p>%2$s</p>%3$s',
                     esc_html__( 'Your forms - and any related Webhook Feeds and CiviCRM Form Processors - have been exported. ', 'gravityforms' ),
-                    esc_html__( 'The following files were successfully exported.', 'gravityforms' ),
-                    $html,
-                    esc_html__( 'Make sure to check for any missing export files, and for any malformed exports.', 'gravityforms' ),
+                    esc_html__( 'The following files were successfully exported. Make sure to check for any missing export files, and for any malformed exports.', 'gravityforms' ),
+                    $html
                 );
 
-                printf( '<div class="notice notice-success gf-notice" id="gform_disable_logging_notice">%s</div>', $message );
+                printf( '<div class="notice notice-success gf-notice" id="gform_import_export_status_notice">%s</div>', $message );
             }
 
             if ( get_transient('gfcv_exports_status_failure') ) {
                 $exports = get_transient('gfcv_exports_failures');
 
-                $html = '<table>';
+                $html = '<div class="grid">';
                 foreach ( $exports as $entity_type => $entity ) {
-                    foreach ($entity as $type => $filename) {
-                        $html .= "<tr><td style='padding-right:15px;'><strong>{$entity_type}</strong></td><td>{$filename}</td></tr>";
+                    foreach ($entity as $type => $status) {
+                        $html .= "<div class='row'><span style='padding-right:15px;'><strong>{$entity_type}</strong></span><span>{$status}</span></div>";
                     }
                 }
-                $html .= '</table>';
+                $html .= '</div>';
 
                 $message = sprintf(
                     '<p><strong>%1$s</strong></p>%2$s',
@@ -1011,7 +1038,7 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
                     $html,
                 );
 
-                printf( '<div class="notice notice-warning gf-notice" id="gform_disable_logging_notice">%s</div>', $message );
+                printf( '<div class="notice notice-warning gf-notice" id="gform_import_export_status_notice">%s</div>', $message );
             }
             
         }
@@ -1020,13 +1047,13 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
             if ( get_transient('gfcv_imports_status_success') ) {
                 $imports = get_transient('gfcv_imports');
 
-                $html = '<table>';
+                $html = '<div class="grid">';
                 foreach ( $imports as $entity_type => $entity ) {
-                    foreach ($entity as $type => $filename) {
-                        $html .= "<tr><td style='padding-right:15px;'><strong>{$entity_type}</strong></td><td>{$filename}</td></tr>";
+                    foreach ($entity as $type => $status) {
+                        $html .= "<div class='row'><span style='padding-right:15px;'><strong>{$entity_type}</strong></span><span>{$status}</span></div>";
                     }
                 }
-                $html .= '</table>';
+                $html .= '</div>';
 
                 $message = sprintf(
                     '<p><strong>%1$s</strong></p><p>%2$s</p>%3$s',
@@ -1035,17 +1062,17 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
                     $html,
                 );
 
-                printf( '<div class="notice notice-success gf-notice" id="gform_disable_logging_notice">%s</div>', $message );
+                printf( '<div class="notice notice-success gf-notice" id="gform_import_export_status_notice">%s</div>', $message );
             }
 
             if ( get_transient('gfcv_imports_status_failure') ) {
                 $imports = get_transient('gfcv_imports_failures');
 
-                $html = '<table>';
-                foreach ( $imports as $entity_type => $message ) {
-                    $html .= "<tr><td style='padding-right:15px;'><strong>{$entity_type}</strong></td><td>{$message}</td></tr>";
+                $html = '<div class="grid">';
+                foreach ( $imports as $entity_type => $status ) {
+                    $html .= "<div class='row'><span style='padding-right:15px;'><strong>{$entity_type}</strong></span><span>{$status}</span></div>";
                 }
-                $html .= '</table>';
+                $html .= '</div>';
 
                 $message = sprintf(
                     '<p><strong>%1$s</strong></p>%2$s',
@@ -1053,7 +1080,7 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
                     $html,
                 );
 
-                printf( '<div class="notice notice-warning gf-notice" id="gform_disable_logging_notice">%s</div>', $message );
+                printf( '<div class="notice notice-warning gf-notice" id="gform_import_export_status_notice">%s</div>', $message );
             }
         }
     }
