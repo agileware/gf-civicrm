@@ -809,13 +809,13 @@ function webhook_alerts( $response, $feed, $entry, $form ) {
 
 	$response_data = $response['body'] ? json_decode($response['body'], true) : '';
 
-	// Add the webhook result to the entry meta
-	$webhook_feed_result = [ 
+	// Add the webhook response to the entry meta
+	$webhook_feed_response = [ 
 		'date' => $response['headers']['data']['date'],
 		'body' => $response_data, 
 		'response' => $response['response']
 	];
-	gform_update_meta( $entry['id'], 'webhook_feed_result', $webhook_feed_result );
+	gform_update_meta( $entry['id'], 'webhook_feed_response', $webhook_feed_response );
 
 	// Do not continue if enable_emails is not true, or if no alerts email has been provided
 	$plugin_settings = FieldsAddOn::get_instance()->get_plugin_settings();
@@ -893,14 +893,43 @@ function webhook_alerts( $response, $feed, $entry, $form ) {
 add_action( 'gform_webhooks_post_request', 'GFCiviCRM\webhook_alerts', 10, 4);
 
 /**
+ * Save the webhook request to the Entry.
+ * 
+ * Request URL
+ */
+add_filter( 'gform_webhooks_request_url', function($request_url, $feed, $entry, $form) {
+	// Add the webhook request to the entry meta
+	gform_update_meta( $entry['id'], 'webhook_feed_request', [
+		'request_url' => $request_url
+	] );
+	return $request_url;
+}, 10, 4);
+
+add_filter( 'gform_webhooks_request_args', function($request_args, $feed, $entry, $form) {
+	// Add the webhook request to the entry meta
+	$current_request = gform_get_meta( $entry['id'], 'webhook_feed_request' );
+	gform_update_meta( $entry['id'], 'webhook_feed_request', [
+		'request_url' => $current_request['request_url'] ?? '',
+		'request_args' => $request_args
+	] );
+	return $request_args;
+}, 10, 4);
+
+/**
  * Register custom Entry meta fields.
  */
 add_filter( 'gform_entry_meta', function( $entry_meta, $form_id ) {
-    $entry_meta['webhook_feed_result'] = [
-        'label'       => esc_html__( 'Webhook Result', 'gf-civicrm' ),
+    $entry_meta['webhook_feed_request'] = [
+        'label'       => esc_html__( 'Webhook Request', 'gf-civicrm' ),
         'is_numeric'  => false,
         'update_entry_meta_callback' => null, // Optional callback for updating.
         'filter'      => true, // Enable filtering in the Entries UI
+    ];
+	$entry_meta['webhook_feed_response'] = [
+        'label'       => esc_html__( 'Webhook Response', 'gf-civicrm' ),
+        'is_numeric'  => false,
+        'update_entry_meta_callback' => null,
+        'filter'      => true,
     ];
     return $entry_meta;
 }, 10, 2 );
@@ -909,29 +938,52 @@ add_filter( 'gform_entry_meta', function( $entry_meta, $form_id ) {
  * Display the webhook feed result as a metabox when viewing an entry.
  */
 add_filter( 'gform_entry_detail_meta_boxes', function( $meta_boxes, $entry, $form ) {
-    // Add a new meta box for the webhook result.
-    $meta_boxes['webhook_feed_result'] = [
-        'title'    => esc_html__( 'Webhook Result', 'gf-civicrm' ),
-        'callback' => 'GFCiviCRM\display_webhook_result_meta_box',
+    // Add a new meta box for the webhook request.
+    $meta_boxes['webhook_feed_request'] = [
+        'title'    => esc_html__( 'Webhook Request', 'gf-civicrm' ),
+        'callback' => 'GFCiviCRM\display_webhook_request_meta_box',
         'context'  => 'normal', // Can be 'normal', 'side', or 'advanced'.
 		'priority' => 'low', // Ensure the meta box appears at the bottom of the section.
+    ];
+	// Add a new meta box for the webhook response.
+	$meta_boxes['webhook_feed_response'] = [
+        'title'    => esc_html__( 'Webhook Response', 'gf-civicrm' ),
+        'callback' => 'GFCiviCRM\display_webhook_response_meta_box',
+        'context'  => 'normal',
+		'priority' => 'low',
     ];
 
     return $meta_boxes;
 }, 10, 3 );
 
-function display_webhook_result_meta_box( $args ) {
+function display_webhook_request_meta_box( $args ) {
+    $entry = $args['entry']; // Current entry object.
+
+    // Retrieve the webhook request meta data.
+    $webhook_request = rgar( $entry, 'webhook_feed_request' );
+
+    if ( ! empty( $webhook_request ) && is_array( $webhook_request ) ) {
+        // Display the response code and message.
+        echo '<pre style="text-wrap: auto;">';
+		print_r( $webhook_request );
+		echo '</pre>';
+    } else {
+        echo '<p>' . esc_html__( 'No webhook request available.', 'gf-civicrm' ) . '</p>';
+    }
+}
+
+function display_webhook_response_meta_box( $args ) {
     $entry = $args['entry']; // Current entry object.
 
     // Retrieve the webhook result meta data.
-    $webhook_result = rgar( $entry, 'webhook_feed_result' );
+    $webhook_response = rgar( $entry, 'webhook_feed_response' );
 
-    if ( ! empty( $webhook_result ) && is_array( $webhook_result ) ) {
+    if ( ! empty( $webhook_response ) && is_array( $webhook_response ) ) {
         // Display the response code and message.
         echo '<pre style="text-wrap: auto;">';
-		print_r( $webhook_result );
+		print_r( $webhook_response );
 		echo '</pre>';
     } else {
-        echo '<p>' . esc_html__( 'No webhook result available.', 'gf-civicrm' ) . '</p>';
+        echo '<p>' . esc_html__( 'No webhook response available.', 'gf-civicrm' ) . '</p>';
     }
 }
