@@ -2,7 +2,6 @@
 namespace GFCiviCRM;
 
 use GFAPI;
-use GFFormsModel;
 
 // Exit if accessed directly
 if ( ! defined( 'ABSPATH' ) ) exit;
@@ -16,6 +15,8 @@ if (!class_exists('WP_Upgrader')) {
  */
 class Upgrader extends \Plugin_Upgrader {
 
+    private static $_instance = NULL;
+
     private $plugin_uri           = '';
     private $plugin_update_uri    = '';
     private $plugin               = ''; // folder/filename.php
@@ -24,6 +25,10 @@ class Upgrader extends \Plugin_Upgrader {
 	private $version              = '';
     private $author               = '';
 	private $author_uri           = '';
+
+    public static function get_instance() {
+        return self::$_instance;
+    }
 
     /**
      * Constructor.
@@ -57,6 +62,8 @@ class Upgrader extends \Plugin_Upgrader {
 		$this->version                  = $plugin_data['Version'];
         $this->author                   = $plugin_data['Author'];
         $this->author_uri               = $plugin_data['AuthorURI'];
+
+        self::$_instance = $this;
     }
 
     /**
@@ -69,7 +76,7 @@ class Upgrader extends \Plugin_Upgrader {
 
         // 1.10.3
         add_action( 'upgrader_process_complete', [$this, 'upgrade_version_1_10_3'], 10, 2 );
-        // add_action( 'admin_init', [ $this, 'execute_webhook_url_merge_tags_replacements' ] ); // TEST ONLY, should run after upgrade
+        
         add_action( 'admin_init', function() {
             // Optionally rollback webhook urls to the previous saved version
             if ( isset( $_GET['rollback_webhook_urls'] ) && isset( $_GET['page'] ) && $_GET['page'] === 'gf_settings' ) {
@@ -423,12 +430,12 @@ class Upgrader extends \Plugin_Upgrader {
      * Replaces CiviCRM site keys and API keys in Gravity Forms webhook request URLs with their
      * equivalent merge tags, for all webhooks feeds.
      */
-    function execute_webhook_url_merge_tags_replacements() {
+    public function execute_webhook_url_merge_tags_replacements() {
         $forms = GFAPI::get_forms( null ); // Include inactive forms, but not trashed forms.
     
         // No forms found, do nothing
         if ( empty( $forms ) ) {
-            return;
+            return false;
         }
     
         // Prepare backup data for possible rollbacks
@@ -452,6 +459,7 @@ class Upgrader extends \Plugin_Upgrader {
                 continue;
             }
     
+            $errors = [];
             foreach ( $webhook_feeds as $feed ) {
                 // Parse the URL to extract query parameters
                 $parsed_url = parse_url( $feed['meta']['requestURL'] ?? '' );
@@ -469,8 +477,8 @@ class Upgrader extends \Plugin_Upgrader {
                 }
     
                 // Return the `key` and `api_key` parameters if they exist
-                $site_key_query_param = $query_params['key'] ?? null;
-                $api_key_query_param = $query_params['api_key'] ?? null;
+                $site_key_query_param = $query_params['key'] && $query_params['key'] != '{gf_civicrm_site_key}' ? $query_params['key'] : null;
+                $api_key_query_param = $query_params['api_key'] && $query_params['api_key'] != '{gf_civicrm_api_key}' ? $query_params['api_key'] : null;
     
                 // Replace them with the merge tags
                 $query_params['key'] = $site_key_query_param ? '{gf_civicrm_site_key}' : null;
@@ -490,10 +498,16 @@ class Upgrader extends \Plugin_Upgrader {
                 if ( $new_url !== $old_url ) {
                     $feed['meta']['requestURL'] = $new_url;
                     // Save the updated feed settings
-                    GFAPI::update_feed($feed['id'], $feed['meta']);
-    
-                    // Log the update
-                    error_log("Updated Gravity Forms Webhook URL for feed ID {$feed['id']} from {$old_url} to {$new_url}");
+                    $result = GFAPI::update_feed($feed['id'], $feed['meta']);
+
+                    if (is_error($result)) {
+                        // Log the error
+                        error_log("Error: Failed to update Gravity Forms Webhook URL for feed ID {$feed['id']} from {$old_url} to {$new_url}");
+                        $errors[] = $result;
+                    } else {
+                        // Log the update
+                        error_log("Updated Gravity Forms Webhook URL for feed ID {$feed['id']} from {$old_url} to {$new_url}");
+                    }
     
                     // Store the old URL for possible rollbacks
                     $backup_data[$feed['id']] = $old_url;
@@ -505,6 +519,12 @@ class Upgrader extends \Plugin_Upgrader {
         if ( !empty($backup_data) ) {
             update_option('gfcv_webhook_urls_backup', $backup_data);
         }
+
+        if (count($errors) > 0) {
+            return false;
+        }
+
+        return true;
     }
 
     /**

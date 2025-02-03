@@ -84,6 +84,7 @@ class FieldsAddOn extends GFAddOn {
       'field_standard_settings',
     ], 10, 2);
 
+    // Notify if CiviCRM Site Key and/or API Key is empty
     add_action( 'admin_notices', function() {
       $gf_civicrm_site_key = FieldsAddOn::get_instance()->get_plugin_setting( 'gf_civicrm_site_key' );
       $gf_civicrm_api_key = FieldsAddOn::get_instance()->get_plugin_setting( 'gf_civicrm_api_key' );
@@ -98,6 +99,67 @@ class FieldsAddOn extends GFAddOn {
         $this->warn_keys_settings( $missing );
       }
     } );
+
+    // Notify the Webhook URL Merge Tags Replacer status
+    add_action( 'admin_notices', function() {
+      if ( isset($_GET['subview']) && $_GET['subview'] === 'gf-civicrm' ) {
+        if (get_transient('gfcv_webhook_merge_tags_replacement_failure')) {
+          $status_message = 'Something went wrong.';
+          $notice_class = 'error';
+        } else if (get_transient('gfcv_webhook_merge_tags_replacement_success')) {
+          $status_message = 'Success!';
+          $notice_class = 'success';
+        } else {
+          return; // Do nothing if there are no statuses
+        }
+
+        $message = sprintf(
+            '<p><strong>%1$s</strong></p><p>%2$s</p>',
+            esc_html__( 'Executed Webhook URL Merge Tags Replacements.', 'gravityforms' ),
+            esc_html__( $status_message, 'gravityforms' ),
+        );
+
+        printf( '<div class="notice notice-%s gf-notice" id="gform_status_notice">%s</div>', $notice_class, $message );
+        }
+    } );
+
+    add_action( 'admin_init', [$this, 'maybe_run_merge_tags_replacer'] );
+    
+  }
+  
+  public function maybe_run_merge_tags_replacer() {
+    if ( isset( $_GET['gf_webhook_merge_tags_replacement_action'] ) && 'run' === $_GET['gf_webhook_merge_tags_replacement_action'] ) {
+      // Clear status messaging transients
+      delete_transient('gfcv_webhook_merge_tags_replacement_failure');
+      delete_transient('gfcv_webhook_merge_tags_replacement_success');
+
+      // Verify nonce for security.
+      if ( ! isset( $_GET['gf_webhook_merge_tags_replacement_nonce'] ) || ! wp_verify_nonce( $_GET['gf_webhook_merge_tags_replacement_nonce'], 'webhook_merge_tags_replacement_nonce' ) ) {
+          wp_die( __( 'Security check failed', 'gf-civicrm' ) );
+      }
+      
+      // Call the replacer function
+      $updater = Upgrader::get_instance();
+      $result = $updater->execute_webhook_url_merge_tags_replacements();
+
+      if ( !$result || empty($result) ){
+        set_transient( 'gfcv_webhook_merge_tags_replacement_failure', true, 60 );
+      } else {
+        set_transient( 'gfcv_webhook_merge_tags_replacement_success', true, 60 );
+      }
+      
+      // Redirect back to the CiviCRM Settings page with a status message
+      wp_redirect(
+        add_query_arg(
+          [
+            'page' => 'gf_settings',
+            'subview' => 'gf-civicrm',
+          ],
+          admin_url( 'admin.php' )
+        )
+      );
+      exit;
+    }
   }
 
 	public function init() {
@@ -259,6 +321,12 @@ class FieldsAddOn extends GFAddOn {
 	}
 
 	public function plugin_settings_fields() {
+    $nonce = wp_create_nonce( 'webhook_merge_tags_replacement_nonce' );
+    $action_url = add_query_arg( array(
+        'gf_webhook_merge_tags_replacement_action' => 'run',
+        'gf_webhook_merge_tags_replacement_nonce'  => $nonce,
+    ), admin_url( 'admin.php?page=gf_settings&subview=gf-civicrm' ) );
+
 		return [ 
       [
         'title'       => esc_html__( 'CiviCRM Settings', 'gf-civicrm' ),
@@ -331,6 +399,16 @@ class FieldsAddOn extends GFAddOn {
           'type'          => 'text',
           'name'          => 'gf_civicrm_import_export_directory',
           'default_value' => 'CRM/gf-civicrm-exports',
+        ] ],
+      ],
+      [
+        'title'       => esc_html__( 'Webhook URL Merge Tags Replacements', 'gf-civicrm' ),
+        'description' => __( 'Replaces the REST API url, and CiviCRM Site keys and API keys in Gravity Forms webhook request URLs with their equivalent merge tags, for all webhooks feeds. Saves the CiviCRM Site Key and API key in the settings.<br /><br /><strong>CAUTION:</strong> It is recommended to take a backup before running this function.', 'gf-civicrm' ),
+        'fields'      => [ [
+          'name'  => 'webhook_merge_tags_replacer',
+          'label' => '',  // Optionally, leave label empty
+          'type'  => 'html',
+          'html'  => '<a href="' . esc_url( $action_url ) . '" class="button">Replace the Merge Tags</a>',
         ] ],
       ],
     ];
