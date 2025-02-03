@@ -341,9 +341,9 @@ class FieldsAddOn extends GFAddOn {
               'name'    => 'civicrm_multi_json',
             ],
             [
-              'label'   => esc_html__( 'Enable prereleases for updates.', 'gf_civicrm' ),
+              'label'   => esc_html__( 'Enable pre-releases for updates.', 'gf_civicrm' ),
               'name'    => 'enable_prereleases',
-              'tooltip' => esc_html__( 'Opt-in to including prereleases/beta releases for GF CiviCRM updates. Please note that prereleases may be unstable, so make sure to take a backup of your database before performing updates with this option enabled.', 'simpleaddon' ),
+              'tooltip' => esc_html__( 'Opt-in to including pre-releases/beta releases for GF CiviCRM updates. Please note that pre-releases may be unstable, so make sure to take a backup of your database before performing updates with this option enabled.', 'simpleaddon' ),
             ],
           ],
         ] ],
@@ -406,7 +406,7 @@ class FieldsAddOn extends GFAddOn {
         'description' => __( 'Replaces the REST API url, and CiviCRM Site keys and API keys in Gravity Forms webhook request URLs with their equivalent merge tags, for all webhooks feeds. Saves the CiviCRM Site Key and API key in the settings.<br /><br /><strong>CAUTION:</strong> It is recommended to take a backup before running this function.', 'gf-civicrm' ),
         'fields'      => [ [
           'name'  => 'webhook_merge_tags_replacer',
-          'label' => '',  // Optionally, leave label empty
+          'label' => '',
           'type'  => 'html',
           'html'  => '<a href="' . esc_url( $action_url ) . '" class="button">Replace the Merge Tags</a>',
         ] ],
