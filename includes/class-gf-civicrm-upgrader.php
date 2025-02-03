@@ -477,8 +477,8 @@ class Upgrader extends \Plugin_Upgrader {
                 }
     
                 // Return the `key` and `api_key` parameters if they exist
-                $site_key_query_param = $query_params['key'] && $query_params['key'] != '{gf_civicrm_site_key}' ? $query_params['key'] : null;
-                $api_key_query_param = $query_params['api_key'] && $query_params['api_key'] != '{gf_civicrm_api_key}' ? $query_params['api_key'] : null;
+                $site_key_query_param = $query_params['key'] ?? null;
+                $api_key_query_param = $query_params['api_key'] ?? null;
     
                 // Replace them with the merge tags
                 $query_params['key'] = $site_key_query_param ? '{gf_civicrm_site_key}' : null;
@@ -500,7 +500,7 @@ class Upgrader extends \Plugin_Upgrader {
                     // Save the updated feed settings
                     $result = GFAPI::update_feed($feed['id'], $feed['meta']);
 
-                    if (is_error($result)) {
+                    if (is_wp_error($result)) {
                         // Log the error
                         error_log("Error: Failed to update Gravity Forms Webhook URL for feed ID {$feed['id']} from {$old_url} to {$new_url}");
                         $errors[] = $result;
@@ -536,11 +536,11 @@ class Upgrader extends \Plugin_Upgrader {
 
         // Update the Site Key and API Key settings, only IF they aren't already populated
         if ( !isset( $current_settings['gf_civicrm_site_key'] ) || empty( $current_settings['gf_civicrm_site_key'] ) ) {
-            $current_settings['gf_civicrm_site_key'] = $site_key;
+            $current_settings['gf_civicrm_site_key'] = $site_key != '{gf_civicrm_site_key}' ? $site_key : $current_settings['gf_civicrm_site_key'];
         }
 
         if ( !isset( $current_settings['gf_civicrm_api_key'] ) || empty( $current_settings['gf_civicrm_api_key'] ) ) {
-            $current_settings['gf_civicrm_api_key'] = $api_key;
+            $current_settings['gf_civicrm_api_key'] = $api_key != '{gf_civicrm_api_key}' ? $api_key : $current_settings['gf_civicrm_api_key'];
         }
         
         FieldsAddOn::get_instance()->update_plugin_settings($current_settings);
