@@ -809,13 +809,15 @@ function webhook_alerts( $response, $feed, $entry, $form ) {
 
 	$response_data = $response['body'] ? json_decode($response['body'], true) : '';
 
-	// Add the webhook response to the entry meta
+	// Add the webhook response to the entry meta. Supports multiple feeds.
+	$current_response = gform_get_meta( $entry['id'], 'webhook_feed_response' );
 	$webhook_feed_response = [ 
 		'date' => $response['headers']['data']['date'],
 		'body' => $response_data, 
 		'response' => $response['response']
 	];
-	gform_update_meta( $entry['id'], 'webhook_feed_response', $webhook_feed_response );
+	$current_response[$feed['id']] = $webhook_feed_response;
+	gform_update_meta( $entry['id'], 'webhook_feed_response', $current_response );
 
 	// Do not continue if enable_emails is not true, or if no alerts email has been provided
 	$plugin_settings = FieldsAddOn::get_instance()->get_plugin_settings();
@@ -895,23 +897,27 @@ add_action( 'gform_webhooks_post_request', 'GFCiviCRM\webhook_alerts', 10, 4);
 /**
  * Save the webhook request to the Entry.
  * 
- * Request URL
+ * Request URL is processed before request args. We'll use both filters to build the request
+ * data. Supports multiple feeds.
  */
 add_filter( 'gform_webhooks_request_url', function($request_url, $feed, $entry, $form) {
 	// Add the webhook request to the entry meta
-	gform_update_meta( $entry['id'], 'webhook_feed_request', [
+	$current_request = gform_get_meta( $entry['id'], 'webhook_feed_request' );
+	$current_request[$feed['id']] = [
 		'request_url' => $request_url
-	] );
+	];
+	gform_update_meta( $entry['id'], 'webhook_feed_request', $current_request );
 	return $request_url;
 }, 10, 4);
 
 add_filter( 'gform_webhooks_request_args', function($request_args, $feed, $entry, $form) {
 	// Add the webhook request to the entry meta
 	$current_request = gform_get_meta( $entry['id'], 'webhook_feed_request' );
-	gform_update_meta( $entry['id'], 'webhook_feed_request', [
-		'request_url' => $current_request['request_url'] ?? '',
+	$current_request[$feed['id']] = [
+		'request_url' => $current_request[$feed['id']]['request_url'] ?? '',
 		'request_args' => $request_args
-	] );
+	];
+	gform_update_meta( $entry['id'], 'webhook_feed_request', $current_request );
 	return $request_args;
 }, 10, 4);
 
