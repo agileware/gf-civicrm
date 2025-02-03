@@ -31,6 +31,18 @@ class FieldsAddOn extends GFAddOn {
   private static $_instance = NULL;
 
   /**
+	 * Class constructor which hooks the instance into the WordPress init action
+	 */
+	function __construct() {
+		parent::__construct();
+
+    // Define capabilities in case role/permissions have been customised (e.g. Members plugin)
+		$this->_capabilities_settings_page	= 'gravityforms_edit_settings';
+		$this->_capabilities_form_settings	= 'gravityforms_edit_forms';
+		$this->_capabilities_uninstall		= 'gravityforms_uninstall';
+	}
+
+  /**
    * Returns an instance of this class, and stores it in the $_instance
    * property.
    *
