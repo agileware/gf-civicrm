@@ -103,8 +103,6 @@ class FieldsAddOn extends GFAddOn {
 	public function init() {
 		parent::init();
 
-		$gf_version = \GFCommon::get_version_info()['version'];
-
 		if ( $this->is_gravityforms_supported() && class_exists('GF_Field') ) {
 			require_once( 'includes/class-gf-civicrm-address-field.php' );
 			$this->gf_civicrm_address_field = new Address_Field();
@@ -145,6 +143,7 @@ class FieldsAddOn extends GFAddOn {
   public function warn_keys_settings( $settings = [] ) {
     if ( empty($settings) ) {
       // Do nothing. We don't know what we're warning against.
+      return;
     }
 
     $settings_text = implode(' and ', $settings);
@@ -232,7 +231,6 @@ class FieldsAddOn extends GFAddOn {
 		// Legacy field, don't allow for new forms.
 		if ( ! empty( $settings['civicrm_auth_checksum'] ) ) {
 			$fields[] = [
-				// 'label' => esc_html__( 'Allow authentication with checksum', 'gf-civicrm' ),
 				'type'        => 'checkbox',
 				'name'        => 'civicrm_auth_checksum',
 				'description' => wp_kses(sprintf(__(
