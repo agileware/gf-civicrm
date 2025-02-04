@@ -947,14 +947,18 @@ add_filter( 'gform_entry_detail_meta_boxes', function( $meta_boxes, $entry, $for
     // Add a new meta box for the webhook request.
     $meta_boxes['webhook_feed_request'] = [
         'title'    => esc_html__( 'Webhook Request', 'gf-civicrm' ),
-        'callback' => 'GFCiviCRM\display_webhook_request_meta_box',
+        'callback' => function($args) {
+			display_webhook_meta_box( $args, "webhook_feed_request" );
+		},
         'context'  => 'normal', // Can be 'normal', 'side', or 'advanced'.
 		'priority' => 'low', // Ensure the meta box appears at the bottom of the section.
     ];
 	// Add a new meta box for the webhook response.
 	$meta_boxes['webhook_feed_response'] = [
         'title'    => esc_html__( 'Webhook Response', 'gf-civicrm' ),
-        'callback' => 'GFCiviCRM\display_webhook_response_meta_box',
+        'callback' => function($args) {
+			display_webhook_meta_box( $args, "webhook_feed_response" );
+		},
         'context'  => 'normal',
 		'priority' => 'low',
     ];
@@ -962,34 +966,24 @@ add_filter( 'gform_entry_detail_meta_boxes', function( $meta_boxes, $entry, $for
     return $meta_boxes;
 }, 10, 3 );
 
-function display_webhook_request_meta_box( $args ) {
+function display_webhook_meta_box( $args, $meta_key ) {
+	// Don't display if the current user is not an admin.
+	if (!in_array( 'administrator', (array) wp_get_current_user()->roles )) {
+		echo '<p>' . esc_html__( 'You need the administrator role to view this data.', 'gf-civicrm' ) . '</p>';
+		return;
+	}
+
     $entry = $args['entry']; // Current entry object.
 
-    // Retrieve the webhook request meta data.
-    $webhook_request = rgar( $entry, 'webhook_feed_request' );
+    // Retrieve the webhook meta data.
+    $meta = rgar( $entry, $meta_key );
 
-    if ( ! empty( $webhook_request ) && is_array( $webhook_request ) ) {
+    if ( ! empty( $meta ) && is_array( $meta ) ) {
         // Display the response code and message.
         echo '<pre style="text-wrap: auto;">';
-		print_r( $webhook_request );
+		print_r( $meta );
 		echo '</pre>';
     } else {
-        echo '<p>' . esc_html__( 'No webhook request available.', 'gf-civicrm' ) . '</p>';
-    }
-}
-
-function display_webhook_response_meta_box( $args ) {
-    $entry = $args['entry']; // Current entry object.
-
-    // Retrieve the webhook result meta data.
-    $webhook_response = rgar( $entry, 'webhook_feed_response' );
-
-    if ( ! empty( $webhook_response ) && is_array( $webhook_response ) ) {
-        // Display the response code and message.
-        echo '<pre style="text-wrap: auto;">';
-		print_r( $webhook_response );
-		echo '</pre>';
-    } else {
-        echo '<p>' . esc_html__( 'No webhook response available.', 'gf-civicrm' ) . '</p>';
+        echo '<p>' . esc_html__( 'No data available.', 'gf-civicrm' ) . '</p>';
     }
 }
