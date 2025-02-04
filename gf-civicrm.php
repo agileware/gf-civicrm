@@ -93,7 +93,7 @@ function do_civicrm_replacement( $form, $context ) {
 			} elseif ( $processor && $field_name ) {
 				try {
 					if ( ! isset( $civi_fp_fields[ $processor ] ) ) {
-						$civi_fp_fields[ $processor ] = civicrm_api3( 'FormProcessor', 'getfields', [ 'action' => $processor ] )['values'] ?? [];
+						$civi_fp_fields[ $processor ] = civicrm_api3( 'FormProcessor', 'getfields', [ 'action' => $processor, 'options' => [ 'limit' =>'0' ] ] )['values'] ?? [];
 					}
 
 					// If the field has a default value set then that has priority
@@ -565,7 +565,7 @@ function fp_tag_default( $matches, $fallback = '', $multiple = FALSE ) {
 			// Fetch Form Processor options directly from the GET parameters.
 			$params = [ 'check_permissions' => 1 ];
 
-			$fields = civicrm_api3( 'FormProcessorDefaults', 'getfields', [ 'action' => $processor ] );
+			$fields = civicrm_api3( 'FormProcessorDefaults', 'getfields', [ 'action' => $processor, 'options' => [ 'limit' =>'0' ] ] );
 			foreach ( array_keys( $fields['values'] ) as $key ) {
 				if ( ! empty( $_GET[ $key ] ) ) {
 					$params[ $key ] = $_GET[ $key ];
