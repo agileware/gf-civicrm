@@ -43,9 +43,14 @@ define( 'GF_CIVICRM_PLUGIN_GITHUB_REPO', 'agileware/gf-civicrm' ); // GitHub use
 // Include the updater class
 require_once GF_CIVICRM_PLUGIN_PATH . 'includes/class-gf-civicrm-upgrader.php';
 
-// Initialize the updater
-$updater = new Upgrader( __FILE__ );
-$updater->init();
+add_action('plugins_loaded', function() {
+	// Include the updater class
+	require_once GF_CIVICRM_PLUGIN_PATH . 'includes/class-gf-civicrm-upgrader.php';
+
+	// Initialize the updater
+	$updater = new Upgrader( __FILE__ );
+	$updater->init();
+});
 
 /**
  * Replace choices in Gravity Forms with CiviCRM data
