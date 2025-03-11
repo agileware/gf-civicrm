@@ -154,6 +154,10 @@ Sometimes webhook requests fail. They may also appear to succeed, but return an 
 
 The alert email will include the error message, the Feed, and the Entry ID.
 
+## CiviCRM Source
+
+Fields that have access to CiviCRM Source to populate options will only work when using the Checkboxes or Radio fields. Multiple Choice fields were introduced into Gravity Forms later, and are currently not supported by this plugin.
+
 # License
 
     This program is free software: you can redistribute it and/or modify
