@@ -812,64 +812,83 @@ function webhook_alerts( $response, $feed, $entry, $form ) {
 		return;
 	}
 
-	$response_data = $response['body'] ? json_decode($response['body'], true) : '';
-
-	// Add the webhook response to the entry meta. Supports multiple feeds.
-	$current_response = gform_get_meta( $entry['id'], 'webhook_feed_response' );
-	$webhook_feed_response = [ 
-		'date' => $response['headers']['data']['date'],
-		'body' => $response_data, 
-		'response' => $response['response']
-	];
-	$current_response[$feed['id']] = $webhook_feed_response;
-	gform_update_meta( $entry['id'], 'webhook_feed_response', $current_response );
-
 	// Do not continue if enable_emails is not true, or if no alerts email has been provided
 	$plugin_settings = FieldsAddOn::get_instance()->get_plugin_settings();
 	if ( !isset($plugin_settings['enable_emails']) || !$plugin_settings['enable_emails'] || 
-	     !isset($plugin_settings['gf_civicrm_alerts_email']) || empty($plugin_settings['gf_civicrm_alerts_email']) ) {
+		!isset($plugin_settings['gf_civicrm_alerts_email']) || empty($plugin_settings['gf_civicrm_alerts_email']) ) {
 		return;
 	}
+
+	// Add the webhook response to the entry meta. Supports multiple feeds.
+	$current_response = gform_get_meta( $entry['id'], 'webhook_feed_response' );
 
 	$error_code = null;
 	$error_message 	= '';
 
-	// Get the error message, and log it in the Gravity Forms logs
+	// Get the error message, and log it in the Gravity Forms logs (if enabled)
 	if ( is_wp_error( $response ) ) {
-		// If it's a WP Error
+		// If its a WP_Error
 		$error_code = $response->get_error_code();
         $error_message = $response->get_error_message();
 
+		// Build the webhook response entry content
+		$webhook_feed_response = [ 
+			'date' => current_datetime(),
+			'body' => $error_message, 
+			'response' => $error_code
+		];
+
 		GFCommon::log_debug( __METHOD__ . '(): WP_Error detected.' );
-    }
+	} else {
+		$response_data = $response['body'] ? json_decode($response['body'], true) : '';
+
+		// Build the webhook response entry content
+		$webhook_feed_response = [ 
+			'date' => $response['headers']['data']['date'],
+			'body' => $response_data, 
+			'response' => $response['response']
+		];
+
+		if ( is_wp_error( $response ) ) {
+			// If its a WP_Error in the webhook feed response
+			$error_code = $response->get_error_code();
+			$error_message = $response->get_error_message();
 	
-	if ( isset( $response['response']['code'] ) && $response['response']['code'] >= 300 && strpos( $response['body'], 'is_error' ) == false ) {
-		// If we get an error response
-		$response_data = json_decode( $response['body'], true );
+			GFCommon::log_debug( __METHOD__ . '(): WP_Error detected.' );
+		} 
 		
-		$error_code = $response['response']['code'];
-		$error_message = $response['response']['message'] . "\n" . ( $response_data['message'] ?? '' );
-        
-		GFCommon::log_debug( __METHOD__ . '(): Error detected.' );
-	}
-	
-	if ( strpos( $response['body'], 'is_error' ) != false ) {
-		// If is_error appears in the response body 
-		// This may happen if the webhook response appears as a success, but the response value from the REST url is actually an error.
-
-		// Extract the required values
-		$response_data = json_decode( $response['body'], true );
-		$is_error = $response_data['is_error'] ?? false;
-
-		// Validate is_error before doing anything
-		if ( $is_error ) {
-			$error_code = $response_data['error_code'] ?? '';
-			$error_message = $response_data['error_message'] ?? '';
+		if ( isset( $response['response']['code'] ) && $response['response']['code'] >= 300 && strpos( $response['body'], 'is_error' ) == false ) {
+			// If we get an error response
+			$response_data = json_decode( $response['body'], true );
+			
+			$error_code = $response['response']['code'];
+			$error_message = $response['response']['message'] . "\n" . ( $response_data['message'] ?? '' );
+			
+			GFCommon::log_debug( __METHOD__ . '(): Error detected.' );
 		}
+		
+		if ( strpos( $response['body'], 'is_error' ) != false ) {
+			// If is_error appears in the response body 
+			// This may happen if the webhook response appears as a success, but the response value from the REST url is actually an error.
 
-		GFCommon::log_debug( __METHOD__ . '(): Error detected.' );
+			// Extract the required values
+			$response_data = json_decode( $response['body'], true );
+			$is_error = $response_data['is_error'] ?? false;
+
+			// Validate is_error before doing anything
+			if ( $is_error ) {
+				$error_code = $response_data['error_code'] ?? '';
+				$error_message = $response_data['error_message'] ?? '';
+			}
+
+			GFCommon::log_debug( __METHOD__ . '(): Error detected.' );
+		}
 	}
 
+	$current_response[$feed['id']] = $webhook_feed_response;
+	gform_update_meta( $entry['id'], 'webhook_feed_response', $current_response );
+
+	// Send an alert email if we have an error code
 	if ( $error_code !== null ) {
 		GFCommon::log_debug( __METHOD__ . '(): Error Message: ' . $error_message );
 
