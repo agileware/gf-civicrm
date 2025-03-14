@@ -6,7 +6,7 @@
  * Requires plugins: civicrm, gravityforms
  * Author: Agileware
  * Author URI: https://agileware.com.au
- * Version: 1.10.3-beta-13
+ * Version: 1.10.3-beta-14
  * Text Domain: gf-civicrm
  * 
  * Copyright (c) Agileware Pty Ltd (email : support@agileware.com.au)
@@ -812,13 +812,6 @@ function webhook_alerts( $response, $feed, $entry, $form ) {
 		return;
 	}
 
-	// Do not continue if enable_emails is not true, or if no alerts email has been provided
-	$plugin_settings = FieldsAddOn::get_instance()->get_plugin_settings();
-	if ( !isset($plugin_settings['enable_emails']) || !$plugin_settings['enable_emails'] || 
-		!isset($plugin_settings['gf_civicrm_alerts_email']) || empty($plugin_settings['gf_civicrm_alerts_email']) ) {
-		return;
-	}
-
 	// Add the webhook response to the entry meta. Supports multiple feeds.
 	$current_response = gform_get_meta( $entry['id'], 'webhook_feed_response' );
 
@@ -891,6 +884,13 @@ function webhook_alerts( $response, $feed, $entry, $form ) {
 	// Send an alert email if we have an error code
 	if ( $error_code !== null ) {
 		GFCommon::log_debug( __METHOD__ . '(): Error Message: ' . $error_message );
+
+		// Do not continue if enable_emails is not true, or if no alerts email has been provided
+		$plugin_settings = FieldsAddOn::get_instance()->get_plugin_settings();
+		if ( !isset($plugin_settings['enable_emails']) || !$plugin_settings['enable_emails'] || 
+			!isset($plugin_settings['gf_civicrm_alerts_email']) || empty($plugin_settings['gf_civicrm_alerts_email']) ) {
+			return;
+		}
 
 		// Build the alert email
 		$to     		= $plugin_settings['gf_civicrm_alerts_email'];
