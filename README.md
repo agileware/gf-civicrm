@@ -87,12 +87,12 @@ If you set defaults for the Form Processor input used as a "CiviCRM Source", the
 
 # Processing form submissions as a specific Contact
 
-Any Form Processor that should record actions as a specific Contact must implement checksum validation as part of the processor
+Any Form Processor that should record actions as a specific Contact must implement checksum validation as part of the Form Processor.
 
 1. Include fields in the Form Processor that are used for the checksum validation
-    - `cid` for the Contact ID
-    - `cs` for the Checksum
-2. These fields should also be included in Gravity Forms, using Merge Tags from the form processor as defaults
+    - `cid` for the Contact ID - this should be a **numeric input** (no decimal) in Form Processor
+    - `cs` for the Checksum - this should be a **long text input** in Form Processor
+2. These fields should also be included on the Gravity Form as hidden fields. Use the Merge Tags from the Form Processor as defaults and optionally, if you want to use a Contact checksum URL for the form (eg. ?cs=xxx&cid=123), enable for both these fields the option to set the value from the URL parameter (cs and cid).
 3. Inside the Form processor "Retrieval of defaults" settings, use the "Contact: get contact ID of the currently logged in user" and "Contact: generate checksum" actions to provide default values to these fields
 4. You can also use the "Retrieval criteria for default data" to add `cid` and `cs` criteria supporting checksum links generated from CiviCRM schedule reminders.
     - Works with any link that includes `?{contact.checksum}&cid={contact.id}` on the page with the Gravity Form.
