@@ -61,7 +61,7 @@ function api_wrapper($profile, $entity, $action, $params, $options=[], $api_vers
  */
 function get_profiles() {
 	static $profiles = null;
-	if (is_array($profiles)) {
+	if ( is_array( $profiles ) ) {
 	  return $profiles;
 	}
   
@@ -74,7 +74,8 @@ function get_profiles() {
 	if ( function_exists('wpcmrf_get_core') ) {
 	  $core = \wpcmrf_get_core();
 	  $wpcmrf_profiles = $core->getConnectionProfiles();
-	  foreach($wpcmrf_profiles as $profile) {
+
+	  foreach( $wpcmrf_profiles as $profile ) {
 		$profile_name = 'wpcmrf_profile_'.$profile['id'];
 		$profiles[$profile_name] = [
 		  'title' => $profile['label'],
@@ -105,6 +106,12 @@ function get_rest_connection_profile( $form = null ) {
 
 	if ( is_null( $profile ) || $profile === "default" ) {
 		$profile = FieldsAddOn::get_instance()->get_plugin_setting( 'civicrm_rest_connection' );
+	}
+
+	// If still no profile, return the profile id for the local CiviCRM installation
+	if ( !$profile ) {
+		$profiles = get_profiles();
+		return array_key_first( $profiles );
 	}
 
 	return $profile;
