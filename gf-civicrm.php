@@ -102,6 +102,7 @@ function do_civicrm_replacement( $form, $context ) {
 				break;
 			}
 
+			// Get the CiviCRM REST Connection Profile. This may be the local CiviCRM connection if no profile is set.
 			$profile_name = get_rest_connection_profile( $form );
 
 			[ 'option_group' => $option_group, 'processor' => $processor, 'field_name' => $field_name ] = $matches;
@@ -111,27 +112,40 @@ function do_civicrm_replacement( $form, $context ) {
             $field->inputs = NULL;
 
 			if ( $option_group ) {
-				$options = OptionValue::get( FALSE )
-				                      ->addSelect( 'value', 'label', 'is_default' )
-				                      ->addWhere( 'option_group_id:name', '=', $option_group )
-				                      ->addWhere( 'is_active', '=', TRUE )
-				                      ->addOrderBy( 'weight', 'ASC' )
-				                      ->execute();
+				// Get the option group id from the name, since it's more reliable
+				$api_params = [
+					'name' 		=> $option_group,
+					'return' 	=> ['id'],
+				];
+				$option_group_id = api_wrapper( $profile_name, 'OptionGroup', 'get', $api_params, [ 'limit' => 1] )['values'];
+
+				// Then get the Option Group Values attached to that id
+				$api_params = [
+					'option_group_id' 	=> array_key_first( $option_group_id ),
+					'is_active' 		=> true,
+					'return' 			=> ['value', 'label', 'is_default'],
+				];
+				$api_options = [
+					'sort' 				=> 'weight ASC',
+					'limit' 			=> 0,
+				];
+				$options = api_wrapper($profile_name, 'OptionValue', 'get', $api_params, $api_options);
 
                 $field->choices = [];
 
-                foreach ( $options as [ 'value' => $value, 'label' => $label, 'is_default' => $is_default ] ) {
-						$field->choices[] = [
-							'text'       => $label,
-							'value'      => $value,
-							'isSelected' => (bool) ( $is_default ?? FALSE )
-						];
-
+                foreach ( $options['values'] as [ 'id' => $id, 'value' => $value, 'label' => $label, 'is_default' => $is_default ] ) {
+					$field->choices[] = [
+						'text'       => $label,
+						'value'      => $value,
+						'isSelected' => (bool) ( $is_default ?? FALSE )
+					];
                 }
 			} elseif ( $processor && $field_name ) {
 				try {
 					if ( ! isset( $civi_fp_fields[ $processor ] ) ) {
-						$civi_fp_fields[ $processor ] = civicrm_api3( 'FormProcessor', 'getfields', [ 'action' => $processor, 'options' => [ 'limit' =>'0' ] ] )['values'] ?? [];
+						$api_params = [ 'api_action' => $processor ];
+						$api_options = [ 'limit' => 0, ];						
+						$civi_fp_fields[ $processor ] = api_wrapper( $profile_name, 'FormProcessor', 'getfields', $api_params, $api_options )['values'] ?? [];
 					}
 
 					// If the field has a default value set then that has priority
@@ -196,7 +210,7 @@ function do_civicrm_replacement( $form, $context ) {
 function compose_merge_tags ( $merge_tags ) {
 	try {
 		$profile_name = get_rest_connection_profile();
-		$processors = api_wrapper($profile_name, 'FormProcessorInstance', 'get', [ 'sequential' => 1], [ 'limit' => 0])['values'];
+		$processors = api_wrapper( $profile_name, 'FormProcessorInstance', 'get', [ 'sequential' => 1], [ 'limit' => 0 ] )['values'];
 		
 		foreach ( $processors as ['inputs' => $inputs, 'name' => $pname, 'title' => $ptitle] ) {
 			foreach ( $inputs as ['name' => $iname, 'title' => $ititle] ) {
@@ -615,8 +629,6 @@ function fp_tag_default( $matches, $fallback = '', $multiple = FALSE ) {
 
 	if ( ! isset( $defaults[ $processor ] ) ) {
 		try {
-			// Fetch Form Processor options directly from the GET parameters.
-			
 			$api_version = '3';
 			$api_params = array(
 				'api_action' => $processor,
@@ -626,17 +638,17 @@ function fp_tag_default( $matches, $fallback = '', $multiple = FALSE ) {
 				'limit'	=> 0,
 				'cache' => NULL,
 			);
-			// Get the cid
+
+			// Get the form processor fields
 			$fields = api_wrapper( $profile_name, 'FormProcessorDefaults', 'getfields', $api_params, $api_options, $api_version );
 
-			$fields = civicrm_api3( 'FormProcessorDefaults', 'getfields', [ 'action' => $processor, 'options' => [ 'limit' =>'0' ] ] );
 			foreach ( array_keys( $fields['values'] ) as $key ) {
 				if ( ! empty( $_GET[ $key ] ) ) {
 					$api_params[ $key ] = $_GET[ $key ];
 				}
 			}
 
-			// Get field values
+			// Get field default values
 			$defaults[ $processor ] = api_wrapper( $profile_name, 'FormProcessorDefaults', $processor, $api_params, $api_options, $api_version );
 		} catch ( CRM_Core_Exception $e ) {
 			$defaults[ $processor ] = FALSE;
