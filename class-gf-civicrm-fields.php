@@ -305,8 +305,20 @@ class FieldsAddOn extends GFAddOn {
 						'name'  => 'civicrm_auth_checksum'
 					]
 				]
-			];
-		}
+		  ];
+    }
+
+    // CiviCRM McRestFace
+    $fields[] = [
+				'label' => esc_html__( 'CiviCRM REST Connection Profile', 'gf-civicrm' ),
+				'type'        => 'select',
+				'name'        => 'civicrm_rest_connection',
+				'description' => esc_html__(
+					'Select which CMRF connection profile to use for this form.',
+					'gf-civicrm'
+				),
+				'choices'     => $this->get_cmrf_profile_options()
+		];
 
 		if(!empty($fields)) {
 			return [
@@ -331,22 +343,30 @@ class FieldsAddOn extends GFAddOn {
       [
         'title'       => esc_html__( 'CiviCRM Settings', 'gf-civicrm' ),
         'description' => esc_html__( 'Global settings for CiviCRM add-on', 'gf-civicrm' ),
-        'fields'      => [ [
-          'type'          => 'checkbox',
-          'name'          => 'gf_civicrm_flags',
-          'default_value' => [ 'civicrm_multi_json' ],
-          'choices' => [
-            [
-              'label'   => esc_html__( 'Use JSON encoding for Checkbox and Multiselect values in webhooks (recommended)', 'gf_civicrm' ),
-              'name'    => 'civicrm_multi_json',
-            ],
-            [
-              'label'   => esc_html__( 'Enable pre-releases for updates.', 'gf_civicrm' ),
-              'name'    => 'enable_prereleases',
-              'tooltip' => esc_html__( 'Opt-in to including pre-releases/beta releases for GF CiviCRM updates. Please note that pre-releases may be unstable, so make sure to take a backup of your database before performing updates with this option enabled.', 'simpleaddon' ),
+        'fields'      => [ 
+          [
+            'type'          => 'checkbox',
+            'name'          => 'gf_civicrm_flags',
+            'default_value' => [ 'civicrm_multi_json' ],
+            'choices' => [
+              [
+                'label'   => esc_html__( 'Use JSON encoding for Checkbox and Multiselect values in webhooks (recommended)', 'gf_civicrm' ),
+                'name'    => 'civicrm_multi_json',
+              ],
+              [
+                'label'   => esc_html__( 'Enable pre-releases for updates.', 'gf_civicrm' ),
+                'name'    => 'enable_prereleases',
+                'tooltip' => esc_html__( 'Opt-in to including pre-releases/beta releases for GF CiviCRM updates. Please note that pre-releases may be unstable, so make sure to take a backup of your database before performing updates with this option enabled.', 'simpleaddon' ),
+              ],
             ],
           ],
-        ] ],
+          [ // CiviCRM McRestFace or Local
+            'label' => esc_html__( 'CiviCRM REST Connection Profile', 'gf-civicrm' ),
+            'type'          => 'select',
+            'name'          => 'civicrm_rest_connection',
+            'choices' => $this->get_cmrf_profile_options( true ),
+          ]
+        ],
       ],
       [
         'title'       => esc_html__( 'CiviCRM Site Key', 'gf-civicrm' ),
@@ -412,5 +432,35 @@ class FieldsAddOn extends GFAddOn {
         ] ],
       ],
     ];
+	}
+
+  /**
+	 * Build choices for selectiing CMRF connection profiles on a global or per-form basis.
+	 */
+	public function get_cmrf_profile_options( $is_global = false ) {
+		$options = [];
+
+		// Null or Default options
+		if ( $is_global ) {
+			$options[] = [
+				'label' => esc_html__( "None", 'gf_civicrm' ),
+				'value' => ""
+			];
+		} else {
+			$options[] = [
+				'label' => esc_html__( "Default", 'gf_civicrm' ),
+				'value' => "default"
+			];
+		}
+
+		$profiles = get_profiles();
+		foreach ($profiles as $profile_id => $profile) {
+			$options[] = [
+				'label' => esc_html__( $profile['title'], 'gf_civicrm' ),
+				'value' => $profile_id
+			];
+		}
+
+		return $options;
 	}
 }

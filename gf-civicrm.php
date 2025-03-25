@@ -25,8 +25,7 @@
 namespace GFCiviCRM;
 
 use Civi\Api4\{OptionValue, OptionGroup, Contact};
-use CiviCRM_API3_Exception;
-
+use CRM_Core_Exception;
 use GFCommon;
 use GFAddon;
 use function rgar;
@@ -52,6 +51,35 @@ add_action('plugins_loaded', function() {
 	$updater->init();
 });
 
+register_activation_hook(__FILE__, 'GFCiviCRM\check_plugin_dependencies');
+
+/**
+ * Either civicrm or wpcmrf plugins must be active.
+ * This is not supported by the Dependencies header, so implement our own check.
+ */
+function check_plugin_dependencies() {
+	// Check if CiviCRM or WP CMRF plugins are active
+	if ( ! is_plugin_active( 'civicrm/civicrm.php' ) && ! is_plugin_active( 'connector-civicrm-mcrestface/wpcmrf.php' ) ) {
+        $notice = sprintf(
+        /* translators: 1: this plugin name, 2, 3: required plugin names */
+            esc_html__( 'Before activating %1$s, you must first activate either %2$s or %3$s.', 'gf-civicrm' ),
+            'Gravity Forms CiviCRM Integration',
+            '<a href="https://wordpress.org/plugins/connector-civicrm-mcrestface/">Connector to CiviCRM with CiviMcRestFace</a>',
+            'CiviCRM' );
+
+        // Show an error message and exit immediately
+		\wp_die( $notice, __( 'Plugin Activation Error', 'gf-civicrm' ), [ 'back_link' => TRUE ] );
+	}
+}
+
+// Load wpcmrf integration
+add_action( 'gform_loaded', 'GFCiviCRM\gf_civicrm_wpcmrf_bootstrap', 5 );
+
+function gf_civicrm_wpcmrf_bootstrap() {
+	require_once( GF_CIVICRM_PLUGIN_PATH . 'includes/class-gf-civicrm-exception.php' );
+	require_once( GF_CIVICRM_PLUGIN_PATH . 'includes/gf-civicrm-wpcmrf.php' );
+}
+
 /**
  * Replace choices in Gravity Forms with CiviCRM data
  *
@@ -64,12 +92,17 @@ add_action('plugins_loaded', function() {
  */
 function do_civicrm_replacement( $form, $context ) {
 	static $civi_fp_fields;
+
 	foreach ( $form['fields'] as &$field ) {
 		if ( property_exists( $field, 'choices' ) && property_exists( $field, 'civicrmOptionGroup' ) &&
 		     preg_match( '{(?:^|\s) civicrm (?: __ (?<option_group>\S+) | _fp__ (?<processor>\S*?) __ (?<field_name> \S*))}x', $field->civicrmOptionGroup, $matches ) ) {
-			if ( ! civicrm_initialize() ) {
+			
+			// Check if a CiviCRM installation exists
+			if ( check_civicrm_installation()['is_error'] ) {
 				break;
 			}
+
+			$profile_name = get_rest_connection_profile( $form );
 
 			[ 'option_group' => $option_group, 'processor' => $processor, 'field_name' => $field_name ] = $matches;
 
@@ -125,7 +158,7 @@ function do_civicrm_replacement( $form, $context ) {
 						$field['enableChoiceValue'] = true;
 					}
 
-				} catch ( CiviCRM_API3_Exception $e ) {
+				} catch ( CRM_Core_Exception $e ) {
 					// Couldn't get form processor instance, don't try to set options
                     return $form;
 				}
@@ -145,7 +178,7 @@ function do_civicrm_replacement( $form, $context ) {
 
 			if ( ( $context === 'pre_render' ) && ( ! $field->isRequired ) && ( $field->type != 'multiselect' ) && ( $field->type != 'checkbox' ) ) {
 				array_unshift( $field->choices, [
-					'text'       => __( '- None -', 'gf-civicrm-formprocessor' ),
+					'text'       => __( '- None -', 'gf-civicrm' ),
 					'value'      => NULL,
 					'isSelected' => ! $default_option,
 				] );
@@ -157,12 +190,15 @@ function do_civicrm_replacement( $form, $context ) {
 	return $form;
 }
 
+/**
+ * Adds custom merge tags to Insert Merge tags dropdowns.
+ */
 function compose_merge_tags ( $merge_tags ) {
 	try {
-		foreach (
-			civicrm_api3( 'FormProcessorInstance', 'get', [ 'sequential' => 1 ] )['values']
-			as ['inputs' => $inputs, 'name' => $pname, 'title' => $ptitle]
-		) {
+		$profile_name = get_rest_connection_profile();
+		$processors = api_wrapper($profile_name, 'FormProcessorInstance', 'get', [ 'sequential' => 1], [ 'limit' => 0])['values'];
+		
+		foreach ( $processors as ['inputs' => $inputs, 'name' => $pname, 'title' => $ptitle] ) {
 			foreach ( $inputs as ['name' => $iname, 'title' => $ititle] ) {
 				$merge_tags[] = [
 					'label' => sprintf( __( '%s / %s', 'gf-civicrm' ), $ptitle, $ititle ),
@@ -377,18 +413,27 @@ add_filter( 'gform_webhooks_request_data', 'GFCiviCRM\webhooks_request_data', 10
  * @throws \Civi\API\Exception\UnauthorizedException
  */
 function civicrm_optiongroup_setting( $position, $form_id ) {
-	if ( ! civicrm_initialize() ) {
+	$profile_name = get_rest_connection_profile( $form_id );
+
+	// Check if a CiviCRM installation exists
+	if ( check_civicrm_installation()['is_error'] ) {
 		return;
 	}
 
 	switch ( $position ) {
 		case BEFORE_CHOICES_SETTING:
-			$option_groups = OptionGroup::get( FALSE )
-			                            ->addSelect( 'name', 'title' )
-			                            ->addOrderBy( 'title', 'ASC' )
-			                            ->execute();
+			$api_params = [
+				'return' => ['name', 'title'], // Specify the fields to return
+			];
+			$api_options = [
+				'check_permissions' => 0, // Set check_permissions to false
+				'sort' 				=> 'title ASC',
+				'limit'				=> 0,
+			];
+			$option_groups = api_wrapper( $profile_name, 'OptionGroup', 'get', $api_params, $api_options )['values'] ?? [];
+
 			try {
-				$form_processors = civicrm_api3( 'FormProcessorInstance', 'get', [ 'sequential' => 1 ] )['values'];
+				$form_processors = api_wrapper($profile_name, 'FormProcessorInstance', 'get', [ 'sequential' => 1], [ 'limit' => 0])['values'] ?? [];
 
 				$form_processors = array_filter( array_map( function ( $processor ) use ( $option_groups ) {
 					$mapped = [
@@ -413,14 +458,14 @@ function civicrm_optiongroup_setting( $position, $form_id ) {
 
 					return ! empty( $mapped['options'] ) ? $mapped : FALSE;
 				}, $form_processors ) );
-			} catch ( CiviCRM_API3_Exception $e ) {
+			} catch ( CRM_Core_Exception $e ) {
 				// Form processor extension may not be installed, ignore
 				$form_processors = [];
 			}
 			?>
 			<li class="civicrm_optiongroup_setting field_setting">
 				<label for="civicrm_optiongroup_selector">
-					<?php esc_html_e( 'CiviCRM Source', 'gf-civicrm-formprocessor' ); ?>
+					<?php esc_html_e( 'CiviCRM Source', 'gf-civicrm' ); ?>
 				</label>
 				<select id="civicrm_optiongroup_selector"
 				        onchange="SetCiviCRMOptionGroup(this)">
@@ -561,24 +606,39 @@ function fp_tag_default( $matches, $fallback = '', $multiple = FALSE ) {
 	$result = $fallback;
 	[ , $processor, $field ] = $matches;
 
-	if ( ! civicrm_initialize() ) {
+	$profile_name = get_rest_connection_profile();
+
+	// Check if a CiviCRM installation exists
+	if ( check_civicrm_installation()['is_error'] ) {
 		return $result;
 	}
 
 	if ( ! isset( $defaults[ $processor ] ) ) {
 		try {
 			// Fetch Form Processor options directly from the GET parameters.
-			$params = [ 'check_permissions' => 1 ];
+			
+			$api_version = '3';
+			$api_params = array(
+				'api_action' => $processor,
+			);
+			$api_options = array(
+				'check_permissions' => 1, // Set check_permissions to false
+				'limit'	=> 0,
+				'cache' => NULL,
+			);
+			// Get the cid
+			$fields = api_wrapper( $profile_name, 'FormProcessorDefaults', 'getfields', $api_params, $api_options, $api_version );
 
 			$fields = civicrm_api3( 'FormProcessorDefaults', 'getfields', [ 'action' => $processor, 'options' => [ 'limit' =>'0' ] ] );
 			foreach ( array_keys( $fields['values'] ) as $key ) {
 				if ( ! empty( $_GET[ $key ] ) ) {
-					$params[ $key ] = $_GET[ $key ];
+					$api_params[ $key ] = $_GET[ $key ];
 				}
 			}
 
-			$defaults[ $processor ] = civicrm_api3( 'FormProcessorDefaults', $processor, $params );
-		} catch ( CiviCRM_API3_Exception $e ) {
+			// Get field values
+			$defaults[ $processor ] = api_wrapper( $profile_name, 'FormProcessorDefaults', $processor, $api_params, $api_options, $api_version );
+		} catch ( CRM_Core_Exception $e ) {
 			$defaults[ $processor ] = FALSE;
 		}
 	}
@@ -602,11 +662,15 @@ function fp_tag_default( $matches, $fallback = '', $multiple = FALSE ) {
 
 /**
  * Find or generate API key for the current user.
+ *
+ * This function is implemented without CMRF support, as it does not make sense in that context
  */
 function get_api_key() {
-	if ( ! civicrm_initialize() ) {
-		return NULL;
+	// Leave early if directly connected to CiviCRM.
+	if ( ! ( function_exists( 'civicrm_initialize' ) && civicrm_initialize() ) ) {
+		return null;
 	}
+
 	$contactID = \CRM_Core_Session::getLoggedInContactID();
 
 	if ( (int) $contactID < 1 ) {
@@ -754,6 +818,27 @@ function address_replace_countries_list( $choices ) {
 	}
 
 	return $replace;
+}
+
+/**
+ * Replace dropdown field null values with blank "" on submission.
+ */
+add_action( 'gform_pre_submission', 'GFCiviCRM\handle_optional_select_field_values' );
+function handle_optional_select_field_values( $form ) {
+	// Get the input id for multi select type fields
+	$fields = $form['fields'];
+
+	foreach ($fields as $field) {
+		if ( 'select' === $field->inputType ) {
+			$field_id = $field->id;
+			$value = $_POST['input_' . $field_id];
+
+			// Fix optional dropdown fields saving no selection as "- None -"
+			if ( $value == "- None -" ) {
+				$_POST['input_' . $field_id] = "";
+			}
+		}
+	}
 }
 
 // Ensure that other WordPress plugins have not lowered the curl timeout which impacts Gravity Forms webhook requests

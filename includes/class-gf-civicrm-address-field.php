@@ -11,7 +11,6 @@
  */
 
 namespace GFCiviCRM;
-
 use GFAPI;
 use GF_Field;
 
@@ -20,7 +19,6 @@ if ( ! class_exists( 'GFForms' ) ) {
 }
 
 class Address_Field {
-
 	private $field_settings = [];
 	private $address_type = null;
 
