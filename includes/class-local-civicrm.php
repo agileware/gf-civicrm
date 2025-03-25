@@ -64,7 +64,15 @@ class LocalCiviCRM {
 					$result = civicrm_api3( $entity, $action, $params );
 					break;
 				case '4':
-					$result = civicrm_api4( $entity, $action, $params )->getArrayCopy();
+					/**
+					 * DEV NOTE: At time of development, CMRF only supports APIv3 calls. Therefore,
+					 * all API requests in this plugin must be APIv3.
+					 * 
+					 * When this changes in CMRF, we can enable the APIv4 route again.
+					 */
+					$result = civicrm_api3( $entity, $action, $params );
+
+					// $result = civicrm_api4( $entity, $action, $params )->getArrayCopy();
 					break;
 			}
 
@@ -92,7 +100,7 @@ class LocalCiviCRM {
 	 * @return array
 	 */
 	public static function loadProfile( $profiles ) {
-		if ( function_exists( 'civi_wp' ) && ! function_exists( 'wpcmrf_get_core' ) ) {
+		if ( function_exists( 'civi_wp' ) ) {
 			$profiles['_local_civi_'] = [
 				'title'    => __( 'Local CiviCRM' ),
 				'function' => [ 'GFCiviCRM\LocalCiviCRM', 'api' ],
