@@ -29,16 +29,27 @@ use GFCiviCRM_Exception;
  */
 function api_wrapper($profile, $entity, $action, $params, $options=[], $api_version = '3', $ignore = false) {
 	$profiles = get_profiles();
-	if (isset($profiles[$profile])) {
-		if (isset($profiles[$profile]['file'])) {
-			require_once($profiles[$profile]['file']);
-		}
-		$result = call_user_func($profiles[$profile]['function'], $profile, $entity, $action, $params, $options, $api_version);
-		if (!empty($result['is_error'])) {
-			throw new GFCiviCRM_Exception( $result['error_message'], $result['error_code'] );
-		}
-	} else {
-		throw new GFCiviCRM_Exception( __( 'Profile not found', 'gf-civicrm' ) );
+
+	if ( !isset( $profiles[$profile] ) ) {
+		return [
+			'is_error' => 1,
+			'error_message' => __('Profile not found', 'gf-civicrm'),
+			'error_code' => 'profile_not_found',
+		];
+	}
+
+	if ( isset( $profiles[$profile]['file'] ) ) {
+		require_once($profiles[$profile]['file']);
+	}
+
+	$result = call_user_func( $profiles[$profile]['function'], $profile, $entity, $action, $params, $options, $api_version );
+
+	if ( !empty( $result['is_error'] ) ) {
+		return [
+			'is_error' => 1,
+			'error_message' => __( $result['error_message'], 'gf-civicrm' ),
+			'error_code' => $result['error_code'],
+		];
 	}
 	
 	return $result;
