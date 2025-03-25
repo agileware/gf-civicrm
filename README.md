@@ -139,6 +139,28 @@ These exported files can then be imported from the Import/Export Directory. **CA
 1. Select the Form Processors you wish to import. **CAUTION:** If a form processor exists with the same name on your system, it will be overwritten by the import file on import. Take a backup before doing this.
 1. Click on the "Import Selected" button to begin the import. This will import the selected Forms and their related Feeds, and selected Form Processors.
 
+# Remote CiviCRM Integration using WordPress CiviMcRestFace
+
+This plugin can support connections to a remote CiviCRM installation with the aid of the [Connector to CiviCRM with CiviMcRestFace plugin (CMRF)](https://github.com/CiviMRF/civimcrestface-wordpress). Refer to the installation notes there.
+
+## Configuring REST Connection Profiles
+
+Once you have installed CMRF, you must configure a REST Connection profile and select it for use.
+
+1. Go to Settings > CiviCRM McRestFace Connections.
+1. Add a new connection profile to your desired CiviCRM installation and save it.
+1. Go to Forms > Settings. Open the CiviCRM subview.
+1. Under CiviCRM Settings, choose a connection profile for use in CiviCRM REST Connection Profile. This will be the default connection profile for all forms.
+1. Save your changes
+
+### TODO
+
+- Add support for setting a connection profile override for each form. This will enable forms to be built to connect to separate CiviCRM installations via connection profiles. e.g. One form connects to a local CRM, another form connects to a different remote CRM.
+
+## Implementation Notes
+
+At the time of development of this feature, CMRF only supports CiviCRM APIv3 calls. When developing API requests, this had to be taken into consideration, so all calls must use the APIv3 framework.
+
 
 # Troubleshooting
 
