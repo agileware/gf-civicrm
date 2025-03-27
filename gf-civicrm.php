@@ -114,14 +114,20 @@ function do_civicrm_replacement( $form, $context ) {
 			if ( $option_group ) {
 				// Get the option group id from the name, since it's more reliable
 				$api_params = [
-					'name' 		=> $option_group,
+					'name'		=> $option_group,
 					'return' 	=> ['id'],
 				];
-				$option_group_id = api_wrapper( $profile_name, 'OptionGroup', 'get', $api_params, [ 'limit' => 1] )['values'];
+				$option_group_id = api_wrapper( $profile_name, 'OptionGroup', 'get', $api_params, [ 'limit' => 1] );
+
+				if ( !$option_group_id ) {
+					break; // No group ID found for the given name
+				}
+
+				$option_group_id = reset($option_group_id);
 
 				// Then get the Option Group Values attached to that id
 				$api_params = [
-					'option_group_id' 	=> array_key_first( $option_group_id ),
+					'option_group_id' 	=> $option_group_id['id'],
 					'is_active' 		=> true,
 					'return' 			=> ['value', 'label', 'is_default'],
 				];
@@ -129,11 +135,11 @@ function do_civicrm_replacement( $form, $context ) {
 					'sort' 				=> 'weight ASC',
 					'limit' 			=> 0,
 				];
-				$options = api_wrapper($profile_name, 'OptionValue', 'get', $api_params, $api_options);
+				$options = api_wrapper( $profile_name, 'OptionValue', 'get', $api_params, $api_options );
 
                 $field->choices = [];
 
-                foreach ( $options['values'] as [ 'id' => $id, 'value' => $value, 'label' => $label, 'is_default' => $is_default ] ) {
+                foreach ( $options as [ 'value' => $value, 'label' => $label, 'is_default' => $is_default ] ) {
 					$field->choices[] = [
 						'text'       => $label,
 						'value'      => $value,
@@ -145,7 +151,7 @@ function do_civicrm_replacement( $form, $context ) {
 					if ( ! isset( $civi_fp_fields[ $processor ] ) ) {
 						$api_params = [ 'api_action' => $processor ];
 						$api_options = [ 'limit' => 0, ];						
-						$civi_fp_fields[ $processor ] = api_wrapper( $profile_name, 'FormProcessor', 'getfields', $api_params, $api_options )['values'] ?? [];
+						$civi_fp_fields[ $processor ] = api_wrapper( $profile_name, 'FormProcessor', 'getfields', $api_params, $api_options ) ?? [];
 					}
 
 					// If the field has a default value set then that has priority
@@ -210,7 +216,7 @@ function do_civicrm_replacement( $form, $context ) {
 function compose_merge_tags ( $merge_tags ) {
 	try {
 		$profile_name = get_rest_connection_profile();
-		$processors = api_wrapper( $profile_name, 'FormProcessorInstance', 'get', [ 'sequential' => 1], [ 'limit' => 0 ] )['values'];
+		$processors = api_wrapper( $profile_name, 'FormProcessorInstance', 'get', [ 'sequential' => 1], [ 'limit' => 0 ] );
 		
 		foreach ( $processors as ['inputs' => $inputs, 'name' => $pname, 'title' => $ptitle] ) {
 			foreach ( $inputs as ['name' => $iname, 'title' => $ititle] ) {
@@ -444,10 +450,10 @@ function civicrm_optiongroup_setting( $position, $form_id ) {
 				'sort' 				=> 'title ASC',
 				'limit'				=> 0,
 			];
-			$option_groups = api_wrapper( $profile_name, 'OptionGroup', 'get', $api_params, $api_options )['values'] ?? [];
+			$option_groups = api_wrapper( $profile_name, 'OptionGroup', 'get', $api_params, $api_options ) ?? [];
 
 			try {
-				$form_processors = api_wrapper($profile_name, 'FormProcessorInstance', 'get', [ 'sequential' => 1], [ 'limit' => 0])['values'] ?? [];
+				$form_processors = api_wrapper($profile_name, 'FormProcessorInstance', 'get', [ 'sequential' => 1], [ 'limit' => 0]) ?? [];
 
 				$form_processors = array_filter( array_map( function ( $processor ) use ( $option_groups ) {
 					$mapped = [
@@ -642,9 +648,9 @@ function fp_tag_default( $matches, $fallback = '', $multiple = FALSE ) {
 			// Get the form processor fields
 			$fields = api_wrapper( $profile_name, 'FormProcessorDefaults', 'getfields', $api_params, $api_options, $api_version );
 
-			foreach ( array_keys( $fields['values'] ) as $key ) {
-				if ( ! empty( $_GET[ $key ] ) ) {
-					$api_params[ $key ] = $_GET[ $key ];
+			foreach ( $fields as $value ) {
+				if ( ! empty( $_GET[ $value['name'] ] ) ) {
+					$api_params[ $value['name'] ] = $_GET[ $value['name'] ];
 				}
 			}
 
