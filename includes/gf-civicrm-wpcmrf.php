@@ -27,7 +27,7 @@ use GFCiviCRM_Exception;
  *
  * @return array|mixed|null
  */
-function api_wrapper($profile, $entity, $action, $params, $options=[], $api_version = '3', $ignore = false) {
+function api_wrapper( $profile, $entity, $action, $params, $options=[], $api_version = '3', $ignore = false ) {
 	$profiles = get_profiles();
 
 	if ( !isset( $profiles[$profile] ) ) {
@@ -39,10 +39,15 @@ function api_wrapper($profile, $entity, $action, $params, $options=[], $api_vers
 	}
 
 	if ( isset( $profiles[$profile]['file'] ) ) {
-		require_once($profiles[$profile]['file']);
+		require_once( $profiles[$profile]['file'] );
 	}
 
-	$result = call_user_func( $profiles[$profile]['function'], $profile, $entity, $action, $params, $options, $api_version );
+	// Perform the API call
+	try {
+		$result = call_user_func( $profiles[$profile]['function'], $profile, $entity, $action, $params, $options, $api_version );
+	} catch ( GFCiviCRM_Exception $e ) {
+		$e->logErrorMessage( $e->getErrorMessage(), true );
+	}
 
 	if ( !empty( $result['is_error'] ) ) {
 		return [
@@ -50,6 +55,10 @@ function api_wrapper($profile, $entity, $action, $params, $options=[], $api_vers
 			'error_message' => __( $result['error_message'], 'gf-civicrm' ),
 			'error_code' => $result['error_code'],
 		];
+	}
+
+	if ( isset( $result['values'] ) ) {
+		return $result['values'];
 	}
 	
 	return $result;
