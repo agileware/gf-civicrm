@@ -155,15 +155,15 @@ function check_civicrm_installation( $profile = null ) {
 
 	$result = api_wrapper( $profile, 'System', 'get', [ 'version' ], [] );
 
-	if ( isset( $result['is_error'] ) && $result['is_error'] == 0 ) {
-		return [
-			'is_error' => 0,
-			'message' => $profile . ' CiviCRM installation is accessible.',
-		];
-	} else {
+	if ( isset( $result['is_error'] ) && $result['is_error'] != 0 ) {
 		return [
 			'is_error' => 1,
 			'message' => $result['error_message'] ?? 'Unknown error',
+		];
+	} else {
+		return [
+			'is_error' => 0,
+			'message' => $profile . ' CiviCRM installation is accessible.',
 		];
 	}
 }
