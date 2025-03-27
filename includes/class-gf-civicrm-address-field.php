@@ -56,12 +56,12 @@ class Address_Field {
 		if ( ! empty( $field->type ) && $field->type === 'address' ) {
 			$form_id = (int) rgar( $form, 'id' );
 
-			if ( strpos($classes, 'gf-civicrm-address-field') === false ) {
+			if ( strpos( $classes, 'gf-civicrm-address-field' ) === false ) {
 				$classes .= ' gf-civicrm-address-field';
 			}
 
 			// also tag this for adding aria-live region and controller markup
-			add_filter("gform_field_content_{$form_id}_{$field->id}", [$this, 'addAriaLiveRegion'], 10, 5);
+			add_filter( "gform_field_content_{$form_id}_{$field->id}", [$this, 'addAriaLiveRegion'], 10, 5 );
 
 			foreach ( $field->inputs as $field_key => $field_meta ) {
 				// Get the field placeholder if it exists
@@ -104,66 +104,76 @@ class Address_Field {
 	 * Load data for countries and states for script to access
 	 */
 	public function loadCountriesAndStatesData() {
-		$states_data = [];
-		$labels      = [
-			'countries' => [],
-		];
-
 		// Exit early if there's no address field available, making sure the script isn't loaded unnecessarily
 		if ( empty( $this->field_settings ) ) {
 			wp_dequeue_script( 'gf_address_enhanced_smart_states' );
 			return;
 		}
 
-		// Get Countries and their States/Provinces from CiviCRM
-		$countries = [];
-		if ( $this->address_type == 'us' ) {
-			$countries = \Civi\Api4\Country::get( FALSE )
-				->addSelect( 'id', 'name', 'iso_code', 'state_province.id', 'state_province.name', 'state_province.abbreviation', 'state_province.country_id' )
-				->addJoin( 'StateProvince AS state_province', 'INNER' )
-				->addWhere( 'id', '=', 1228 ) // US country_id in CiviCRM
-				->addOrderBy( 'name', 'ASC' )
-				->addOrderBy( 'state_province.name', 'ASC' )
-				->execute();
-		} elseif ( $this->address_type == 'canadian' ) {
-			$countries = \Civi\Api4\Country::get( FALSE )
-				->addSelect( 'id', 'name', 'iso_code', 'state_province.id', 'state_province.name', 'state_province.abbreviation', 'state_province.country_id' )
-				->addJoin( 'StateProvince AS state_province', 'INNER' )
-				->addWhere( 'id', '=', 1039 ) // Canada country_id in CiviCRM
-				->addOrderBy( 'name', 'ASC' )
-				->addOrderBy( 'state_province.name', 'ASC' )
-				->execute();
-		} else {
-			// Default to international
-			$countries = \Civi\Api4\Country::get( FALSE )
-				->addSelect( 'id', 'name', 'iso_code', 'state_province.id', 'state_province.name', 'state_province.abbreviation', 'state_province.country_id' )
-				->addJoin( 'StateProvince AS state_province', 'INNER' )
-				->addOrderBy( 'name', 'ASC' )
-				->addOrderBy( 'state_province.name', 'ASC' )
-				->execute();
-		}
+		// Check for cached values
+		$cached_countries_data = get_transient( 'gfcv_civicrm_countries' );
+		$cached_states_data = get_transient( 'gfcv_civicrm_stateprovinces' );
 
-		// Exit early if we didn't get any countries and their states
-		if ( empty( $countries ) ) {
-			return;
-		}
+		$countries = $cached_countries_data ?: [];
+		$states_data = $cached_states_data ?: [];
 
-		// Compile the list of states_data and labels
-		foreach ( $countries as $country ) {
-			$state_abbreviation                = __( $country['state_province.abbreviation'], 'gf-civicrm-formprocessor' );
-			$state_name                        = __( $country['state_province.name'], 'gf-civicrm-formprocessor' );
-			$states_data[ $country['name'] ][] = [
-				$state_abbreviation,
-				$state_name,
+		if ( !$countries || !$states_data || empty( $labels['countries'] ) ) {
+			// Reset fields
+			$countries = [];
+			$states_data = [];
+
+			$profile_name = get_rest_connection_profile();
+			$api_params = [
+				'select' => [ 'id', 'name', 'iso_code' ],
+				'api.StateProvince.get' => [
+					'options' => ['limit' => 0, 'sort' => "name ASC"],
+				],
+				'options' => ['limit' => 0, 'sort' => "name ASC"],
 			];
-			// DEV: Do we need this?
-			$labels['countries'][ $country['name'] ][] = __( $country['state_province.name'], 'gf-civicrm-formprocessor' );
+			$api_options = [
+				'check_permissions' => 0, // Set check_permissions to false
+				'limit' => 0,
+			];
+
+			/**
+			 * TODO : Filter by the list of available Countries
+			 */
+
+			// Get Countries and their States/Provinces from CiviCRM
+			$countries = api_wrapper( $profile_name, 'Country', 'get', $api_params, $api_options );
+
+			// Exit early if we didn't get any countries and their states
+			if ( empty( $countries ) ) {
+				return;
+			}
+
+			// Compile the list of states_data and labels
+			foreach ( $countries as $country ) {
+				$country_name = $country['name'];
+				
+				$state_province = $country['api.StateProvince.get']['values'] ?? [];
+				$country['states'] = $state_province;
+				unset($country['api.StateProvince.get']);
+
+				$countries[] = $country;
+
+				foreach ($state_province as $sp) {
+					$state_abbreviation                					 = $sp['abbreviation'];
+					$state_name                        					 = __( $sp['name'], 'gf-civicrm-formprocessor' );
+					$states_data[ $country_name ][ $state_abbreviation ] = [
+						$state_abbreviation,
+						$state_name,
+					];
+				}
+			}
+
+			set_transient( 'gfcv_civicrm_countries', $countries );
+			set_transient( 'gfcv_civicrm_stateprovinces', $states_data );
 		}
 
 		// Compile script data
 		$script_data = [
 			'states' => $states_data,
-			'labels' => $labels,
 			'fields' => $this->field_settings,
 		];
 

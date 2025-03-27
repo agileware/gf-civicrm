@@ -813,23 +813,59 @@ function set_text_input_counter( $script, $form_id, $input_id, $max_length, $fie
  */
 add_filter( 'gform_countries', 'GFCiviCRM\address_replace_countries_list' );
 function address_replace_countries_list( $choices ) {
-	$replace = array();
+	$replace = [];
+	$countries = [];
 
-	try {
-		$countries = \Civi\Api4\Country::get(FALSE)
-			->addSelect('name', 'iso_code')
-			->execute();
+	if ( $cached_countries_data = get_transient( 'gfcv_civicrm_countries' ) ) {
+		$countries = $cached_countries_data;
+	} else {
+		try {
+			/**
+			 * DEV NOTE: This is also done in loadCountriesAndStatesData().
+			 * TODO: Reduce duplication and pull data from CiviCRM outside of GFCiviCRM::Address_Field.
+			 */
+			$profile_name = get_rest_connection_profile();
+			$api_params = [
+				'select' => [ 'id', 'name', 'iso_code' ],
+				'api.StateProvince.get' => [
+					'options' => ['limit' => 0, 'sort' => "name ASC"],
+				],
+				'options' => ['limit' => 0, 'sort' => "name ASC"],
+			];
+			$api_options = [
+				'check_permissions' => 0, // Set check_permissions to false
+				'limit' => 0,
+			];
 
+			// Get Countries and their States/Provinces from CiviCRM
+			$countries_data = api_wrapper( $profile_name, 'Country', 'get', $api_params, $api_options );
+
+			if ( !empty( $countries_data ) ) {
+				foreach ( $countries_data as $country ) {
+					$state_province = $country['api.StateProvince.get']['values'] ?? [];
+					$country['states'] = $state_province;
+					unset($country['api.StateProvince.get']);
+
+					$countries[] = $country;
+				}
+
+				set_transient( 'gfcv_civicrm_countries', $countries );
+			}
+		} catch ( \CRM_Core_Exception $e ) {
+			// Could not retrieve CiviCRM countries list
+			// Fallback to the original set of choices
+		}
+	}
+
+	if ( !empty( $countries ) ) {
 		foreach ($countries as $country) {
 			$replace[] = __( $country["name"], 'gf-civicrm-formprocessor' );
 		}
-	} catch ( \CRM_Core_Exception $e ) {
-		// Could not retrieve CiviCRM countries list
-		// Fallback to the original set of choices
-		return $choices;
+
+		return $replace;
 	}
 
-	return $replace;
+	return $choices;
 }
 
 /**
