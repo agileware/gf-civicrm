@@ -308,17 +308,19 @@ class FieldsAddOn extends GFAddOn {
 		  ];
     }
 
-    // CiviCRM McRestFace
-    $fields[] = [
-				'label' => esc_html__( 'CiviCRM REST Connection Profile', 'gf-civicrm' ),
-				'type'        => 'select',
-				'name'        => 'civicrm_rest_connection',
-				'description' => esc_html__(
-					'Select which CMRF connection profile to use for this form.',
-					'gf-civicrm'
-				),
-				'choices'     => $this->get_cmrf_profile_options()
-		];
+    if ( is_plugin_active( 'connector-civicrm-mcrestface/wpcmrf.php' ) ) {
+      // CiviCRM McRestFace
+      $fields[] = [
+        'label' => esc_html__( 'CiviCRM REST Connection Profile', 'gf-civicrm' ),
+        'type'        => 'select',
+        'name'        => 'civicrm_rest_connection',
+        'description' => esc_html__(
+          'Select which CMRF connection profile to use for this form.',
+          'gf-civicrm'
+        ),
+        'choices'     => $this->get_cmrf_profile_options()
+      ];
+    }
 
 		if(!empty($fields)) {
 			return [
@@ -339,99 +341,115 @@ class FieldsAddOn extends GFAddOn {
         'gf_webhook_merge_tags_replacement_nonce'  => $nonce,
     ), admin_url( 'admin.php?page=gf_settings&subview=gf-civicrm' ) );
 
-		return [ 
-      [
-        'title'       => esc_html__( 'CiviCRM Settings', 'gf-civicrm' ),
-        'description' => esc_html__( 'Global settings for CiviCRM add-on', 'gf-civicrm' ),
-        'fields'      => [ 
-          [
-            'type'          => 'checkbox',
-            'name'          => 'gf_civicrm_flags',
-            'default_value' => [ 'civicrm_multi_json' ],
-            'choices' => [
-              [
-                'label'   => esc_html__( 'Use JSON encoding for Checkbox and Multiselect values in webhooks (recommended)', 'gf_civicrm' ),
-                'name'    => 'civicrm_multi_json',
-              ],
-              [
-                'label'   => esc_html__( 'Enable pre-releases for updates.', 'gf_civicrm' ),
-                'name'    => 'enable_prereleases',
-                'tooltip' => esc_html__( 'Opt-in to including pre-releases/beta releases for GF CiviCRM updates. Please note that pre-releases may be unstable, so make sure to take a backup of your database before performing updates with this option enabled.', 'simpleaddon' ),
-              ],
-            ],
-          ],
-          [ // CiviCRM McRestFace or Local
-            'label' => esc_html__( 'CiviCRM REST Connection Profile', 'gf-civicrm' ),
-            'type'          => 'select',
-            'name'          => 'civicrm_rest_connection',
-            'choices' => $this->get_cmrf_profile_options( true ),
-          ]
-        ],
-      ],
-      [
-        'title'       => esc_html__( 'CiviCRM Site Key', 'gf-civicrm' ),
-        'description' => esc_html__( 'Provide the CiviCRM site key for making API calls, can be output using the merge tag {gf_civicrm_site_key}.', 'gf-civicrm' ),
-        'fields'      => [ [
-          'type'          => 'text',
-          'name'          => 'gf_civicrm_site_key',
-          'default_value' => '',
-        ] ],
-      ],
-      [
-        'title'       => esc_html__( 'CiviCRM API Key', 'gf-civicrm' ),
-        'description' => esc_html__( 'Provide the CiviCRM API key for making API calls, can be output using the merge tag {gf_civicrm_api_key}.', 'gf-civicrm' ),
-        'fields'      => [ [
-          'type'          => 'text',
-          'name'          => 'gf_civicrm_api_key',
-          'default_value' => '',
-        ] ],
-      ],
-      [
-        'title'       => esc_html__( 'Webhook Alerts', 'gf-civicrm' ),
-        'description' => nl2br(esc_html__( "Webhook alerts will be sent to the email provided below.", 'gf-civicrm' )),
-        'fields'      => [ [
+    $fields = [];
+
+    $fields[] = [
+      'title'       => esc_html__( 'CiviCRM Settings', 'gf-civicrm' ),
+      'description' => esc_html__( 'Global settings for CiviCRM add-on', 'gf-civicrm' ),
+      'fields'      => [ 
+        [
           'type'          => 'checkbox',
-          'name'          => 'gf_civicrm_alerts',
+          'name'          => 'gf_civicrm_flags',
+          'default_value' => [ 'civicrm_multi_json' ],
           'choices' => [
             [
-              'label'   => esc_html__( 'Enable email alerts', 'gf_civicrm' ),
-              'name'    => 'enable_emails',
-              'default_value' => true,
+              'label'   => esc_html__( 'Use JSON encoding for Checkbox and Multiselect values in webhooks (recommended)', 'gf_civicrm' ),
+              'name'    => 'civicrm_multi_json',
+            ],
+            [
+              'label'   => esc_html__( 'Enable pre-releases for updates.', 'gf_civicrm' ),
+              'name'    => 'enable_prereleases',
+              'tooltip' => esc_html__( 'Opt-in to including pre-releases/beta releases for GF CiviCRM updates. Please note that pre-releases may be unstable, so make sure to take a backup of your database before performing updates with this option enabled.', 'simpleaddon' ),
             ],
           ],
         ],
-        [
-          'type'          => 'text',
-          'name'          => 'gf_civicrm_alerts_email',
-          'default_value' => '',
-          'validation_callback' => function( $field, $value ) {
-            // Validate the value is actually an email
-            if ( ! is_email( trim( $value ) ) ) {
-              $field->set_error( __( 'Please enter a valid email address.', 'gravityforms' ) );
-            }
-          }
-        ] ],
-      ],
-      [
-        'title'       => esc_html__( 'Import/Export Directory', 'gf-civicrm' ),
-        'description' => nl2br(esc_html__( "Define the path to the import/export directory, relative to the server document root. Used by Export GF CiviCRM and Import GF CiviCRM.\n\nYou can modify the subdirectories using the 'gf-civicrm/export-directory' and 'gf-civicrm/fp-export-directory' filters.", 'gf-civicrm' )),
-        'fields'      => [ [
-          'type'          => 'text',
-          'name'          => 'gf_civicrm_import_export_directory',
-          'default_value' => 'CRM/gf-civicrm-exports',
-        ] ],
-      ],
-      [
-        'title'       => esc_html__( 'Webhook URL Merge Tags Replacements', 'gf-civicrm' ),
-        'description' => __( 'Replaces the REST API url, and CiviCRM Site keys and API keys in Gravity Forms webhook request URLs with their equivalent merge tags, for all webhooks feeds. Saves the CiviCRM Site Key and API key in the settings.<br /><br /><strong>CAUTION:</strong> It is recommended to take a backup before running this function.', 'gf-civicrm' ),
-        'fields'      => [ [
-          'name'  => 'webhook_merge_tags_replacer',
-          'label' => '',
-          'type'  => 'html',
-          'html'  => '<a href="' . esc_url( $action_url ) . '" class="button">Replace the Merge Tags</a>',
-        ] ],
       ],
     ];
+
+    if ( is_plugin_active( 'connector-civicrm-mcrestface/wpcmrf.php' ) ) {
+      $fields[] = [ // CiviCRM McRestFace or Local
+        'title'         => esc_html__( 'CiviCRM REST Connection Profile', 'gf-civicrm' ),
+        'description'   => wp_kses_post( sprintf(
+                            __( 'Select which CMRF connection profile to use for this form. <a href="%s">Configure connection profiles here.</a>', 'gf-civicrm' ),
+                            esc_url( add_query_arg( [ 'page' => 'wpcmrf_admin' ], admin_url( 'options-general.php' ) ) )
+                          ) ),
+        'fields'        => [ [
+          'type'          => 'select',
+          'name'          => 'civicrm_rest_connection',
+          'choices'       => $this->get_cmrf_profile_options( true ),
+        ] ],
+      ];
+    }
+
+    $fields[] = [
+      'title'       => esc_html__( 'CiviCRM Site Key', 'gf-civicrm' ),
+      'description' => esc_html__( 'Provide the CiviCRM site key for making API calls, can be output using the merge tag {gf_civicrm_site_key}.', 'gf-civicrm' ),
+      'fields'      => [ [
+        'type'          => 'text',
+        'name'          => 'gf_civicrm_site_key',
+        'default_value' => '',
+      ] ],
+    ];
+
+    $fields[] = [
+      'title'       => esc_html__( 'CiviCRM API Key', 'gf-civicrm' ),
+      'description' => esc_html__( 'Provide the CiviCRM API key for making API calls, can be output using the merge tag {gf_civicrm_api_key}.', 'gf-civicrm' ),
+      'fields'      => [ [
+        'type'          => 'text',
+        'name'          => 'gf_civicrm_api_key',
+        'default_value' => '',
+      ] ],
+    ];
+
+    $fields[] = [
+      'title'       => esc_html__( 'Webhook Alerts', 'gf-civicrm' ),
+      'description' => nl2br(esc_html__( "Webhook alerts will be sent to the email provided below.", 'gf-civicrm' )),
+      'fields'      => [ [
+        'type'          => 'checkbox',
+        'name'          => 'gf_civicrm_alerts',
+        'choices' => [
+          [
+            'label'   => esc_html__( 'Enable email alerts', 'gf_civicrm' ),
+            'name'    => 'enable_emails',
+            'default_value' => true,
+          ],
+        ],
+      ],
+      [
+        'type'          => 'text',
+        'name'          => 'gf_civicrm_alerts_email',
+        'default_value' => '',
+        'validation_callback' => function( $field, $value ) {
+          // Validate the value is actually an email
+          if ( ! is_email( trim( $value ) ) ) {
+            $field->set_error( __( 'Please enter a valid email address.', 'gravityforms' ) );
+          }
+        }
+      ] ],
+    ];
+
+    $fields[] = [
+      'title'       => esc_html__( 'Import/Export Directory', 'gf-civicrm' ),
+      'description' => nl2br(esc_html__( "Define the path to the import/export directory, relative to the server document root. Used by Export GF CiviCRM and Import GF CiviCRM.\n\nYou can modify the subdirectories using the 'gf-civicrm/export-directory' and 'gf-civicrm/fp-export-directory' filters.", 'gf-civicrm' )),
+      'fields'      => [ [
+        'type'          => 'text',
+        'name'          => 'gf_civicrm_import_export_directory',
+        'default_value' => 'CRM/gf-civicrm-exports',
+      ] ],
+    ];
+
+    $fields[] = [
+      'title'       => esc_html__( 'Webhook URL Merge Tags Replacements', 'gf-civicrm' ),
+      'description' => __( 'Replaces the REST API url, and CiviCRM Site keys and API keys in Gravity Forms webhook request URLs with their equivalent merge tags, for all webhooks feeds. Saves the CiviCRM Site Key and API key in the settings.<br /><br /><strong>CAUTION:</strong> It is recommended to take a backup before running this function.', 'gf-civicrm' ),
+      'fields'      => [ [
+        'name'  => 'webhook_merge_tags_replacer',
+        'label' => '',
+        'type'  => 'html',
+        'html'  => '<a href="' . esc_url( $action_url ) . '" class="button">Replace the Merge Tags</a>',
+      ] ],
+    ];
+
+		return $fields;
 	}
 
   /**
