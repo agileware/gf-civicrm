@@ -153,17 +153,26 @@ function check_civicrm_installation( $profile = null ) {
 		$profile = get_rest_connection_profile( $form );
 	}
 
-	$result = api_wrapper( $profile, 'System', 'get', [ 'version' ], [] );
+	// Prevent multiple installation checks that slow down processing
+	static $installation;
 
-	if ( isset( $result['is_error'] ) && $result['is_error'] != 0 ) {
+	if ( $installation !== null ) {
 		return [
-			'is_error' => 1,
-			'message' => $result['error_message'] ?? 'Unknown error',
-		];
-	} else {
-		return [
-			'is_error' => 0,
-			'message' => $profile . ' CiviCRM installation is accessible.',
+			'is_error' => $installation ? 0 : 1,
+			'message'  => $installation
+				? "$profile CiviCRM installation is accessible."
+				: "$profile CiviCRM installation is not accessible.",
 		];
 	}
+
+	$result = api_wrapper( $profile, 'System', 'get', [ 'version' ], [] );
+
+	$installation = empty( $result['is_error'] );
+
+	return [
+		'is_error' => $installation ? 0 : 1,
+		'message'  => $installation
+			? "$profile CiviCRM installation is accessible."
+			: ( $result['error_message'] ?? 'Unknown error' ),
+	];
 }

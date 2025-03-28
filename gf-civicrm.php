@@ -92,15 +92,16 @@ function gf_civicrm_wpcmrf_bootstrap() {
  */
 function do_civicrm_replacement( $form, $context ) {
 	static $civi_fp_fields;
+	static $option_group_ids;
+
+	// Check if a CiviCRM installation exists
+	if ( check_civicrm_installation()['is_error'] ) {
+		return $form;
+	}
 
 	foreach ( $form['fields'] as &$field ) {
 		if ( property_exists( $field, 'choices' ) && property_exists( $field, 'civicrmOptionGroup' ) &&
 		     preg_match( '{(?:^|\s) civicrm (?: __ (?<option_group>\S+) | _fp__ (?<processor>\S*?) __ (?<field_name> \S*))}x', $field->civicrmOptionGroup, $matches ) ) {
-			
-			// Check if a CiviCRM installation exists
-			if ( check_civicrm_installation()['is_error'] ) {
-				break;
-			}
 
 			// Get the CiviCRM REST Connection Profile. This may be the local CiviCRM connection if no profile is set.
 			$profile_name = get_rest_connection_profile( $form );
@@ -112,34 +113,44 @@ function do_civicrm_replacement( $form, $context ) {
             $field->inputs = NULL;
 
 			if ( $option_group ) {
-				// Get the option group id from the name, since it's more reliable
-				$api_params = [
-					'name'		=> $option_group,
-					'return' 	=> ['id'],
-				];
-				$option_group_id = api_wrapper( $profile_name, 'OptionGroup', 'get', $api_params, [ 'limit' => 1] );
+				if ( empty( $option_group_ids[$option_group] ) ) {
+					// Get the option group id from the name, since it's more reliable
+					$api_params = [
+						'name'		=> $option_group,
+						'return' 	=> ['id'],
+					];
+					$option_group_id = api_wrapper( $profile_name, 'OptionGroup', 'get', $api_params, [ 'limit' => 1, 'sequential' => 1 ] );
 
-				if ( !$option_group_id ) {
-					break; // No group ID found for the given name
+					if ( !$option_group_id ) {
+						// TODO log an error
+						continue; // No group ID found for the given name
+					}
+
+					$option_group_ids[$option_group]['id'] = $option_group_id[0]['id'];
+
+					// Then get the Option Group Values attached to that id
+					$api_params = [
+						'option_group_id' 	=> $option_group_ids[$option_group]['id'],
+						'is_active' 		=> true,
+						'return' 			=> ['value', 'label', 'is_default'],
+					];
+					$api_options = [
+						'sort' 				=> 'weight ASC',
+						'limit' 			=> 0,
+					];
+
+					$option_group_ids[$option_group]['options'] = api_wrapper( $profile_name, 'OptionValue', 'get', $api_params, $api_options );
+
+					if ( !$option_group_ids[$option_group]['options'] ) {
+						// TODO log an error
+						continue; // No group ID found for the given name
+					}
 				}
-
-				$option_group_id = reset($option_group_id);
-
-				// Then get the Option Group Values attached to that id
-				$api_params = [
-					'option_group_id' 	=> $option_group_id['id'],
-					'is_active' 		=> true,
-					'return' 			=> ['value', 'label', 'is_default'],
-				];
-				$api_options = [
-					'sort' 				=> 'weight ASC',
-					'limit' 			=> 0,
-				];
-				$options = api_wrapper( $profile_name, 'OptionValue', 'get', $api_params, $api_options );
 
                 $field->choices = [];
 
-                foreach ( $options as [ 'value' => $value, 'label' => $label, 'is_default' => $is_default ] ) {
+				// Build the options
+                foreach ( $option_group_ids[$option_group]['options'] as [ 'value' => $value, 'label' => $label, 'is_default' => $is_default ] ) {
 					$field->choices[] = [
 						'text'       => $label,
 						'value'      => $value,
@@ -154,8 +165,8 @@ function do_civicrm_replacement( $form, $context ) {
 						$civi_fp_fields[ $processor ] = api_wrapper( $profile_name, 'FormProcessor', 'getfields', $api_params, $api_options ) ?? [];
 					}
 
-					// If the field has a default value set then that has priority
 					if ( isset( $field->defaultValue ) && ! empty( $field->defaultValue ) ) {
+						// If the field has a default value set then that has priority
 						$default_option = $field->defaultValue;
 					} else {
 						// Otherwise, retrieve the default value from the form processor
@@ -214,6 +225,7 @@ function do_civicrm_replacement( $form, $context ) {
 				}
 			}
 
+			// Adds default none option
 			if ( ( $context === 'pre_render' ) && ( ! $field->isRequired ) && ( $field->type != 'multiselect' ) && ( $field->type != 'checkbox' ) ) {
 				array_unshift( $field->choices, [
 					'text'       => __( '- None -', 'gf-civicrm' ),
@@ -252,9 +264,14 @@ function compose_merge_tags ( $merge_tags ) {
 	return $merge_tags;
 }
 
-function pre_render( $form ) {
+function pre_render( $form, $ajax, $field_values, $context ) {
 	// @TODO - Refactor this to a single loop.
 	// @TODO - do_civicrm_replacement should be done first or last?
+
+	// Only do this on form_display
+	if ( $context !== 'form_display') {
+		return $form;
+	}
 
 	// Use the default value if set for radio buttons 
 	foreach ( $form['fields'] as &$field ) {
@@ -299,7 +316,7 @@ function pre_render( $form ) {
 	return do_civicrm_replacement( $form, 'pre_render' );
 }
 
-add_filter( 'gform_pre_render', 'GFCiviCRM\pre_render', 10, 1 );
+add_filter( 'gform_pre_render', 'GFCiviCRM\pre_render', 10, 4 );
 add_filter( '_disabled_gform_pre_process', function ( $form ) {
 	remove_filter( 'gform_pre_render', 'GFCiviCRM\pre_render' );
 
@@ -644,12 +661,12 @@ function fp_tag_default( $matches, $fallback = '', $multiple = FALSE ) {
 	$result = $fallback;
 	[ , $processor, $field ] = $matches;
 
-	$profile_name = get_rest_connection_profile();
-
 	// Check if a CiviCRM installation exists
 	if ( check_civicrm_installation()['is_error'] ) {
 		return $result;
 	}
+
+	$profile_name = get_rest_connection_profile();
 
 	if ( ! isset( $defaults[ $processor ] ) ) {
 		try {

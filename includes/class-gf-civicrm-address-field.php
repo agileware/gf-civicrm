@@ -117,7 +117,7 @@ class Address_Field {
 		$countries = $cached_countries_data ?: [];
 		$states_data = $cached_states_data ?: [];
 
-		if ( !$countries || !$states_data || empty( $labels['countries'] ) ) {
+		if ( !$countries || !$states_data ) {
 			// Reset fields
 			$countries = [];
 			$states_data = [];
@@ -158,10 +158,10 @@ class Address_Field {
 				$countries[] = $country;
 
 				foreach ($state_province as $sp) {
-					$state_abbreviation                					 = $sp['abbreviation'];
+					$state_id                					 		 = $sp['id'];
 					$state_name                        					 = __( $sp['name'], 'gf-civicrm-formprocessor' );
-					$states_data[ $country_name ][ $state_abbreviation ] = [
-						$state_abbreviation,
+					$states_data[ $country_name ][ $state_id ] = [
+						$state_id,
 						$state_name,
 					];
 				}
