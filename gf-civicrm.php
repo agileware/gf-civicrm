@@ -116,35 +116,34 @@ function do_civicrm_replacement( $form, $context ) {
 				if ( empty( $option_group_ids[$option_group] ) ) {
 					// Get the option group id from the name, since it's more reliable
 					$api_params = [
+						'sequential' => 1,
+  						'return' => ["id", "name"],
 						'name'		=> $option_group,
 						'return' 	=> ['id'],
+						'is_active' => 1,
+						'api.OptionValue.get' => [
+							'return' => ["id", "label", "value", "is_default"], 
+							'is_active' => 1, 
+							'sort' => "weight ASC"
+						],
 					];
-					$option_group_id = api_wrapper( $profile_name, 'OptionGroup', 'get', $api_params, [ 'limit' => 1, 'sequential' => 1 ] );
+					$option_group_data = api_wrapper( $profile_name, 'OptionGroup', 'getsingle', $api_params, ['limit' => 1] );
 
-					if ( !$option_group_id ) {
+					if ( !$option_group_data || !$option_group_data['api.OptionValue.get']['values'] ) {
 						// TODO log an error
-						continue; // No group ID found for the given name
+						continue; // No group found for the given name
 					}
 
-					$option_group_ids[$option_group]['id'] = $option_group_id[0]['id'];
-
-					// Then get the Option Group Values attached to that id
-					$api_params = [
-						'option_group_id' 	=> $option_group_ids[$option_group]['id'],
-						'is_active' 		=> true,
-						'return' 			=> ['value', 'label', 'is_default'],
-					];
-					$api_options = [
-						'sort' 				=> 'weight ASC',
-						'limit' 			=> 0,
-					];
-
-					$option_group_ids[$option_group]['options'] = api_wrapper( $profile_name, 'OptionValue', 'get', $api_params, $api_options );
-
-					if ( !$option_group_ids[$option_group]['options'] ) {
+					if ( !$option_group_data['api.OptionValue.get']['values'] ) {
 						// TODO log an error
-						continue; // No group ID found for the given name
+						continue; // No options found for the given group
+					} else {
+						$options = $option_group_data['api.OptionValue.get']['values'] ?? [];
+						$option_group_data['options'] = $options;
+						unset($option_group_data['api.OptionValue.get']);
 					}
+
+					$option_group_ids[$option_group] = $option_group_data;
 				}
 
                 $field->choices = [];
@@ -159,7 +158,7 @@ function do_civicrm_replacement( $form, $context ) {
                 }
 			} elseif ( $processor && $field_name ) {
 				try {
-					if ( ! isset( $civi_fp_fields[ $processor ] ) ) {
+					if ( ! isset( $civi_fp_fields[$processor] ) ) {
 						$api_params = [ 'api_action' => $processor ];
 						$api_options = [ 'limit' => 0, ];						
 						$civi_fp_fields[ $processor ] = api_wrapper( $profile_name, 'FormProcessor', 'getfields', $api_params, $api_options ) ?? [];
@@ -180,11 +179,11 @@ function do_civicrm_replacement( $form, $context ) {
 					$field->choices = [];
 
 					// Try to find the field once by name in the key
-					$fp_field = $civi_fp_fields[ $processor ][ $field_name ] ?? null;
+					$fp_field = $civi_fp_fields[$processor][$field_name] ?? null;
 
 					// If not found by key, search by 'name' field
 					if ( ! $fp_field ) {
-						foreach ( $civi_fp_fields[ $processor ] as $candidate ) {
+						foreach ( $civi_fp_fields[$processor] as $candidate ) {
 							if ( isset( $candidate['name'] ) && $candidate['name'] === $field_name ) {
 								$fp_field = $candidate;
 								break;
@@ -902,10 +901,9 @@ function address_replace_countries_list( $choices ) {
 		foreach ($countries as $country) {
 			$replace[] = __( $country["name"], 'gf-civicrm-formprocessor' );
 		}
-
 		return $replace;
 	}
-
+	
 	return $choices;
 }
 

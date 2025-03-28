@@ -142,7 +142,9 @@ function gf_civicrm_wpcmrf_api( $profile, $entity, $action, $params, $options = 
 	// If options isn't already set, set it to a default value.
 	$options['cache'] ??= '15 minutes';
 
-	$call = \wpcmrf_api( $entity, $action, $params, $options, $profile_id, $api_version );
+	$core = \wpcmrf_get_core();
+	$call = $core->createCall($profile_id, $entity, $action, $params, $options, NULL, $api_version);
+	$core->executeCall($call);
 	return $call->getReply();
 }
 
