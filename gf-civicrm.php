@@ -168,22 +168,40 @@ function do_civicrm_replacement( $form, $context ) {
 
 					$field->choices = [];
 
-					foreach ( $civi_fp_fields[ $processor ][ $field_name ]['options'] ?? [] as $value => $label ) {
-						$field->choices[] = [
-							'text'       => $label,
-							'value'      => $value,
-							'isSelected' => ( ( is_array( $default_option ) && in_array( $value, $default_option ) ) || ( $value == $default_option ) ),
-						];
+					// Try to find the field once by name in the key
+					$fp_field = $civi_fp_fields[ $processor ][ $field_name ] ?? null;
+
+					// If not found by key, search by 'name' field
+					if ( ! $fp_field ) {
+						foreach ( $civi_fp_fields[ $processor ] as $candidate ) {
+							if ( isset( $candidate['name'] ) && $candidate['name'] === $field_name ) {
+								$fp_field = $candidate;
+								break;
+							}
+						}
+					}
+
+					// Build the options list
+					if ( $fp_field && ! empty( $fp_field['options'] ) ) {
+						foreach ( $fp_field['options'] as $value => $label ) {
+							$field->choices[] = [
+								'text'       => $label,
+								'value'      => $value,
+								'isSelected' => ( ( is_array( $default_option ) && in_array( $value, $default_option ) ) || ( $value == $default_option ) ),
+							];
+						}
+
 						// Force the 'Show Values' option to be set, required for the label/value pairs to be saved
 						$field['enableChoiceValue'] = true;
 					}
-
+					
 				} catch ( CRM_Core_Exception $e ) {
 					// Couldn't get form processor instance, don't try to set options
                     return $form;
 				}
 			}
 
+			// Add checkboxes to the form entry meta
 			if ( $field->type == 'checkbox' ) {
                 $i = 0;
                 $field->inputs = [];
