@@ -119,7 +119,6 @@ function do_civicrm_replacement( $form, $context ) {
 						'sequential' => 1,
   						'return' => ["id", "name"],
 						'name'		=> $option_group,
-						'return' 	=> ['id'],
 						'is_active' => 1,
 						'api.OptionValue.get' => [
 							'return' => ["id", "label", "value", "is_default"], 
@@ -903,7 +902,7 @@ function address_replace_countries_list( $choices ) {
 		}
 		return $replace;
 	}
-	
+
 	return $choices;
 }
 
