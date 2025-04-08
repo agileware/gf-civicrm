@@ -12,6 +12,7 @@
 
 namespace GFCiviCRM;
 
+use CRM_Core_Exception;
 use GFAPI;
 use GF_Field;
 
@@ -21,11 +22,15 @@ if ( ! class_exists( 'GFForms' ) ) {
 
 class Address_Field {
 
+	const country = '6';
+	const state = '4';
+
 	private $field_settings = [];
 	private $address_type = null;
 
 	public function __construct() {
 		add_filter('gform_field_css_class', [$this, 'applyAddressField'], 10, 3);
+		add_filter('gform_pre_validation', [$this, 'unrequireStateProvince']);
 	}
 	
 	public function applyGFCiviCRMAddressField( $form ) {
@@ -174,6 +179,55 @@ class Address_Field {
 
 		// Load our states data into JS
 		wp_add_inline_script( 'gf_civicrm_address_fields', 'const gf_civicrm_address_fields = ' . json_encode( $script_data ), 'before' );
+	}
+
+	/**
+	 * Override the hidden property of state inputs when there's no possible values,
+	 *
+	 * @param $form
+	 *
+	 * @return mixed
+	 * @throws \CRM_Core_Exception
+	 */
+	public function unrequireStateProvince( $form ) {
+		$fields = array_filter( $form['fields'], fn( $field ) => $field instanceof \GF_Field_Address );
+
+		/** @var \GF_Field_Address $field */
+		foreach($fields as $field) {
+			$country = \rgpost( 'input_' . $field->id . '_' . self::country );
+			$state = \rgpost( 'input_' . $field->id . '_' . self::state );
+
+			// Only operate when the state field is actually empty.
+			if(!empty($state)) {
+				continue;
+			}
+
+			$state_input = NULL;
+
+			foreach($field->inputs as $index => $input) {
+				if ($input['id'] == $field->id . '.' . self::state) {
+					$state_input = $index;
+					break;
+				}
+
+			}
+
+
+			if($state_input && empty($state)) {
+				try {
+					$statecount = civicrm_api3( 'StateProvince', 'getcount', [ 'country_id.name' => $country ] );
+
+					if ( ! $statecount ) {
+						$field->inputs[ $state_input ]['isHidden'] = TRUE;
+					}
+				}
+				catch(CRM_Core_Exception $e) {
+
+				}
+			}
+		}
+
+		return $form;
 	}
 
 }
