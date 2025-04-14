@@ -123,23 +123,34 @@ class Address_Field {
 			$states_data = [];
 
 			$profile_name = get_rest_connection_profile();
+
+			// Get the list of available countries configured in CiviCRM Settings
 			$api_params = [
-				'select' => [ 'id', 'name', 'iso_code' ],
-				'api.StateProvince.get' => [
-					'options' => ['limit' => 0, 'sort' => "name ASC"],
-				],
-				'options' => ['limit' => 0, 'sort' => "name ASC"],
+				'return' => [ 'countryLimit' ],
 			];
 			$api_options = [
 				'check_permissions' => 0, // Set check_permissions to false
 				'limit' => 0,
 			];
-
-			/**
-			 * TODO : Filter by the list of available Countries
-			 */
+			$available_countries = api_wrapper( $profile_name, 'Setting', 'get', $api_params, $api_options );
+			$available_countries = reset($available_countries);
 
 			// Get Countries and their States/Provinces from CiviCRM
+			$api_params = [
+				'select' => [ 'id', 'name', 'iso_code' ],
+				'api.StateProvince.get' => [
+					'options' => [ 'limit' => 0, 'sort' => "name ASC" ],
+				],
+				'options' => [ 'limit' => 0, 'sort' => "name ASC" ],
+			];
+			if ( !empty( $available_countries['countryLimit'] ) ) {
+				// Only get countries in the list of available countries
+				$api_params['id'] = [ 'IN' => $available_countries['countryLimit'] ];
+			}
+			$api_options = [
+				'check_permissions' => 0, // Set check_permissions to false
+				'limit' => 0,
+			];
 			$countries = api_wrapper( $profile_name, 'Country', 'get', $api_params, $api_options );
 
 			// Exit early if we didn't get any countries and their states

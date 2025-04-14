@@ -864,6 +864,18 @@ function address_replace_countries_list( $choices ) {
 			 * TODO: Reduce duplication and pull data from CiviCRM outside of GFCiviCRM::Address_Field.
 			 */
 			$profile_name = get_rest_connection_profile();
+
+			// Get the list of available countries configured in CiviCRM Settings
+			$api_params = [
+				'return' => [ 'countryLimit' ],
+			];
+			$api_options = [
+				'check_permissions' => 0, // Set check_permissions to false
+				'limit' => 0,
+			];
+			$available_countries = api_wrapper( $profile_name, 'Setting', 'get', $api_params, $api_options );
+			$available_countries = reset($available_countries);
+
 			$api_params = [
 				'select' => [ 'id', 'name', 'iso_code' ],
 				'api.StateProvince.get' => [
@@ -871,6 +883,9 @@ function address_replace_countries_list( $choices ) {
 				],
 				'options' => ['limit' => 0, 'sort' => "name ASC"],
 			];
+			if ( !empty( $available_countries['countryLimit'] ) ) {
+				$api_params['id'] = [ 'IN' => $available_countries['countryLimit'] ];
+			}
 			$api_options = [
 				'check_permissions' => 0, // Set check_permissions to false
 				'limit' => 0,
