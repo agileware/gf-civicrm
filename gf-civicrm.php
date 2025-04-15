@@ -668,7 +668,6 @@ function fp_tag_default( $matches, $fallback = '', $multiple = FALSE ) {
 
 	if ( ! isset( $defaults[ $processor ] ) ) {
 		try {
-			$api_version = '3';
 			$api_params = array(
 				'api_action' => $processor,
 			);
@@ -688,7 +687,7 @@ function fp_tag_default( $matches, $fallback = '', $multiple = FALSE ) {
 			}
 
 			// Get field default values
-			$defaults[ $processor ] = api_wrapper( $profile_name, 'FormProcessorDefaults', $processor, $api_params, $api_options, $api_version );
+			$defaults[ $processor ] = api_wrapper( $profile_name, 'FormProcessorDefaults', $processor, $api_params, $api_options );
 		} catch ( CRM_Core_Exception $e ) {
 			$defaults[ $processor ] = FALSE;
 		}
