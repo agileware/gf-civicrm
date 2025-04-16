@@ -43,19 +43,11 @@ class Address_Field {
 		$fields = GFAPI::get_fields_by_type( $form, 'address' );
 
 		if ( ! empty( $fields ) ) {
-			add_action('wp_print_footer_scripts', [$this, 'addAddressFieldTemplates'], 9);
 			add_action('wp_print_footer_scripts', [$this, 'loadCountriesAndStatesData'], 9);
 			return true;
 		}
 
 		return false;
-	}
-
-	/**
-	 * Add templates to the page footer
-	 */
-	public function addAddressFieldTemplates() {
-		require_once( GF_CIVICRM_PLUGIN_PATH . 'templates/custom-gf-state-field-templates.php' );
 	}
 
 	public function applyAddressField( $classes, $field, $form ) {
