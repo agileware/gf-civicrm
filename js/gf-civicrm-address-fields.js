@@ -101,16 +101,18 @@
      * Values taken from CiviCRM.
      */
     function useStatesList(input, states, clear_value) {
-        // only keeping the current state value on initialisation of the form
-        const value = clear_value ? "": input.value;
-
         const state_field = input.closest(".ginput_address_state");
+
+        // only keeping the current state value on initialisation of the form
+        if(clear_value)
+            input.value = "";
 
         input.disabled = false;
         const options = states.flatMap(([key, name]) => $(`<option value="${name}">${name}</option>`)[0]);
 
         input.replaceChildren(emptyOption, ...options);
-        input.value = value;
+
+
         state_field.style.visibility = 'visible';
     }
 
@@ -158,6 +160,73 @@
     }
 
     /**
+     * Converts an input element to a select element that can hold a future value.
+     *
+     * @param state_input
+     */
+    function stateFuturesElement(state_input) {
+        const state_select = document.createElement('select');
+
+        // Replace the input
+        state_input.replaceWith(state_select);
+
+        // Swap the id in
+        state_select.id = state_input.id;
+        delete state_input.id;
+
+        // Copy attributes, exclude confusable value, placeholder
+        for (const {name, value} of state_input.attributes) switch(name) {
+            case 'value':
+            case 'placeholder':
+                continue;
+            default:
+                state_select.setAttribute(name, value);
+        }
+
+        // Define storage for value get / set
+        const futureValue = Symbol();
+        const valueStorage = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value');
+
+
+        // Define alternative property storage
+        Object.defineProperty(state_select, 'value', {
+            enumerable: true,
+            set: function(newValue) {
+                // use valid input, store not-yet-valid input
+                if(Array.from(this.options).some(({value}) => value === newValue)) {
+                    this[futureValue] = null;
+                    valueStorage.set.call(this, newValue);
+                } else {
+                    this[futureValue] = newValue;
+                }
+            },
+            get: function() {
+                // Only ever return a valid value.
+                return valueStorage.get.call(this);
+            }
+        })
+
+        // Observe any incoming option elements in case the stored value becomes valid
+        const observer = new MutationObserver(function(mutations) {
+            for(const node of mutations.flatMap(({addedNodes}) => Array.from(addedNodes))) {
+                if(node instanceof HTMLOptionElement && node.value === state_select[futureValue]) {
+                    // Matches our stored value, use this option
+                    node.setAttribute('selected', 'selected');
+                    valueStorage.set.call(state_select, node.value);
+                    state_select[futureValue] = null;
+                }
+            }
+        });
+
+        observer.observe(state_select, { childList: true });
+
+        // Try and set the select element to the same value as the input
+        state_select.value = state_input.value;
+
+        return state_select;
+    }
+
+    /**
      * Switch between dropdown and simple input depending on which Country was selected.
      */
     function populateStateProvinceField(country_select, clear_value) {
@@ -169,30 +238,9 @@
             return;
         }
 
+        // Make state_input a special select element
         if(state_input instanceof HTMLInputElement) {
-            state_select = document.createElement('select');
-
-            state_input.replaceWith(state_select);
-
-            state_select.id = state_input.id;
-            delete state_input.id;
-
-            for (const {name, value} of state_input.attributes) switch(name) {
-                case 'value':
-                case 'placeholder':
-                    continue;
-                default:
-                    state_select.setAttribute(name, value);
-            }
-
-            const dummyOption = document.createElement('option');
-
-            dummyOption.setAttribute('value', state_input.value);
-
-            state_select.appendChild(dummyOption);
-            state_select.value = state_input.value;
-
-            state_input = state_select;
+            state_input = stateFuturesElement(state_input);
         }
 
         const country = country_select.value;
