@@ -29,17 +29,6 @@
     }
 
     /**
-     * Replace element with content in HTML template
-     */
-    function replaceElement(element, content) {
-        element.insertAdjacentHTML("afterend", content);
-        element.parentElement.removeChild(element);
-    }
-    
-    let statesListTemplate;
-    let stateInputTemplate;
-
-    /**
      * Watch for changes to country selectors on Address fields
      */
     $(doc.body).on("change", ".gf-civicrm-address-field .address_country select", function () {
@@ -64,13 +53,13 @@
         const address_fields = form.querySelectorAll(".gf-civicrm-address-field");
         if (address_fields.length > 0) {
             initialiseGFCiviCRMAddressField();
-            address_fields.forEach(function (field) {
+            for(const field of address_fields ){
                 addMaxLengthToAddressFields(field);
 
                 // NB: must allow for hidden country input, e.g address type !== international
                 const country_id = field.id.replace(/field_([0-9]+)_([0-9]+)/, "input_$1_$2_6");
                 populateStateProvinceField(getByID(country_id), false);
-            });
+            }
         }
     }
 
@@ -102,13 +91,9 @@
     }
 
     function initialiseGFCiviCRMAddressField() {
-        // Only proceed if we have not already initialised
-        if (!statesListTemplate) {
-            // Get the templates
-            statesListTemplate = wp.template("gf-civicrm-state-list");
-            stateInputTemplate = wp.template("gf-civicrm-state-any");
-        }
     }
+
+    const emptyOption = $('<option value=""></option>')[0];
 
     /**
      * Replace the States subfield with a dropdown of states for the given Country.
@@ -117,13 +102,15 @@
      */
     function useStatesList(input, states, clear_value) {
         // only keeping the current state value on initialisation of the form
-        if (clear_value) {
-            input.value = "";
-        }
+        const value = clear_value ? "": input.value;
+
         const state_field = input.closest(".ginput_address_state");
-        const data = getAddressData(input, states);
-        
-        replaceElement(input, statesListTemplate(data));
+
+        input.disabled = false;
+        const options = states.flatMap(([key, name]) => $(`<option value="${name}">${name}</option>`)[0]);
+
+        input.replaceChildren(emptyOption, ...options);
+        input.value = value;
         state_field.style.visibility = 'visible';
     }
 
@@ -132,11 +119,14 @@
      */
     function hideStateInput(input, clear_value) {
         if (clear_value) {
-            input.value = null;
+            input.value = "";
         }
+
+        input.replaceChildren(emptyOption);
+        input.disabled = true;
+
         const state_field = input.closest(".ginput_address_state");
 
-        replaceElement(input, stateInputTemplate(getAddressData(input)));
         state_field.style.visibility = 'hidden';
     }
 
@@ -172,13 +162,39 @@
      */
     function populateStateProvinceField(country_select, clear_value) {
         const address_field = country_select.closest(".ginput_container_address");
-        const state_input = address_field.querySelector(".address_state select,.address_state input");
+        let state_input = address_field.querySelector(".address_state select,.address_state input");
 
         // Exit if there's no State field
         if (!state_input) {
             return;
         }
-        
+
+        if(state_input instanceof HTMLInputElement) {
+            state_select = document.createElement('select');
+
+            state_input.replaceWith(state_select);
+
+            state_select.id = state_input.id;
+            delete state_input.id;
+
+            for (const {name, value} of state_input.attributes) switch(name) {
+                case 'value':
+                case 'placeholder':
+                    continue;
+                default:
+                    state_select.setAttribute(name, value);
+            }
+
+            const dummyOption = document.createElement('option');
+
+            dummyOption.setAttribute('value', state_input.value);
+
+            state_select.appendChild(dummyOption);
+            state_select.value = state_input.value;
+
+            state_input = state_select;
+        }
+
         const country = country_select.value;
         const field = gf_civicrm_address_fields.fields.inputs[state_input.id];
 
