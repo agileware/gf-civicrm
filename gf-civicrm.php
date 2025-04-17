@@ -134,7 +134,7 @@ function do_civicrm_replacement( $form, $context ) {
 			if ( $field->type == 'checkbox' ) {
                 $i = 0;
                 $field->inputs = [];
-				foreach ( $field->choices as [ 'label' => $label ] ) {
+				foreach ( $field->choices as [ 'text' => $label ] ) {
 					$field->inputs[] = [
 						// Avoid multiples of 10, allegedly these are problematic
 						'id'    => $field->id . '.' . ( ++ $i % 10 ? $i : ++ $i ),
