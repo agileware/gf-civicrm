@@ -678,7 +678,7 @@ function fp_tag_default( $matches, $fallback = '', $multiple = FALSE ) {
 			);
 
 			// Get the form processor fields
-			$fields = api_wrapper( $profile_name, 'FormProcessorDefaults', 'getfields', $api_params, $api_options, $api_version );
+			$fields = api_wrapper( $profile_name, 'FormProcessorDefaults', 'getfields', $api_params, $api_options );
 
 			foreach ( $fields as $value ) {
 				if ( ! empty( $_GET[ $value['name'] ] ) ) {
