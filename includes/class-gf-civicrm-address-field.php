@@ -192,7 +192,7 @@ class Address_Field {
 		$script_data = apply_filters( 'gf_civicrm_address_fields_script_data', $script_data );
 
 		// Load our states data into JS
-		wp_add_inline_script( 'gf_civicrm_address_fields', 'const gf_civicrm_address_fields = ' . json_encode( $script_data ), 'before' );
+		wp_localize_script( 'gf_civicrm_address_fields', 'gf_civicrm_address_fields', $script_data, 'before' );
 	}
 
 }
