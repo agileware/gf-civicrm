@@ -89,6 +89,7 @@ function get_profiles() {
 		$profiles[$profile_name] = [
 		  'title' => $profile['label'],
 		  'function' => 'GFCiviCRM\gf_civicrm_wpcmrf_api',
+		  'connector' => $profile['connector'],
 		];
 	  }
 	}

@@ -957,17 +957,24 @@ function validateChecksumFromURL( $cid_param = 'cid', $cs_param = 'cs' ): int|nu
 		return NULL;
 	}
 
-    $validator = Contact::validateChecksum( FALSE )
-                        ->setContactId( $contact_id )
-                        ->setChecksum( $checksum )
-                        ->execute()
-                        ->first();
+	try {
+		$profile_name = get_rest_connection_profile();
+		
+		// Get Payment Processors from CiviCRM
+		$api_params = [
+			'id' => $contact_id,
+			'checksum' => $checksum ,
+		];
+		$validator = api_wrapper( $profile_name, 'ContactChecksum', 'validate', $api_params );
 
-    if ( ! $validator['valid'] ) {
-        throw new \CRM_Core_Exception('Invalid checksum');
-    } else {
-        return $contact_id;
-    }
+		if ( ! $validator[1][0] ) { // checksum validation value
+			throw new \CRM_Core_Exception('Invalid checksum');
+		}
+	} catch ( \CRM_Core_Exception $e ) {
+		// TODO Log error?
+	}
+
+	return $contact_id;
 }
 
 add_filter( 'gform_webhooks_request_args', 'GFCiviCRM\webhooks_request_args', 10, 4 );

@@ -62,17 +62,28 @@ class CiviCRM_Payment_Token extends GF_Field {
 			return;
 		}
 
-		if ( ! civicrm_initialize() ) {
+		// Check if a CiviCRM installation exists
+		if ( check_civicrm_installation()['is_error'] ) {
 			return;
 		}
 
 		try {
-			$payment_processors = PaymentProcessor::get( false )
-			                                      ->addSelect( 'id', 'title', 'is_test' )
-			                                      ->addWhere( 'is_active', '=', true )
-                                                  ->addWhere( 'is_test', 'IS NOT NULL')
-			                                      ->addOrderBy( 'title', 'ASC' )
-			                                      ->execute()->getArrayCopy();
+			$profile_name = get_rest_connection_profile();
+			
+			// Get Payment Processors from CiviCRM
+			$api_params = [
+				'sequential' => 1,
+				'return' => [ 'id', 'title', 'is_test' ],
+				'is_active' => 1,
+  				'is_test' => ['IS NOT NULL' => 1],
+			];
+			$api_options = [ 'limit' => 0, 'sort' => "title ASC" ];
+			$payment_processors = api_wrapper( $profile_name, 'PaymentProcessor', 'get', $api_params, $api_options );
+
+			if ( $payment_processors['is_error'] || is_null( $payment_processors ) ) {
+				// Received error response from API endpoint
+				throw new \GFCiviCRM_Exception( $payment_processors['error_message'], $payment_processors['error_code']);
+			}
 
 			// This class: payment_token_processor_select_setting must be added to the get_form_editor_field_settings array to be displayed for this field.
 			// JS onchange function required to store the selected value when the form is saved. See get_form_editor_inline_script_on_page_render
@@ -92,8 +103,8 @@ class CiviCRM_Payment_Token extends GF_Field {
                 </select>
             </li>
 			<?php
-		} catch ( CRM_Core_Exception $e ) {
-			Civi::log()->debug( 'Get list of active CiviCRM Payment Processors: ' . $e->getMessage() );
+		} catch ( \GFCiviCRM_Exception $e ) {
+			$e->logErrorMessage( 'Error getting list of active CiviCRM Payment Processors: ', true );
 		}
 	}
 
@@ -224,7 +235,7 @@ class CiviCRM_Payment_Token extends GF_Field {
 		}
 
 		// No CiviCRM, then return empty
-		if ( ! civicrm_initialize() ) {
+		if ( check_civicrm_installation()['is_error'] ) {
 			return $empty_option;
 		}
 
@@ -232,18 +243,33 @@ class CiviCRM_Payment_Token extends GF_Field {
 			// Fetch the payment tokens for the selector processor
             // No apparent permissions for payment token, permissions check seems to fail without admin
             // contact_id = user_contact_id should be sufficient security.
-			$payment_tokens = PaymentToken::get( false )
-			                              ->addSelect( 'id', 'masked_account_number', 'expiry_date', 'token' )
-			                              ->addWhere( 'payment_processor_id', '=', $field['civicrm_payment_processor'] )
-			                              ->addOrderBy( 'expiry_date', 'DESC' );
+			$profile_name = get_rest_connection_profile();
 
-            if(empty(\CRM_Core_Session::getLoggedInContactID()) && $contact_id = validateChecksumFromURL()) {
-                $payment_tokens->addWhere( 'contact_id', '=', $contact_id );
-            } else {
-	            $payment_tokens->addWhere( 'contact_id', '=', 'user_contact_id' );
-            }
+			// Get Payment Processors from CiviCRM
+			$api_params = [
+				'sequential' => 1,
+				'return' => [ 'id', 'masked_account_number', 'expiry_date', 'token' ],
+				'payment_processor_id' => $field['civicrm_payment_processor'],
+			];
+			
+			if ( $contact_id = validateChecksumFromURL() ) {
+				// cid and cs provided in URL. Could be remote, or non-logged in
+				$api_params['contact_id'] = $contact_id;
+			} elseif ( !method_exists( 'CRM_Core_Session', 'getLoggedInContactID' ) || empty(\CRM_Core_Session::getLoggedInContactID()) ) {
+				// Couldn't establish a local connection or retrieve a contact ID from a local installation, and no valid cid and cs provided.
+				return $empty_option;
+			} else {
+				// Assume Local connection, get logged in contact. Default to auto-select current user
+				$api_params['contact_id'] = 'user_contact_id';
+			}
 
-            $payment_tokens = $payment_tokens->execute();
+			$api_options = [ 'limit' => 0, 'sort' => "expiry_date DESC" ];
+			$payment_tokens = api_wrapper( $profile_name, 'PaymentToken', 'get', $api_params, $api_options );
+
+			if ( $payment_tokens['is_error'] ) {
+				// Received error response from API endpoint
+				throw new \GFCiviCRM_Exception( $payment_tokens['error_message'], $payment_tokens['error_code']);
+			}
 
             $field->choices = [];
 
@@ -264,10 +290,12 @@ class CiviCRM_Payment_Token extends GF_Field {
 			}
 
             if( empty( $field->choices )) {
+				// TODO Add frontend messaging that no payment methods were found
                 return $empty_option;
             }
-		} catch ( CRM_Core_Exception $e ) {
-			Civi::log()->error( 'Error retrieving Payment Tokens: ' . $e->getMessage() );
+		} catch ( \GFCiviCRM_Exception $e ) {
+			$e->logErrorMessage( 'Error retrieving Payment Tokens: ', true );
+			// TODO: Add some kind of error messaging on the frontend
 
 			return $empty_option;
 		}
