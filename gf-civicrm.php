@@ -711,46 +711,7 @@ function fp_tag_default( $matches, $fallback = '', $multiple = FALSE ) {
 }
 
 /**
- * Find or generate API key for the current user.
- *
- * This function is implemented without CMRF support, as it does not make sense in that context
- */
-function get_api_key() {
-	// Leave early if directly connected to CiviCRM.
-	if ( ! ( function_exists( 'civicrm_initialize' ) && civicrm_initialize() ) ) {
-		return null;
-	}
-
-	$contactID = \CRM_Core_Session::getLoggedInContactID();
-
-	if ( (int) $contactID < 1 ) {
-		return NULL;
-	}
-
-	// Get the existing API key if there is one.
-	$apiKey = ( Contact::get( FALSE )
-	                   ->addSelect( 'api_key' )
-	                   ->addWhere( 'id', '=', $contactID )
-	                   ->execute() )[0]['api_key'];
-
-	if ( ! $apiKey ) {
-		// Otherwise generate and save a key as URL-safe random base64 - 18 bytes = 24 characters
-		$apiKey = str_replace( [ '+', '/', '=' ], [
-			'-',
-			'_',
-			'',
-		], base64_encode( random_bytes( 18 ) ) );
-		Contact::update( FALSE )
-		       ->addValue( 'api_key', $apiKey )
-		       ->addWhere( 'id', '=', $contactID )
-		       ->execute();
-	}
-
-	return $apiKey;
-}
-
-/**
- * Find and replace {civicrm_fp.*} and {civicrm_api_key} merge tags
+ * Find and replace {civicrm_fp.*}, {gf_civicrm_site_key} and {gf_civicrm_api_key} merge tags
  *
  * @param string $text
  * @param array $form
@@ -763,10 +724,6 @@ function get_api_key() {
  * @return string
  */
 function replace_merge_tags( $text, $form, $entry, $url_encode, $esc_html, $nl2br, $format ) {
-	if ( ( strpos( $text, '{civicrm_api_key}' ) !== FALSE ) && ( $apiKey = get_api_key() ) ) {
-		$text = str_replace( '{civicrm_api_key}', $apiKey, $text );
-	}
-
 	$gf_civicrm_site_key_merge_tag = '{gf_civicrm_site_key}';
 	if ( strpos( $text, $gf_civicrm_site_key_merge_tag ) !== false ) {
 		$gf_civicrm_site_key = FieldsAddOn::get_instance()->get_plugin_setting( 'gf_civicrm_site_key' );
