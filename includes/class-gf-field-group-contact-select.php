@@ -54,7 +54,6 @@ class GF_Field_Group_Contact_Select extends GF_Field {
     }
 
     $profile_name = GFCiviCRM\get_rest_connection_profile();
-    $api_version = '4';
 
     try {
       $api_params = [
@@ -66,13 +65,11 @@ class GF_Field_Group_Contact_Select extends GF_Field {
         'sort'              => 'title ASC',
         'limit'             => 0,
       ];
-      $groups = GFCiviCRM\api_wrapper($profile_name, 'Group', 'get', $api_params, $api_options, $api_version);
+      $groups = GFCiviCRM\api_wrapper($profile_name, 'Group', 'get', $api_params, $api_options);
 
       // Something went wrong when attempting to retrieve Groups
       if ( isset( $groups['is_error'] ) && $groups['is_error'] != 0 ) {
         throw new \GFCiviCRM_Exception( $groups['error_message'] );
-      } else {
-        $groups = $groups['values'];
       }
 
       try {
@@ -89,19 +86,18 @@ class GF_Field_Group_Contact_Select extends GF_Field {
         ];
 
         /**
-         * TODO: Awaiting CMRF to stop caching failed API calls which may cache a bad request (e.g. if this entity does not exist).
+         * DEVNOTE: CMRF can cache failed API calls, which may cache a bad request (e.g. if this entity does not exist).
          * Ref GFCV-82
          */
         $savedSearches = GFCiviCRM\api_wrapper($profile_name, 'SavedSearch', 'get', $api_params, $api_options);
 
         if ( isset( $savedSearches['is_error'] ) && $savedSearches['is_error'] != 0  ) {
           throw new \GFCiviCRM_Exception( $savedSearches['error_message'] );
-        } else {
-          $savedSearches = $savedSearches['values'];
         }
+
       } catch ( \GFCiviCRM_Exception $e ) {
         // skip
-        $e->logErrorMessage( 'SavedSearch not found.', true );
+        $e->logErrorMessage( 'Error retrieving SavedSearches for Group Contact Select.', true );
         $savedSearches = null;
       }
 
@@ -250,7 +246,7 @@ class GF_Field_Group_Contact_Select extends GF_Field {
 
   public function group_contact_select_options($field, $value = '', $support_placeholders = TRUE) {
     // Define empty value to return
-    $empty_option = "<option value=''></option>";
+    $empty_option = "<option value=''>No Contacts in this Group</option>";
 
     // If no group has been selected, then return empty
     if (!isset($this->civicrm_group)) {
@@ -263,7 +259,6 @@ class GF_Field_Group_Contact_Select extends GF_Field {
     }
 
     $profile_name = GFCiviCRM\get_rest_connection_profile();
-    $api_version = '4';
 
     try {
       // Fetch the contacts for the selected group
@@ -283,50 +278,45 @@ class GF_Field_Group_Contact_Select extends GF_Field {
           ];
 
           /**
-           * TODO: Awaiting CMRF to stop caching failed API calls which may cache a bad request (e.g. if this entity does not exist).
+           * DEVNOTE: CMRF can cache failed API calls, which may cache a bad request (e.g. if this entity does not exist).
            * Ref GFCV-82
            */
-          $savedSearch = GFCiviCRM\api_wrapper($profile_name, 'SavedSearch', 'get', $api_params, $api_options, $api_version);
+          $savedSearch = GFCiviCRM\api_wrapper( $profile_name, 'SavedSearch', 'get', $api_params, $api_options );
   
           if ( isset( $savedSearch['is_error'] ) && $savedSearch['is_error'] != 0  ) {
             throw new \GFCiviCRM_Exception( $savedSearch['error_message'] );
-          } else {
-            $savedSearch = reset($savedSearch['values']);
+          }
+
+          if ( isset( $savedSearch[$m['id']]['api_entity'] ) && $savedSearch[$m['id']]['api_entity'] != 'Contact' ) {
+            throw new \GFCiviCRM_Exception( 'SavedSearch return type is invalid. Must be Contact.' );
           }
         } catch ( \GFCiviCRM_Exception $e ) {
           // skip
-          $e->logErrorMessage( 'SavedSearch not found.', true );
+          $e->logErrorMessage( 'Error retrieving SavedSearches for Group Contact Select.', true );
+          return $empty_option;
         }
-        
 
         // Use the saved search's api_params
         $api_params = json_decode($savedSearch['api_params']);
-        $api_params->select = [ 'id', 'sort_name' ];
+        $api_params['select'] = [ 'id', 'sort_name' ];
         $api_options = [
           'check_permissions' => 0,
           'sort'              => 'sort_name ASC',
           'limit'             => 0,
         ];
         
-        $groupContacts = GFCiviCRM\api_wrapper($profile_name, 'Contact', 'get', (array)$api_params, $api_options, $api_version);
+        $groupContacts = GFCiviCRM\api_wrapper( $profile_name, 'Contact', 'get', (array)$api_params, $api_options );
 
         // Something went wrong trying to get group contacts
         if ( isset( $groupContacts['is_error'] ) && $groupContacts['is_error'] != 0  ) {
           throw new \GFCiviCRM_Exception( $groupContacts['error_message'] );
-        } else {
-          $groupContacts = $groupContacts['values'];
         }
       }
       else {
         $api_params = [
-          'id'      => $m['id'],
-          'groups'  => 'in ' . $field['civicrm_group'],
-          'is_deleted' => 0,
-          /*'where'   => [
-            ['groups', 'IN', $field['civicrm_group']],
-            ['is_deleted', '=', 0],
-          ],*/
           'return'  => [ 'id', 'sort_name' ],
+          'group'  => ['IN ' => $field['civicrm_group']],
+          'is_deleted' => 0,
         ];
         $api_options = array(
           'check_permissions' => 0,
@@ -334,30 +324,26 @@ class GF_Field_Group_Contact_Select extends GF_Field {
           'limit'             => 0,
           'cache'             => 0,
         );
-        // TODO: Fix these values. Where clause not working,
-        $groupContacts_new = GFCiviCRM\api_wrapper($profile_name, 'Contact', 'get', (array)$api_params, $api_options, $api_version);
-        $groupContacts = \Civi\Api4\Contact::get( false )
-                                           ->addSelect( 'id', 'sort_name' )
-                                           ->addWhere( 'groups', 'IN', $field['civicrm_group'] )
-                                           ->addWhere( 'is_deleted', '=', false )
-                                           ->addOrderBy( 'sort_name', 'ASC' )
-                                           ->execute();
+        $groupContacts = GFCiviCRM\api_wrapper($profile_name, 'Contact', 'get', (array)$api_params, $api_options );
 
-        // Something went wrong trying to get group contacts
         if ( isset( $groupContacts['is_error'] ) && $groupContacts['is_error'] != 0  ) {
+          // Something went wrong trying to get group contacts
           throw new \GFCiviCRM_Exception( $groupContacts['error_message'] );
-        } else {
-          $groupContacts = $groupContacts['values'];
         }
 
       }
 
+      // Return if there are no group contacts
+      if ( empty($groupContacts) ) {
+        return $empty_option;
+      }
+
       // Initialise the choices field if not already set
-      if (empty($field->choices[0]['value'])) {
+      if ( empty( $field->choices[0]['value'] ) ) {
         $field->choices = [];
       }
 
-      foreach ($groupContacts as $groupContact) {
+      foreach ( $groupContacts as $groupContact ) {
         $field->choices[] = [
           'text'       => $groupContact['sort_name'],
           'value'      => (string) $groupContact['id'],
@@ -372,7 +358,7 @@ class GF_Field_Group_Contact_Select extends GF_Field {
     }
 
     // Return the select options using the Gravity Forms common select function
-    return GFCommon::get_select_choices($field, $value, $support_placeholders);
+    return GFCommon::get_select_choices( $field, $value, $support_placeholders );
   }
 
   /**
