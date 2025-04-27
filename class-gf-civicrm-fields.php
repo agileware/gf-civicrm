@@ -86,17 +86,20 @@ class FieldsAddOn extends GFAddOn {
 
     // Notify if CiviCRM Site Key and/or API Key is empty
     add_action( 'admin_notices', function() {
-      $gf_civicrm_site_key = FieldsAddOn::get_instance()->get_plugin_setting( 'gf_civicrm_site_key' );
-      $gf_civicrm_api_key = FieldsAddOn::get_instance()->get_plugin_setting( 'gf_civicrm_api_key' );
-      $missing = [];
-      if ( !$gf_civicrm_site_key ) {
-        $missing[] = 'Site Key';
-      }
-      if ( !$gf_civicrm_api_key ) {
-        $missing[] = 'API Key';
-      }
-      if ( !empty( $missing ) ) {
-        $this->warn_keys_settings( $missing );
+      // Only if CMRF is not active
+      if ( !is_plugin_active( 'connector-civicrm-mcrestface/wpcmrf.php' ) ) {
+        $gf_civicrm_site_key = FieldsAddOn::get_instance()->get_plugin_setting( 'gf_civicrm_site_key' );
+        $gf_civicrm_api_key = FieldsAddOn::get_instance()->get_plugin_setting( 'gf_civicrm_api_key' );
+        $missing = [];
+        if ( !$gf_civicrm_site_key ) {
+          $missing[] = 'Site Key';
+        }
+        if ( !$gf_civicrm_api_key ) {
+          $missing[] = 'API Key';
+        }
+        if ( !empty( $missing ) ) {
+          $this->warn_keys_settings( $missing );
+        }
       }
     } );
 
@@ -381,25 +384,28 @@ class FieldsAddOn extends GFAddOn {
       ];
     }
 
-    $fields[] = [
-      'title'       => esc_html__( 'CiviCRM Site Key', 'gf-civicrm' ),
-      'description' => esc_html__( 'Provide the CiviCRM site key for making API calls, can be output using the merge tag {gf_civicrm_site_key}.', 'gf-civicrm' ),
-      'fields'      => [ [
-        'type'          => 'text',
-        'name'          => 'gf_civicrm_site_key',
-        'default_value' => '',
-      ] ],
-    ];
-
-    $fields[] = [
-      'title'       => esc_html__( 'CiviCRM API Key', 'gf-civicrm' ),
-      'description' => esc_html__( 'Provide the CiviCRM API key for making API calls, can be output using the merge tag {gf_civicrm_api_key}.', 'gf-civicrm' ),
-      'fields'      => [ [
-        'type'          => 'text',
-        'name'          => 'gf_civicrm_api_key',
-        'default_value' => '',
-      ] ],
-    ];
+    // Only use these fields if CMRF is not active.
+    if ( !is_plugin_active( 'connector-civicrm-mcrestface/wpcmrf.php' ) ) {
+      $fields[] = [
+        'title'       => esc_html__( 'CiviCRM Site Key', 'gf-civicrm' ),
+        'description' => esc_html__( 'Provide the CiviCRM site key for making API calls, can be output using the merge tag {gf_civicrm_site_key}.', 'gf-civicrm' ),
+        'fields'      => [ [
+          'type'          => 'text',
+          'name'          => 'gf_civicrm_site_key',
+          'default_value' => '',
+        ] ],
+      ];
+  
+      $fields[] = [
+        'title'       => esc_html__( 'CiviCRM API Key', 'gf-civicrm' ),
+        'description' => esc_html__( 'Provide the CiviCRM API key for making API calls, can be output using the merge tag {gf_civicrm_api_key}.', 'gf-civicrm' ),
+        'fields'      => [ [
+          'type'          => 'text',
+          'name'          => 'gf_civicrm_api_key',
+          'default_value' => '',
+        ] ],
+      ];
+    }
 
     $fields[] = [
       'title'       => esc_html__( 'Webhook Alerts', 'gf-civicrm' ),
