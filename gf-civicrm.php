@@ -725,15 +725,31 @@ function fp_tag_default( $matches, $fallback = '', $multiple = FALSE ) {
  */
 function replace_merge_tags( $text, $form, $entry, $url_encode, $esc_html, $nl2br, $format ) {
 	$gf_civicrm_site_key_merge_tag = '{gf_civicrm_site_key}';
-	if ( strpos( $text, $gf_civicrm_site_key_merge_tag ) !== false ) {
-		$gf_civicrm_site_key = FieldsAddOn::get_instance()->get_plugin_setting( 'gf_civicrm_site_key' );
-		$text = str_replace( $gf_civicrm_site_key_merge_tag, $gf_civicrm_site_key, $text );
-	}
-
 	$gf_civicrm_api_key_merge_tag = '{gf_civicrm_api_key}';
-	if ( strpos( $text, $gf_civicrm_api_key_merge_tag ) !== false ) {
-		$gf_civicrm_api_key = FieldsAddOn::get_instance()->get_plugin_setting( 'gf_civicrm_api_key' );
-		$text = str_replace( $gf_civicrm_api_key_merge_tag, $gf_civicrm_api_key, $text );
+	$needs_site_key = strpos( $text, $gf_civicrm_site_key_merge_tag ) !== false;
+	$needs_api_key  = strpos( $text, $gf_civicrm_api_key_merge_tag ) !== false;
+
+	if ( $needs_site_key || $needs_api_key ) {
+		// Only call these once if needed
+		$profile_name = get_rest_connection_profile();
+		$profiles     = get_profiles();
+		$plugin_active = is_plugin_active( 'connector-civicrm-mcrestface/wpcmrf.php' );
+
+		if ( $plugin_active && isset( $profiles[ $profile_name ] ) ) {
+			$profile = $profiles[ $profile_name ];
+		} else {
+			$profile = null;
+		}
+
+		if ( $needs_site_key ) {
+			$gf_civicrm_site_key = $profile ? $profile['site_key'] : FieldsAddOn::get_instance()->get_plugin_setting( 'gf_civicrm_site_key' );
+			$text = str_replace( $gf_civicrm_site_key_merge_tag, $gf_civicrm_site_key, $text );
+		}
+
+		if ( $needs_api_key ) {
+			$gf_civicrm_api_key = $profile ? $profile['api_key'] : FieldsAddOn::get_instance()->get_plugin_setting( 'gf_civicrm_api_key' );
+			$text = str_replace( $gf_civicrm_api_key_merge_tag, $gf_civicrm_api_key, $text );
+		}
 	}
 
 	// TODO - This may pass in multiple options

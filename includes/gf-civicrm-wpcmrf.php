@@ -90,6 +90,8 @@ function get_profiles() {
 		  'title' => $profile['label'],
 		  'function' => 'GFCiviCRM\gf_civicrm_wpcmrf_api',
 		  'connector' => $profile['connector'],
+		  'site_key' => $profile['site_key'],
+		  'api_key' => $profile['api_key'],
 		];
 	  }
 	}
@@ -144,8 +146,8 @@ function gf_civicrm_wpcmrf_api( $profile, $entity, $action, $params, $options = 
 	$options['cache'] ??= '15 minutes';
 
 	$core = \wpcmrf_get_core();
-	$call = $core->createCall($profile_id, $entity, $action, $params, $options, NULL, $api_version);
-	$core->executeCall($call);
+	$call = $core->createCall( $profile_id, $entity, $action, $params, $options, NULL, $api_version );
+	$core->executeCall( $call );
 	return $call->getReply();
 }
 
