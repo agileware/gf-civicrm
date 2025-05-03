@@ -8,7 +8,7 @@
  * Author URI: https://agileware.com.au
  * Version: 2.0.0-alpha-1
  * Text Domain: gf-civicrm
- * 
+ *
  * Copyright (c) Agileware Pty Ltd (email : support@agileware.com.au)
  *
  * Gravity Forms CiviCRM Integration is free software: you can redistribute it and/or modify
@@ -121,8 +121,8 @@ function do_civicrm_replacement( $form, $context ) {
 						'name'		=> $option_group,
 						'is_active' => 1,
 						'api.OptionValue.get' => [
-							'return' => ["id", "label", "value", "is_default"], 
-							'is_active' => 1, 
+							'return' => ["id", "label", "value", "is_default"],
+							'is_active' => 1,
 							'sort' => "weight ASC"
 						],
 					];
@@ -159,7 +159,7 @@ function do_civicrm_replacement( $form, $context ) {
 				try {
 					if ( ! isset( $civi_fp_fields[$processor] ) ) {
 						$api_params = [ 'api_action' => $processor ];
-						$api_options = [ 'limit' => 0, ];						
+						$api_options = [ 'limit' => 0, ];
 						$civi_fp_fields[ $processor ] = api_wrapper( $profile_name, 'FormProcessor', 'getfields', $api_params, $api_options ) ?? [];
 					}
 
@@ -203,7 +203,7 @@ function do_civicrm_replacement( $form, $context ) {
 						// Force the 'Show Values' option to be set, required for the label/value pairs to be saved
 						$field['enableChoiceValue'] = true;
 					}
-					
+
 				} catch ( CRM_Core_Exception $e ) {
 					// Couldn't get form processor instance, don't try to set options
                     return $form;
@@ -245,7 +245,7 @@ function compose_merge_tags ( $merge_tags ) {
 	try {
 		$profile_name = get_rest_connection_profile();
 		$processors = api_wrapper( $profile_name, 'FormProcessorInstance', 'get', [ 'sequential' => 1], [ 'limit' => 0 ] );
-		
+
 		foreach ( $processors as ['inputs' => $inputs, 'name' => $pname, 'title' => $ptitle] ) {
 			foreach ( $inputs as ['name' => $iname, 'title' => $ititle] ) {
 				$merge_tags[] = [
@@ -271,7 +271,7 @@ function pre_render( $form, $ajax, $field_values, $context ) {
 		return $form;
 	}
 
-	// Use the default value if set for radio buttons 
+	// Use the default value if set for radio buttons
 	foreach ( $form['fields'] as &$field ) {
 		if ( $field->inputType != 'radio' ) {
 			continue;
@@ -371,7 +371,7 @@ function fix_multi_values( \GF_Field $field, $entry, $input_id = '', $use_text =
 * Locale agnostic conversion of various currency formats to float.
 * Possibly alternative implementation, but requires formatting locale as a parameter
 * https://www.php.net/manual/en/numberformatter.parsecurrency.php
-* 
+*
 */
 
 function convertInternationalCurrencyToFloat( $currencyValue ) {
@@ -434,10 +434,10 @@ function webhooks_request_data( $request_data, $feed, $entry, $form ) {
 			) {
 				$rewrite_data[ $field->id ] = fix_multi_values( $field, $entry );
 			}
-            
+
 			/*
 			* Custom Price, Product fields send the value in $ 50.00 format which is problematic
-			* @TODO If the $feed['meta']['fieldValues'][x] field has a value=gf_custom then custom_value will contain something like {membership_type:83:price} - this requires new logic extract the field ID. Will not contain the usual field ID.			
+			* @TODO If the $feed['meta']['fieldValues'][x] field has a value=gf_custom then custom_value will contain something like {membership_type:83:price} - this requires new logic extract the field ID. Will not contain the usual field ID.
 			*/
 
 			if ( is_a( $field, 'GF_Field_Price' ) && $field->inputType == 'price' && isset( $entry[ $field->id ] ) ) {
@@ -589,7 +589,7 @@ function editor_script() {
             });
 
 			// Hide all choice labels for checkbox fields, feature is replaced by the default value field
-			function updateChoiceLabelDisplay() {                
+			function updateChoiceLabelDisplay() {
                 $('.field-choice-label').css('display', 'none');
             }
 
@@ -605,7 +605,7 @@ function editor_script() {
 			function handleEditChoicesVisibility(selector) {
 				// Get the selected option value
 				var selectedValue = $(selector).val();
-				
+
 				// Show/Hide the Edit Choices field depending on the CiviCRM Source field value
 				if (selectedValue === '') {
 					$('.choices-ui__trigger-section').show();
@@ -711,7 +711,7 @@ function fp_tag_default( $matches, $fallback = '', $multiple = FALSE ) {
 }
 
 /**
- * Find and replace {civicrm_fp.*}, {gf_civicrm_site_key} and {gf_civicrm_api_key} merge tags
+ * Find and replace {civicrm_fp.*}, {gf_civicrm_site_key}, {gf_civicrm_api_key}, and {rest_api_url} merge tags
  *
  * @param string $text
  * @param array $form
@@ -724,12 +724,14 @@ function fp_tag_default( $matches, $fallback = '', $multiple = FALSE ) {
  * @return string
  */
 function replace_merge_tags( $text, $form, $entry, $url_encode, $esc_html, $nl2br, $format ) {
-	$gf_civicrm_site_key_merge_tag = '{gf_civicrm_site_key}';
-	$gf_civicrm_api_key_merge_tag = '{gf_civicrm_api_key}';
+	$gf_civicrm_site_key_merge_tag     = '{gf_civicrm_site_key}';
+	$gf_civicrm_api_key_merge_tag      = '{gf_civicrm_api_key}';
+	$gf_civicrm_rest_api_url_merge_tag = '{rest_api_url}';
 	$needs_site_key = strpos( $text, $gf_civicrm_site_key_merge_tag ) !== false;
 	$needs_api_key  = strpos( $text, $gf_civicrm_api_key_merge_tag ) !== false;
+	$needs_api_url  = strpos( $text, $gf_civicrm_rest_api_url_merge_tag ) !== false;
 
-	if ( $needs_site_key || $needs_api_key ) {
+	if ( $needs_site_key || $needs_api_key || $needs_api_url ) {
 		// Only call these once if needed
 		$profile_name = get_rest_connection_profile();
 		$profiles     = get_profiles();
@@ -749,6 +751,11 @@ function replace_merge_tags( $text, $form, $entry, $url_encode, $esc_html, $nl2b
 		if ( $needs_api_key ) {
 			$gf_civicrm_api_key = $profile ? $profile['api_key'] : FieldsAddOn::get_instance()->get_plugin_setting( 'gf_civicrm_api_key' );
 			$text = str_replace( $gf_civicrm_api_key_merge_tag, $gf_civicrm_api_key, $text );
+		}
+
+		if ( $needs_api_url ) {
+			$gf_civicrm_api_url = $profile ? ( ( ! is_array( $profile['function'] ) && 'GFCiviCRM\gf_civicrm_wpcmrf_api' === $profile['function'] ) ? $profile['url'] : $gf_civicrm_rest_api_url_merge_tag ) : $gf_civicrm_rest_api_url_merge_tag;
+			$text = str_replace( $gf_civicrm_rest_api_url_merge_tag, $gf_civicrm_api_url, $text );
 		}
 	}
 
@@ -771,7 +778,7 @@ function replace_merge_tags( $text, $form, $entry, $url_encode, $esc_html, $nl2b
 
 add_filter( 'gform_custom_merge_tags', 'GFCiviCRM\compose_merge_tags', 10, 1 );
 
-add_filter( 'gform_replace_merge_tags', 'GFCiviCRM\replace_merge_tags', 10, 7 );
+add_filter( 'gform_pre_replace_merge_tags', 'GFCiviCRM\replace_merge_tags', 9, 7 );
 
 define( 'GF_CIVICRM_FIELDS_ADDON_VERSION', get_file_data( __FILE__, [ 'Version' => 'Version' ] )['Version'] );
 
@@ -932,7 +939,7 @@ function validateChecksumFromURL( $cid_param = 'cid', $cs_param = 'cs' ): int|nu
 
 	try {
 		$profile_name = get_rest_connection_profile();
-		
+
 		// Get Payment Processors from CiviCRM
 		$api_params = [
 			'id' => $contact_id,
@@ -990,9 +997,9 @@ function webhook_alerts( $response, $feed, $entry, $form ) {
         $error_message = $response->get_error_message();
 
 		// Build the webhook response entry content
-		$webhook_feed_response = [ 
+		$webhook_feed_response = [
 			'date' => current_datetime(),
-			'body' => $error_message, 
+			'body' => $error_message,
 			'response' => $error_code
 		];
 
@@ -1001,9 +1008,9 @@ function webhook_alerts( $response, $feed, $entry, $form ) {
 		$response_data = $response['body'] ? json_decode($response['body'], true) : '';
 
 		// Build the webhook response entry content
-		$webhook_feed_response = [ 
+		$webhook_feed_response = [
 			'date' => $response['headers']['data']['date'],
-			'body' => $response_data, 
+			'body' => $response_data,
 			'response' => $response['response']
 		];
 
@@ -1011,22 +1018,22 @@ function webhook_alerts( $response, $feed, $entry, $form ) {
 			// If its a WP_Error in the webhook feed response
 			$error_code = $response->get_error_code();
 			$error_message = $response->get_error_message();
-	
+
 			GFCommon::log_debug( __METHOD__ . '(): WP_Error detected.' );
-		} 
-		
+		}
+
 		if ( isset( $response['response']['code'] ) && $response['response']['code'] >= 300 && strpos( $response['body'], 'is_error' ) == false ) {
 			// If we get an error response
 			$response_data = json_decode( $response['body'], true );
-			
+
 			$error_code = $response['response']['code'];
 			$error_message = $response['response']['message'] . "\n" . ( $response_data['message'] ?? '' );
-			
+
 			GFCommon::log_debug( __METHOD__ . '(): Error detected.' );
 		}
-		
+
 		if ( strpos( $response['body'], 'is_error' ) != false ) {
-			// If is_error appears in the response body 
+			// If is_error appears in the response body
 			// This may happen if the webhook response appears as a success, but the response value from the REST url is actually an error.
 
 			// Extract the required values
@@ -1043,7 +1050,9 @@ function webhook_alerts( $response, $feed, $entry, $form ) {
 		}
 	}
 
-	$current_response[$feed['id']] = $webhook_feed_response;
+	if ( $current_response ) {
+		$current_response[$feed['id']] = $webhook_feed_response;
+	}
 	gform_update_meta( $entry['id'], 'webhook_feed_response', $current_response );
 
 	// Send an alert email if we have an error code
@@ -1052,7 +1061,7 @@ function webhook_alerts( $response, $feed, $entry, $form ) {
 
 		// Do not continue if enable_emails is not true, or if no alerts email has been provided
 		$plugin_settings = FieldsAddOn::get_instance()->get_plugin_settings();
-		if ( !isset($plugin_settings['enable_emails']) || !$plugin_settings['enable_emails'] || 
+		if ( !isset($plugin_settings['enable_emails']) || !$plugin_settings['enable_emails'] ||
 			!isset($plugin_settings['gf_civicrm_alerts_email']) || empty($plugin_settings['gf_civicrm_alerts_email']) ) {
 			return;
 		}
@@ -1063,15 +1072,17 @@ function webhook_alerts( $response, $feed, $entry, $form ) {
 		$request_url 	= $feed['meta']['requestURL'];
 		$entry_id 		= $entry['id'];
 
+		$request_url = apply_filters( 'gform_pre_replace_merge_tags', $request_url, $form, $entry, false, false, false, 'html' );
+
 		$body    = sprintf(
 					'Webhook feed on %s failed.' . "\n\n%s%s\n" . 'Feed: "%s" (ID: %s) from form "%s" (ID: %s)' . "\n" . 'Request URL: %s' . "\n" . 'Failed Entry ID: %s',
 					get_site_url(),
-					$error_code ? "Error Code: " . $error_code . "\n": '', 
-					$error_message ? "Error: " . $error_message . "\n": '', 
-					$feed['meta']['feedName'], 
-					$feed['id'], 
-					$form['title'], 
-					$form['id'], 
+					$error_code ? "Error Code: " . $error_code . "\n": '',
+					$error_message ? "Error: " . $error_message . "\n": '',
+					$feed['meta']['feedName'],
+					$feed['id'],
+					$form['title'],
+					$form['id'],
 					$request_url,
 					$entry_id
 				);
@@ -1085,16 +1096,24 @@ add_action( 'gform_webhooks_post_request', 'GFCiviCRM\webhook_alerts', 10, 4);
 
 /**
  * Save the webhook request to the Entry.
- * 
+ *
  * Request URL is processed before request args. We'll use both filters to build the request
  * data. Supports multiple feeds.
  */
 add_filter( 'gform_webhooks_request_url', function($request_url, $feed, $entry, $form) {
 	// Add the webhook request to the entry meta
 	$current_request = gform_get_meta( $entry['id'], 'webhook_feed_request' );
-	$current_request[$feed['id']] = [
-		'request_url' => $request_url
-	];
+	if ( $current_request ) {
+		if ( ! is_array( $current_request ) ) {
+			$current_request = [$feed['id'] => [
+				'request_url' => $request_url
+			]];
+		} else {
+			$current_request[$feed['id']] = [
+				'request_url' => $request_url
+			];
+		}
+	}
 	gform_update_meta( $entry['id'], 'webhook_feed_request', $current_request );
 	return $request_url;
 }, 10, 4);
@@ -1102,6 +1121,9 @@ add_filter( 'gform_webhooks_request_url', function($request_url, $feed, $entry, 
 add_filter( 'gform_webhooks_request_args', function($request_args, $feed, $entry, $form) {
 	// Add the webhook request to the entry meta
 	$current_request = gform_get_meta( $entry['id'], 'webhook_feed_request' );
+	if ( ! is_array( $current_request ) ) {
+		$current_request = [$feed['id'] => ['request_url' => $current_request]];
+	}
 	$current_request[$feed['id']] = [
 		'request_url' => $current_request[$feed['id']]['request_url'] ?? '',
 		'request_args' => $request_args
