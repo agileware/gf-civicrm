@@ -736,6 +736,7 @@ function replace_merge_tags( $text, $form, $entry, $url_encode, $esc_html, $nl2b
 		$profile_name = get_rest_connection_profile();
 		$profiles     = get_profiles();
 		$plugin_active = is_plugin_active( 'connector-civicrm-mcrestface/wpcmrf.php' );
+		$use_mcrf      = boolval( rgars( $form, 'gf-civicrm/civicrm_use_mcrf' ) );
 
 		if ( $plugin_active && isset( $profiles[ $profile_name ] ) ) {
 			$profile = $profiles[ $profile_name ];
@@ -753,7 +754,11 @@ function replace_merge_tags( $text, $form, $entry, $url_encode, $esc_html, $nl2b
 			$text = str_replace( $gf_civicrm_api_key_merge_tag, $gf_civicrm_api_key, $text );
 		}
 
-		if ( $needs_api_url ) {
+		if ( $needs_api_url && $use_mcrf ) {
+			$form_profile_name = rgars( $form, 'gf-civicrm/civicrm_rest_connection' );
+			if ( 'default' !== $form_profile_name && isset( $profiles[$form_profile_name] ) ) {
+				$profile = $profiles[$form_profile_name];
+			}
 			$gf_civicrm_api_url = $profile ? ( ( ! is_array( $profile['function'] ) && 'GFCiviCRM\gf_civicrm_wpcmrf_api' === $profile['function'] ) ? $profile['url'] : $gf_civicrm_rest_api_url_merge_tag ) : $gf_civicrm_rest_api_url_merge_tag;
 			$text = str_replace( $gf_civicrm_rest_api_url_merge_tag, $gf_civicrm_api_url, $text );
 		}
