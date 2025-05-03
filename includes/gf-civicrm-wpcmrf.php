@@ -3,12 +3,12 @@
 /**
  * Copyright (C) Agileware Pty Ltd
  * Based on original work by Jaap Jansma (email : )
- * 
+ *
  * This code is based on the original work by Jaap Jansma.
  * The original plugin can be found at: https://github.com/civimrf/cf-civicrm-formprocessor
  * Original License: AGPL-3.0
  * Original License URI: https://www.gnu.org/licenses/agpl-3.0.en.html
- * 
+ *
  */
 
 namespace GFCiviCRM;
@@ -60,7 +60,7 @@ function api_wrapper( $profile, $entity, $action, $params, $options=[], $api_ver
 	if ( isset( $result['values'] ) ) {
 		return $result['values'];
 	}
-	
+
 	return $result;
 }
 
@@ -73,7 +73,7 @@ function get_profiles() {
 	if ( is_array( $profiles ) ) {
 	  return $profiles;
 	}
-  
+
 	$profiles = array();
 
 	// Local CiviCRM connection
@@ -89,13 +89,14 @@ function get_profiles() {
 		$profiles[$profile_name] = [
 		  'title' => $profile['label'],
 		  'function' => 'GFCiviCRM\gf_civicrm_wpcmrf_api',
+		  'url' => $profile['url'],
 		  'connector' => $profile['connector'],
 		  'site_key' => $profile['site_key'],
 		  'api_key' => $profile['api_key'],
 		];
 	  }
 	}
-  
+
 	return $profiles;
 }
 
@@ -137,10 +138,10 @@ function gf_civicrm_wpcmrf_api( $profile, $entity, $action, $params, $options = 
 
 	/**
 	 * TODO: Prevent caching of specific error codes.
-	 * 
+	 *
 	 * This is likely something that needs to happen in CMRF plugin.
 	 * See https://github.com/CiviMRF/CMRF_Abstract_Core/issues/24
-	 * 
+	 *
 	 */
 	// If options isn't already set, set it to a default value.
 	$options['cache'] ??= '15 minutes';
