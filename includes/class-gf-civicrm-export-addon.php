@@ -301,25 +301,28 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
          */
         private function get_form_processor( $name )
         {
-            // Initialize CiviCRM if needed
-            if (!function_exists('civicrm_initialize')) {
+            // Check if a CiviCRM installation exists
+            if ( check_civicrm_installation()['is_error'] ) {
                 return null;
             }
 
-            civicrm_initialize();
+            // Get the CiviCRM REST Connection Profile. This may be the local CiviCRM connection if no profile is set.
+			$profile_name = get_rest_connection_profile();
 
-            // Use APIv4 to query for the FormProcessor by name
+            // Get the FormProcessor by name
             try {
-                $result = FormProcessorInstance::get(FALSE)
-                    ->addSelect('id')
-                    ->addWhere('name', '=', $name)
-                    ->execute();
+                $api_params = [
+                    'return' => ['id'],
+                    'name' => $name,
+                ];
+                $result = api_wrapper( $profile_name, 'FormProcessorInstance', 'get', $api_params, [] ) ?? [];
 
-                if ($result->count() < 1) {
+                if ( count($result) < 1) {
                     return null;
                 }
 
-                return $result->first()['id'];
+                $fp = reset($result);
+                return $fp['id'];
             } catch ( Exception $e) {
                 // Log error if needed and return null if there is an issue
                 GFCommon::log_debug( __METHOD__ . "(): GF CiviCRM Errors => Error fetching FormProcessor `$name`: " . $e->getMessage() );
@@ -336,19 +339,30 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
          */
         protected function export_processors(array $processors, mixed $export_directory)
         {
-            if(!class_exists('\Civi\FormProcessor\Exporter\ExportToJson')) {
-                return;
+            // Check if a CiviCRM installation exists
+            if ( check_civicrm_installation()['is_error'] ) {
+                return null;
             }
 
-            $exporter = new ExportToJson();
+            // Get the CiviCRM REST Connection Profile. This may be the local CiviCRM connection if no profile is set.
+			$profile_name = get_rest_connection_profile();
 
             $exports = [];
             foreach ( $processors as $name => $id ) try {
                 $file_path = "$export_directory/$name.json";
 
-                $export = json_encode($exporter->export($id), JSON_PRETTY_PRINT|JSON_UNESCAPED_SLASHES);
+                $api_params = [
+                    'id' => $id,
+                ];
+                $export = api_wrapper( $profile_name, 'FormProcessorInstance', 'export', $api_params, [ 'cache' => 0 ] ) ?? [];
+                
+                if ( isset( $export['is_error'] ) && $export['is_error']  ) {
+                    throw new Exception(  $export['error_message'] ); // Error code could be undefined here.
+                }
 
-                file_put_contents($file_path, $export);
+                $export_json = json_encode(reset($export), JSON_PRETTY_PRINT|JSON_UNESCAPED_SLASHES);
+
+                file_put_contents($file_path, $export_json);
                 $exports['success'][$name] = "$name.json";
             } catch ( Exception $e) {
                 GFCommon::log_debug( __METHOD__ . "(): GF CiviCRM Export Errors => Error exporting FormProcessor `$name`: " . $e->getMessage() );
@@ -503,6 +517,15 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
             $importable_forms = $this->importable_forms($import_directory);
             $importable_form_processors = $this->importable_form_processors($fp_import_directory);
 
+            // Get the CiviCRM REST Connection Profile. This may be the local CiviCRM connection if no profile is set.
+            $profile_name = get_rest_connection_profile();
+            $profiles = get_profiles();
+            $is_remote = false;
+
+            if ( isset( $profiles[$profile_name]['connector'] ) && $profiles[$profile_name]['connector'] !== 'local' ) {
+                $is_remote = true;
+            }
+
             ?>
             <div class="gform-settings__content">
                 <form method="post" style="margin-top: 10px;" class="gform_settings_form">
@@ -553,6 +576,14 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
                             <fieldset>
                                 <legend><h3><?= esc_html__('Select Form Processors', 'gf-civicrm') ?></h3></legend>
                                 <p><?= esc_html__('These form processors were detected on the file system:') ?></p>
+                                <?php
+                                if ( $is_remote ) {
+                                    printf(
+                                        __('<p class="notice notice-warning"><strong>Warning:</strong> The import file must be accessible to the remote installation at the path specified in the <a href="%s">GF CiviCRM Import/Export Directory settings</a>.</p>', 'gf-civicrm'),
+                                        esc_url( add_query_arg( [ 'page' => 'gf_settings', 'subview' => 'gf-civicrm' ], admin_url( 'admin.php' ) ) )
+                                    );
+                                }
+                                ?>
                                 <ul id="import_form_processors_list">
                                     <?php foreach($importable_form_processors as $key => $values) { 
                                         ?>
@@ -629,6 +660,20 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
          * Check the filesystem on the server for Form Processor import files in our designated directory.
          */
         protected  function importable_form_processors( $import_directory ): array {
+            // Check if a CiviCRM installation exists
+            if ( check_civicrm_installation()['is_error'] ) {
+                return [];
+            }
+
+            // Get the CiviCRM REST Connection Profile. This may be the local CiviCRM connection if no profile is set.
+            $profile_name = get_rest_connection_profile();
+            $profiles = get_profiles();
+            $is_remote = false;
+
+            if ( isset( $profiles[$profile_name]['connector'] ) && $profiles[$profile_name]['connector'] !== 'local' ) {
+                $is_remote = true;
+            }
+
             $import_files = glob( $import_directory . '/form-processors/*.json' );
 
             $import_files = preg_grep('{ / (?<directory_name> [^/]+) / *. json $ }xi', $import_files);
@@ -641,18 +686,19 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
                 preg_match('{ / ( [^/]+ ) \. json $ }xi', $file, $matches);
                 [, $key] = $matches;
 
-                $processor = json_decode(file_get_contents($file), TRUE);
+                $processor = json_decode( file_get_contents( $file ), TRUE );
 
-                if(empty($processor)) {
+                if( empty($processor) ) {
                     continue;
                 }
 
                 // Check for any existing form processor with this name
-                $existing = \Civi\Api4\FormProcessorInstance::get(FALSE)
-                    ->addSelect('id', 'name', 'title')
-                    ->addWhere('name', '=', $key)
-                    ->execute()
-                    ->first();
+                $api_params = [
+                    'return' => ['id', 'name', 'title'], // DEVNOTE: For some reason this has no affect in APIv3. Returns all fields.
+                    'name' => $key,
+                ];
+                $existing = api_wrapper( $profile_name, 'FormProcessorInstance', 'get', $api_params, [ 'cache' => 0 ] ) ?? [];
+                $existing = reset( $existing );
 
                 $importable[$key] = [
                     'title' => $processor['name'] ?? $key,
@@ -661,6 +707,7 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
                     'existing_name' => $existing['name'] ?? '',
                     'existing_id' => $existing['id'] ?? null,
                     'filename' => basename($file),
+                    'is_remote' => $is_remote,
                 ];
 
             }
@@ -732,38 +779,51 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
                 }
             }
 
-            // Handle importing form processors
-            foreach ( $import_form_processors as $processor_name ) {
-                $processor_file_name = "$processor_name.json";
-                $processor_file = $import_directory . "/form-processors/$processor_file_name";
+            // Only do this step if a CiviCRM installation exists
+            if ( ! check_civicrm_installation()['is_error'] ) {
+                // Get the CiviCRM REST Connection Profile. This may be the local CiviCRM connection if no profile is set.
+                $profile_name = get_rest_connection_profile();
 
-                if ( !file_exists( $processor_file ) ) {
-                    continue;
-                }
+                // Handle importing form processors
+                foreach ( $import_form_processors as $processor_name ) {
+                    $processor_file_name = "$processor_name.json";
+                    $processor_file = $import_directory . "form-processors/$processor_file_name";
 
-                // Check for any existing form processor with this name
-                $existing = \Civi\Api4\FormProcessorInstance::get(FALSE)
-                    ->addSelect('id', 'name', 'title')
-                    ->addWhere('name', '=', $processor_name)
-                    ->execute()
-                    ->first();
-
-                try {
-                    $form_processor = $this->import_processor( $processor_file );
-                    $fp_instance = \Civi\Api4\FormProcessorInstance::get(FALSE)
-                        ->addWhere('id', '=', $form_processor['import']['new_id']) // the imported id may be different to the original id in the import file
-                        ->execute()
-                        ->first();
-
-                    if ( $existing ) {
-                        $imports["Form Processor"][$fp_instance['id']] = sprintf('<strong>%s</strong> (ID:%s) (<i>was replaced by source: %s</i>)', $fp_instance['name'], $fp_instance['id'], $processor_file_name);
-                    } else {
-                        $imports["Form Processor"][$fp_instance['id']] = sprintf('<strong>%s</strong> (ID:%s) (<i>was created from source: %s</i>)', $fp_instance['name'], $fp_instance['id'], $processor_file_name);
+                    if ( !file_exists( $processor_file ) ) {
+                        continue;
                     }
-                    
-                } catch ( Throwable $e ) {
-                    $failures["Form Processor"] = 'Failed to import FormProcessor => ' . $e->getMessage();
-                    GFCommon::log_debug( __METHOD__ . '(): GF CiviCRM Import Errors => ' . $e->getMessage() );
+
+                    // Check for any existing form processor with this name
+                    $api_params = [
+                        'return' => ['id', 'name', 'title'], // DEVNOTE: For some reason this has no affect in APIv3. Returns all fields.
+                        'name' => $processor_name,
+                    ];
+                    $existing = api_wrapper( $profile_name, 'FormProcessorInstance', 'get', $api_params, [ 'cache' => 0 ] ) ?? [];
+                    $existing = reset($existing);
+
+                    try {
+                        $form_processor = $this->import_processor( $processor_file );
+
+                        if ( isset( $form_processor['is_error'] ) && $form_processor['is_error'] ) {
+                            throw new Exception( $form_processor['error_message'] ); // Error code could be undefined here.
+                        }
+                        
+                        $api_params = [
+                            'id' => $form_processor['import']['new_id'],
+                        ];
+                        $fp_instance = api_wrapper( $profile_name, 'FormProcessorInstance', 'get', $api_params, [ 'cache' => 0 ] ) ?? [];
+                        $fp_instance = reset($fp_instance);
+
+                        if ( $existing ) {
+                            $imports["Form Processor"][$fp_instance['id']] = sprintf('<strong>%s</strong> (ID:%s) (<i>was replaced by source: %s</i>)', $fp_instance['name'], $fp_instance['id'], $processor_file_name);
+                        } else {
+                            $imports["Form Processor"][$fp_instance['id']] = sprintf('<strong>%s</strong> (ID:%s) (<i>was created from source: %s</i>)', $fp_instance['name'], $fp_instance['id'], $processor_file_name);
+                        }
+                        
+                    } catch ( Throwable $e ) {
+                        $failures["Form Processor"] = 'Failed to import FormProcessor => ' . $e->getMessage();
+                        GFCommon::log_debug( __METHOD__ . '(): GF CiviCRM Import Errors => ' . $e->getMessage() );
+                    }
                 }
             }
 
@@ -992,11 +1052,19 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
                 throw new Exception( sprintf( __('Can not read from form processor import file %1$s', 'gf-civicrm' ), basename( $processor_file ) ) );
             }
 
-            if( ! civicrm_initialize() ) {
+            if ( check_civicrm_installation()['is_error'] ) { 
                 throw new Exception( __( 'Could not initialize CiviCRM' ) );
             }
 
-            return civicrm_api3('FormProcessorInstance', 'import', [ 'file' => $processor_file, 'import_locally' => '1' ]);
+            $profile_name = get_rest_connection_profile();
+            
+            $api_params = [
+                'file' => $processor_file, 
+                'import_locally' => '1',
+            ];
+            $import = api_wrapper( $profile_name, 'FormProcessorInstance', 'import', $api_params, [ 'cache' => 0 ] ) ?? [];
+
+            return $import;
         }
 
         public function display_export_status() {
