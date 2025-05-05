@@ -368,7 +368,7 @@ class FieldsAddOn extends \GFAddOn
   }
 
   /**
-   * Add MCRF setting options to the WebHook Feed settings.
+   * Add CMRF setting options to the WebHook Feed settings.
    *
    * @param array  $feed_settings_fields   An array of feed settings fields which will be displayed on the Feed Settings edit view.
    * @param object $addon                  The current instance of the \GFAddon object which extends \GFFeedAddOn or \GFPaymentAddOn.
@@ -377,22 +377,22 @@ class FieldsAddOn extends \GFAddOn
   {
     if (is_plugin_active('connector-civicrm-mcrestface/wpcmrf.php')) {
       $civicrm_section_settings             = array(
-        'title'   => esc_html__('CiviCRM MCRF Settings', 'gf-civicrm'),
+        'title'   => esc_html__('CiviCRM CMRF Settings', 'gf-civicrm'),
         'tooltip' => sprintf(
           '<h6>%s</h6> %s',
-          esc_html__('Options to override the MCRF options used for this WebHook', 'gf-civicrm'),
-          esc_html__('You can choose whether you would like to override merge tags from this WebHook with data from MCRF and specify which connector to use.', 'gf-civicrm')
+          esc_html__('Options to override the CMRF options used for this WebHook', 'gf-civicrm'),
+          esc_html__('You can choose whether you would like to override merge tags from this WebHook with data from CMRF and specify which connector to use.', 'gf-civicrm')
         ),
         'fields'  => array(),
       );
       $civicrm_section_settings['fields'][] = array(
         'type'        => 'checkbox',
-        'name'        => 'civicrm_use_mcrf',
+        'name'        => 'civicrm_use_cmrf',
         'description' => esc_html__('Whether to use the CiviCRM REST Connection Profile for this form.', 'gf-civicrm'),
         'choices'     => array(
           array(
             'label' => esc_html__('Use CiviCRM REST Connection Profile', 'gf-civicrm'),
-            'name'  => 'civicrm_use_mcrf',
+            'name'  => 'civicrm_use_cmrf',
           ),
         ),
         'onclick'     => "jQuery(this).parents('form').submit();",
@@ -407,7 +407,7 @@ class FieldsAddOn extends \GFAddOn
           'gf-civicrm'
         ),
         'dependency'  => array(
-          'field'  => 'civicrm_use_mcrf',
+          'field'  => 'civicrm_use_cmrf',
           'values' => array(1),
         ),
         'choices'     => $this->get_cmrf_profile_options(),
@@ -601,8 +601,8 @@ class FieldsAddOn extends \GFAddOn
    */
   public function webhooks_request_url($request_url, $feed, $entry, $form)
   {
-    $use_mcrf = rgars($feed, 'meta/civicrm_use_mcrf');
-    if (! empty($use_mcrf) && boolval($use_mcrf)) {
+    $use_cmrf = rgars($feed, 'meta/civicrm_use_cmrf');
+    if (! empty($use_cmrf) && boolval($use_cmrf)) {
       $profiles     = get_profiles();
       $profile_name = rgars($feed, 'meta/civicrm_rest_connection');
       if (isset($profiles[$profile_name])) {
@@ -614,21 +614,21 @@ class FieldsAddOn extends \GFAddOn
 
       // Make sure we in fact have a profile to set the url with.
       if (isset($profile) && is_array($profile)) {
-        $mcrf_url    = add_query_arg(
+        $cmrf_url    = add_query_arg(
           array(
             'key'     => $profile['site_key'],
             'api_key' => $profile['api_key'],
           ),
           $profile['url']
         );
-        $request_url = str_replace('{civicrm_mcrf_url}', $mcrf_url, $feed['meta']['requestURL']);
+        $request_url = str_replace('{civicrm_cmrf_url}', $cmrf_url, $feed['meta']['requestURL']);
       }
     }
     return $request_url;
   }
 
   /**
-   * Add merge tag for MCRF.
+   * Add merge tag for CMRF.
    *
    * @param array $merge_tags The current merge tags.
    * @return array
@@ -636,8 +636,8 @@ class FieldsAddOn extends \GFAddOn
   public function compose_merge_tags($merge_tags)
   {
     $merge_tags[] = array(
-      'label' => __('CiviCRM MCRF Url', 'gf-civicrm'),
-      'tag'   => '{civicrm_mcrf_url}',
+      'label' => __('CiviCRM CMRF Url', 'gf-civicrm'),
+      'tag'   => '{civicrm_cmrf_url}',
     );
 
     return $merge_tags;
