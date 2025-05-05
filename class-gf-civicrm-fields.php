@@ -607,6 +607,13 @@ class FieldsAddOn extends \GFAddOn
       $profile_name = rgars($feed, 'meta/civicrm_rest_connection');
       if (isset($profiles[$profile_name])) {
         $profile     = $profiles[$profile_name];
+      } else if ( is_null( $profile_name ) || $profile_name === "default" ) {
+        // Fallback to default setting or first profile setup.
+        $profile = get_rest_connection_profile();
+      }
+
+      // Make sure we in fact have a profile to set the url with.
+      if (isset($profile) && is_array($profile)) {
         $mcrf_url    = add_query_arg(
           array(
             'key'     => $profile['site_key'],
