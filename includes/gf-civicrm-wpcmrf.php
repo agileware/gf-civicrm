@@ -151,7 +151,11 @@ function gf_civicrm_wpcmrf_api( $profile, $entity, $action, $params, $options = 
 	return $call->getReply();
 }
 
-
+/**
+ * Checks we can connect to CiviCRM. A low-permission API call is sufficient to establish whether or not the 
+ * connection is possible. Even if the connection is rejected due to insufficient permissions, if we get a
+ * valid response, we can confirm the installation exists.
+ */
 function check_civicrm_installation( $profile = null ) {
 	if ( is_null( $profile ) ) {
 		$form = FieldsAddOn::get_instance()->get_current_form();
@@ -170,14 +174,33 @@ function check_civicrm_installation( $profile = null ) {
 		];
 	}
 
-	$result = api_wrapper( $profile, 'System', 'get', [ 'version' ], [] );
+	// Try a low-permission API call (Contact.getfields - only requires access CiviCRM permission)
+	$result = api_wrapper( $profile, 'Contact', 'getfields', [], [] );
+	$error_message = strtolower( $result['error_message'] ?? '' );
+	$has_perm_err  = strpos( $error_message, 'insufficient permission' ) !== false;
 
-	$installation = empty( $result['is_error'] );
+	if ( empty( $result['is_error'] ) || $has_perm_err ) {
+		// Can establish a connection.
+		// If Contact.getfields failed, it may have just been a permission issue, but at least we can confirm the installation exists.
+		$installation = true;
+		return [
+			'is_error' => 0,
+			'message'  => "$profile CiviCRM installation is accessible." . ( $has_perm_err ? ' But user has insufficient permissions.' : '' ),
+		];
+	}
 
+	// Installation probably unreachable
+	$installation = false;
 	return [
-		'is_error' => $installation ? 0 : 1,
-		'message'  => $installation
-			? "$profile CiviCRM installation is accessible."
-			: ( $result['error_message'] ?? 'Unknown error' ),
+		'is_error' => 1,
+		'message'  => "$profile CiviCRM installation could not be accessed. " . ($result['error_message'] ?? 'Unknown error'),
 	];
+}
+
+/**
+ * Checks if the user specified by CiviCRM Site Key and API Key has the necessary permissions 
+ * to perform core CiviCRM API requests for this plugin.
+ */
+function check_civicrm_remote_authentication_connection() {
+	
 }
