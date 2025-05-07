@@ -1,0 +1,116 @@
+{
+    "version": "2.9.7.2",
+    "0": {
+        "id": "13",
+        "form_id": "11",
+        "is_active": "1",
+        "feed_order": "0",
+        "meta": {
+            "feedName": "CiviCRM",
+            "requestURL": "{rest_api_url}civicrm/v3/rest?entity=FormProcessor&action=donation&key={gf_civicrm_site_key}&api_key={gf_civicrm_api_key}&json=1",
+            "requestMethod": "POST",
+            "requestFormat": "json",
+            "requestHeaders": [
+                {
+                    "key": "",
+                    "custom_key": "",
+                    "value": "",
+                    "custom_value": ""
+                }
+            ],
+            "requestBodyType": "select_fields",
+            "fieldValues": [
+                {
+                    "key": "gf_custom",
+                    "custom_key": "total",
+                    "value": "7",
+                    "custom_value": ""
+                },
+                {
+                    "key": "gf_custom",
+                    "custom_key": "ind_name_first",
+                    "value": "26.3",
+                    "custom_value": ""
+                },
+                {
+                    "key": "gf_custom",
+                    "custom_key": "ind_name_last",
+                    "value": "26.6",
+                    "custom_value": ""
+                },
+                {
+                    "key": "gf_custom",
+                    "custom_key": "ind_email",
+                    "value": "27",
+                    "custom_value": ""
+                },
+                {
+                    "key": "gf_custom",
+                    "custom_key": "ind_phone",
+                    "value": "28",
+                    "custom_value": ""
+                },
+                {
+                    "key": "gf_custom",
+                    "custom_key": "ind_address",
+                    "value": "43.1",
+                    "custom_value": ""
+                },
+                {
+                    "key": "gf_custom",
+                    "custom_key": "ind_address_2",
+                    "value": "43.2",
+                    "custom_value": ""
+                },
+                {
+                    "key": "gf_custom",
+                    "custom_key": "ind_city",
+                    "value": "43.3",
+                    "custom_value": ""
+                },
+                {
+                    "key": "gf_custom",
+                    "custom_key": "ind_state",
+                    "value": "43.4",
+                    "custom_value": ""
+                },
+                {
+                    "key": "gf_custom",
+                    "custom_key": "ind_postcode",
+                    "value": "43.5",
+                    "custom_value": ""
+                },
+                {
+                    "key": "gf_custom",
+                    "custom_key": "ind_country",
+                    "value": "43.6",
+                    "custom_value": ""
+                },
+                {
+                    "key": "gf_custom",
+                    "custom_key": "cid",
+                    "value": "37",
+                    "custom_value": ""
+                },
+                {
+                    "key": "gf_custom",
+                    "custom_key": "cs",
+                    "value": "38",
+                    "custom_value": ""
+                },
+                {
+                    "key": "gf_custom",
+                    "custom_key": "ip",
+                    "value": "ip",
+                    "custom_value": ""
+                }
+            ],
+            "feed_condition_conditional_logic_object": [],
+            "feed_condition_conditional_logic": "0",
+            "feedCondition": ""
+        },
+        "addon_slug": "gravityformswebhooks",
+        "event_type": null,
+        "migrate_feed_type": "official"
+    }
+}

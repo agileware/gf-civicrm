@@ -1,0 +1,607 @@
+{
+    "title": "Donation Recurring",
+    "name": "donation_recurring",
+    "is_active": "1",
+    "description": "",
+    "output_handler": "FormatOutput",
+    "output_handler_configuration": [],
+    "enable_default_data": "1",
+    "default_data_output_configuration": {
+        "cid": "action.load_contact.id",
+        "cd": "",
+        "cs": "action.generate_checksum.cs",
+        "org_state": "",
+        "ind_state": "action.load_contact.state_province_name",
+        "org_name": "",
+        "total": "",
+        "frequency": "",
+        "org_email": "",
+        "org_address": "",
+        "org_address_2": "",
+        "org_city": "",
+        "org_postcode": "",
+        "org_donation_do_not_list": "",
+        "ind_donation_do_not_list": "",
+        "ind_first_name": "",
+        "ind_name_last": "action.load_contact.last_name",
+        "ind_name_first": "action.load_contact.first_name",
+        "ind_email": "action.load_contact.email",
+        "ind_phone": "action.load_contact.phone",
+        "ind_address": "action.load_contact.street_address",
+        "ind_address_2": "action.load_contact.supplemental_address_1",
+        "ind_city": "action.load_contact.city",
+        "ind_postcode": "action.load_contact.postal_code",
+        "donor_type": "",
+        "token": "",
+        "ip": "",
+        "ext_id": "",
+        "ind_country": "action.load_contact.country"
+    },
+    "permission": "make online contributions",
+    "inputs": [
+        {
+            "weight": "1",
+            "include_formatted_params": "0",
+            "title": "cid",
+            "name": "cid",
+            "type": "String",
+            "is_required": "0",
+            "default_value": "",
+            "configuration": [],
+            "parameter_mapping": [],
+            "default_data_parameter_mapping": [],
+            "validators": []
+        },
+        {
+            "weight": "1",
+            "include_formatted_params": "0",
+            "title": "cs",
+            "name": "cs",
+            "type": "String",
+            "is_required": "0",
+            "default_value": "",
+            "configuration": [],
+            "parameter_mapping": [],
+            "default_data_parameter_mapping": [],
+            "validators": []
+        },
+        {
+            "weight": "2",
+            "include_formatted_params": "1",
+            "title": "frequency",
+            "name": "frequency",
+            "type": "CustomOptionListType",
+            "is_required": "0",
+            "default_value": "",
+            "configuration": {
+                "options": [
+                    {
+                        "value": "single",
+                        "label": "single"
+                    },
+                    {
+                        "value": "week",
+                        "label": "week"
+                    },
+                    {
+                        "value": "month",
+                        "label": "month"
+                    },
+                    {
+                        "value": "year",
+                        "label": "year"
+                    }
+                ]
+            },
+            "parameter_mapping": [],
+            "default_data_parameter_mapping": [],
+            "validators": []
+        },
+        {
+            "weight": "3",
+            "include_formatted_params": "1",
+            "title": "ind_name_first",
+            "name": "ind_name_first",
+            "type": "String",
+            "is_required": "0",
+            "default_value": "",
+            "configuration": [],
+            "parameter_mapping": [],
+            "default_data_parameter_mapping": [],
+            "validators": []
+        },
+        {
+            "weight": "4",
+            "include_formatted_params": "1",
+            "title": "ind_name_last",
+            "name": "ind_name_last",
+            "type": "String",
+            "is_required": "0",
+            "default_value": "",
+            "configuration": [],
+            "parameter_mapping": [],
+            "default_data_parameter_mapping": [],
+            "validators": []
+        },
+        {
+            "weight": "5",
+            "include_formatted_params": "1",
+            "title": "ind_email",
+            "name": "ind_email",
+            "type": "String",
+            "is_required": "0",
+            "default_value": "",
+            "configuration": [],
+            "parameter_mapping": [],
+            "default_data_parameter_mapping": [],
+            "validators": []
+        },
+        {
+            "weight": "6",
+            "include_formatted_params": "1",
+            "title": "ind_phone",
+            "name": "ind_phone",
+            "type": "String",
+            "is_required": "0",
+            "default_value": "",
+            "configuration": [],
+            "parameter_mapping": [],
+            "default_data_parameter_mapping": [],
+            "validators": []
+        },
+        {
+            "weight": "7",
+            "include_formatted_params": "1",
+            "title": "ind_address",
+            "name": "ind_address",
+            "type": "String",
+            "is_required": "0",
+            "default_value": "",
+            "configuration": [],
+            "parameter_mapping": [],
+            "default_data_parameter_mapping": [],
+            "validators": []
+        },
+        {
+            "weight": "8",
+            "include_formatted_params": "1",
+            "title": "ind_address_2",
+            "name": "ind_address_2",
+            "type": "String",
+            "is_required": "0",
+            "default_value": "",
+            "configuration": [],
+            "parameter_mapping": [],
+            "default_data_parameter_mapping": [],
+            "validators": []
+        },
+        {
+            "weight": "9",
+            "include_formatted_params": "1",
+            "title": "ind_city",
+            "name": "ind_city",
+            "type": "String",
+            "is_required": "0",
+            "default_value": "",
+            "configuration": [],
+            "parameter_mapping": [],
+            "default_data_parameter_mapping": [],
+            "validators": []
+        },
+        {
+            "weight": "10",
+            "include_formatted_params": "1",
+            "title": "ind_state",
+            "name": "ind_state",
+            "type": "String",
+            "is_required": "0",
+            "default_value": "",
+            "configuration": [],
+            "parameter_mapping": [],
+            "default_data_parameter_mapping": [],
+            "validators": []
+        },
+        {
+            "weight": "11",
+            "include_formatted_params": "1",
+            "title": "ind_postcode",
+            "name": "ind_postcode",
+            "type": "String",
+            "is_required": "0",
+            "default_value": "",
+            "configuration": [],
+            "parameter_mapping": [],
+            "default_data_parameter_mapping": [],
+            "validators": []
+        },
+        {
+            "weight": "12",
+            "include_formatted_params": "1",
+            "title": "ind_country",
+            "name": "ind_country",
+            "type": "String",
+            "is_required": "0",
+            "default_value": "",
+            "configuration": [],
+            "parameter_mapping": [],
+            "default_data_parameter_mapping": [],
+            "validators": []
+        },
+        {
+            "weight": "13",
+            "include_formatted_params": "1",
+            "title": "token",
+            "name": "token",
+            "type": "String",
+            "is_required": "0",
+            "default_value": "",
+            "configuration": [],
+            "parameter_mapping": [],
+            "default_data_parameter_mapping": [],
+            "validators": []
+        },
+        {
+            "weight": "14",
+            "include_formatted_params": "1",
+            "title": "ip",
+            "name": "ip",
+            "type": "String",
+            "is_required": "0",
+            "default_value": "",
+            "configuration": [],
+            "parameter_mapping": [],
+            "default_data_parameter_mapping": [],
+            "validators": []
+        },
+        {
+            "weight": "15",
+            "include_formatted_params": "1",
+            "title": "total",
+            "name": "total",
+            "type": "Float",
+            "is_required": "0",
+            "default_value": "0.0",
+            "configuration": [],
+            "parameter_mapping": [],
+            "default_data_parameter_mapping": [],
+            "validators": []
+        }
+    ],
+    "actions": [
+        {
+            "title": "Get user by checksum",
+            "name": "get_user_by_checksum",
+            "type": "ValidateChecksum",
+            "configuration": [],
+            "mapping": {
+                "cs": "input.cs",
+                "cid": "input.cid"
+            },
+            "condition_configuration": {
+                "name": "ParameterIsNotEmpty",
+                "parameter_mapping": {
+                    "parameter": "input.cs"
+                }
+            },
+            "delay_configuration": ""
+        },
+        {
+            "title": "Match or create contact",
+            "name": "match_or_create_contact",
+            "type": "FindByEmailOrCreateEmailName",
+            "configuration": {
+                "contact_type": "1"
+            },
+            "mapping": {
+                "email": "input.ind_email",
+                "first_name": "input.ind_name_first",
+                "last_name": "input.ind_name_last"
+            },
+            "condition_configuration": {
+                "name": "ParameterIsEmpty",
+                "parameter_mapping": {
+                    "parameter": "action.get_user_by_checksum.contact_id"
+                },
+                "output_mapping": {
+                    "contact_id": "action.get_user_by_checksum.contact_id"
+                }
+            },
+            "delay_configuration": ""
+        },
+        {
+            "title": "Country ID",
+            "name": "country_id",
+            "type": "GetCountryId",
+            "configuration": {
+                "use_iso_code": "0"
+            },
+            "mapping": {
+                "country": "input.ind_country"
+            },
+            "condition_configuration": "",
+            "delay_configuration": ""
+        },
+        {
+            "title": "State ID",
+            "name": "state_id",
+            "type": "GetStateProvinceId",
+            "configuration": {
+                "use_abbreviation": "1"
+            },
+            "mapping": {
+                "country_id": "action.country_id.country_id",
+                "state_province": "input.ind_state"
+            },
+            "condition_configuration": {
+                "name": "ParameterIsNotEmpty",
+                "parameter_mapping": {
+                    "parameter": "input.ind_state"
+                }
+            },
+            "delay_configuration": ""
+        },
+        {
+            "title": "Create donation individual",
+            "name": "create_donation_individual",
+            "type": "CreateUpdateIndividual",
+            "configuration": {
+                "address_is_primary": "1",
+                "address_location_type": "3",
+                "address_update_existing": "1",
+                "email_is_primary": "1",
+                "email_is_bulk": "0",
+                "email_location_type": "3",
+                "email_update_existing": "1",
+                "phone_is_primary": "1",
+                "phone_location_type": "3",
+                "phone_update_existing": "1",
+                "phone_phone_type": "1"
+            },
+            "mapping": {
+                "contact_id": "action.match_or_create_contact.contact_id",
+                "individual_prefix": "",
+                "first_name": "input.ind_name_first",
+                "last_name": "input.ind_name_last",
+                "street_address": "input.ind_address",
+                "supplemental_address_1": "input.ind_address_2",
+                "postal_code": "input.ind_postcode",
+                "city": "input.ind_city",
+                "email": "input.ind_email",
+                "phone": "input.ind_phone",
+                "state_province_id": "action.state_id.state_province_id",
+                "country_id": "action.country_id.country_id"
+            },
+            "condition_configuration": "",
+            "delay_configuration": ""
+        },
+        {
+            "title": "Create contribution",
+            "name": "create_contribution",
+            "type": "CreateContribution",
+            "configuration": {
+                "is_pay_later": "0",
+                "skipLineItem": "0",
+                "financial_type_id": "1",
+                "payment_instrument": "1",
+                "contribution_status": "1"
+            },
+            "mapping": {
+                "contact_id": "action.create_donation_individual.contact_id",
+                "amount": "input.total"
+            },
+            "condition_configuration": "",
+            "delay_configuration": ""
+        },
+        {
+            "title": "Interval: 1",
+            "name": "interval_1",
+            "type": "SetValue",
+            "configuration": {
+                "value": "1"
+            },
+            "mapping": [],
+            "condition_configuration": "",
+            "delay_configuration": ""
+        },
+        {
+            "title": "Create Payment Token",
+            "name": "create_payment_token",
+            "type": "CreateOrUpdatePaymentToken",
+            "configuration": {
+                "clear_meta": "1",
+                "payment_processor_id": "1"
+            },
+            "mapping": {
+                "id": "",
+                "contact_id": "action.match_or_create_contact.contact_id",
+                "token": "input.token",
+                "created_date": "",
+                "created_id": "",
+                "expiry_date": "",
+                "email": "action.create_donation_individual.email_id",
+                "billing_first_name": "input.ind_name_first",
+                "billing_middle_name": "",
+                "billing_last_name": "input.ind_name_last",
+                "masked_account_number": "",
+                "ip_address": "input.ip"
+            },
+            "condition_configuration": {
+                "name": "ParameterIsNot",
+                "configuration": {
+                    "value": "single"
+                },
+                "parameter_mapping": {
+                    "parameter": "input.frequency"
+                }
+            },
+            "delay_configuration": ""
+        },
+        {
+            "title": "Create recurring contribution",
+            "name": "create_recurring_contribution",
+            "type": "CreateContributionRecur",
+            "configuration": {
+                "financial_type_id": "1",
+                "payment_processor": "1",
+                "status_id": "5"
+            },
+            "mapping": {
+                "contact_id": "action.match_or_create_contact.contact_id",
+                "payment_token_id": "action.create_payment_token.id",
+                "amount": "input.total",
+                "frequency_interval": "action.interval_1.value",
+                "frequency_unit": "input.frequency",
+                "campaign_id": "",
+                "currency": "",
+                "next_sched_contribution_date": ""
+            },
+            "condition_configuration": {
+                "name": "ParameterIsNotEmpty",
+                "parameter_mapping": {
+                    "parameter": "action.create_payment_token.id"
+                }
+            },
+            "delay_configuration": ""
+        },
+        {
+            "title": "Set recurring contribution",
+            "name": "set_recurring_contribution",
+            "type": "UpdateContribution",
+            "configuration": {
+                "is_pay_later": "0",
+                "financial_type_id": "1",
+                "payment_instrument": "1",
+                "contribution_status": "1"
+            },
+            "mapping": {
+                "id": "action.create_contribution.contribution_id",
+                "contribution_recur_id": "action.create_recurring_contribution.contribution_recur_id"
+            },
+            "condition_configuration": {
+                "name": "ParameterIsNotEmpty",
+                "parameter_mapping": {
+                    "parameter": "action.create_recurring_contribution.contribution_recur_id"
+                }
+            },
+            "delay_configuration": ""
+        },
+        {
+            "title": "Send receipt",
+            "name": "send_receipt",
+            "type": "SendConfirmation",
+            "configuration": {
+                "payment_processor_id": "1"
+            },
+            "mapping": {
+                "contribution_id": "action.create_contribution.contribution_id",
+                "receipt_from_email": "",
+                "receipt_from_name": "",
+                "cc_receipt": "",
+                "bcc_receipt": "",
+                "receipt_text": "",
+                "pay_later_receipt": "",
+                "receipt_update": ""
+            },
+            "condition_configuration": "",
+            "delay_configuration": ""
+        }
+    ],
+    "default_data_inputs": [
+        {
+            "weight": "1",
+            "include_formatted_params": "1",
+            "title": "cid",
+            "name": "cid",
+            "type": "String",
+            "is_required": "0",
+            "default_value": "",
+            "configuration": [],
+            "parameter_mapping": [],
+            "default_data_parameter_mapping": [],
+            "validators": []
+        },
+        {
+            "weight": "1",
+            "include_formatted_params": "1",
+            "title": "cs",
+            "name": "cs",
+            "type": "String",
+            "is_required": "0",
+            "default_value": "",
+            "configuration": [],
+            "parameter_mapping": [],
+            "default_data_parameter_mapping": [],
+            "validators": []
+        }
+    ],
+    "default_data_actions": [
+        {
+            "title": "Logged in Contact",
+            "name": "logged_in_contact",
+            "type": "GetLoggedInContactId",
+            "configuration": [],
+            "mapping": [],
+            "condition_configuration": {
+                "name": "ParameterIsEmpty",
+                "parameter_mapping": {
+                    "parameter": "input.cs"
+                },
+                "title": "Parameter is empty"
+            }
+        },
+        {
+            "title": "Validate Checksum",
+            "name": "validate_checksum",
+            "type": "ValidateChecksum",
+            "configuration": [],
+            "mapping": {
+                "cs": "input.cs",
+                "cid": "input.cid"
+            },
+            "condition_configuration": {
+                "name": "ParameterIsNotEmpty",
+                "title": "Parameter is not empty",
+                "parameter_mapping": {
+                    "parameter": "input.cs"
+                },
+                "output_mapping": {
+                    "contact_id": "action.logged_in_contact.contact_id"
+                }
+            }
+        },
+        {
+            "title": "Load Contact",
+            "name": "load_contact",
+            "type": "ContactDataById",
+            "configuration": [],
+            "mapping": {
+                "contact_id": "action.validate_checksum.contact_id"
+            },
+            "condition_configuration": ""
+        },
+        {
+            "title": "Generate checksum",
+            "name": "generate_checksum",
+            "type": "GenerateChecksum",
+            "configuration": [],
+            "mapping": {
+                "contact_id": "action.validate_checksum.contact_id"
+            },
+            "condition_configuration": {
+                "name": "ParameterIsEmpty",
+                "parameter_mapping": {
+                    "parameter": "action.validate_checksum.cs"
+                },
+                "output_mapping": {
+                    "cs": "action.validate_checksum.cs"
+                },
+                "title": "Parameter is empty"
+            }
+        }
+    ],
+    "validate_actions": [],
+    "validate_validators": [],
+    "calculate_actions": [],
+    "calculation_output_configuration": [],
+    "calculations_configuration_url": ""
+}
