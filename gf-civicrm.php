@@ -40,9 +40,6 @@ define( 'GF_CIVICRM_PLUGIN_PATH', plugin_dir_path( __FILE__ ) );
 define( 'GF_CIVICRM_PLUGIN_SLUG', plugin_basename( __FILE__ ) );
 define( 'GF_CIVICRM_PLUGIN_GITHUB_REPO', 'agileware/gf-civicrm' ); // GitHub username and repo
 
-// Include the updater class
-require_once GF_CIVICRM_PLUGIN_PATH . 'includes/class-gf-civicrm-upgrader.php';
-
 add_action('plugins_loaded', function() {
 	// Include the updater class
 	require_once GF_CIVICRM_PLUGIN_PATH . 'includes/class-gf-civicrm-upgrader.php';
