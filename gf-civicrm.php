@@ -391,7 +391,8 @@ function webhooks_request_data( $request_data, $feed, $entry, $form ) {
 add_filter( 'gform_webhooks_request_data', 'GFCiviCRM\webhooks_request_data', 10, 4 );
 
 /**
- * Add setting for CiviCRM Source to Gravity Forms editor standard settings
+ * Add setting for CiviCRM Source to Gravity Forms editor standard settings.
+ * Allows you to select a Form Processor input as the source for values for a Gravity Forms field.
  *
  * @param int $position
  * @param int $form_id
@@ -697,6 +698,25 @@ function replace_merge_tags( $text, $form, $entry, $url_encode, $esc_html, $nl2b
 
 	);
 	*/
+
+	// Replace the default_fp merge tag with the value of the setting.
+	$text = preg_replace_callback(
+		'/{ (civicrm_fp(?:_default)?) \. default_fp \. ([[:alnum:]_]+) }/x',
+		function ($matches) use ($form) {
+			$form_settings = FieldsAddOn::get_instance()->get_form_settings( $form );
+			$default_fp_setting = $form_settings['default_fp'] ?? ''; // TODO what happens if there's no default FP, but the tag exists?
+	
+			// Reconstruct the string with the replacement value in the middle
+			return sprintf(
+				'{%s.%s.%s}',
+				$matches[1],
+				$default_fp_setting,
+				$matches[2]
+			);
+		},
+		$text
+	);
+
 	$text = preg_replace_callback(
 		'{ {civicrm_fp(?:_default)? \. ([[:alnum:]_]+) \. ([[:alnum:]_]+) } }x',
 		'GFCiviCRM\fp_tag_default',
