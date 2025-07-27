@@ -239,6 +239,57 @@ add_filter( 'gform_admin_pre_render', function ( $form ) {
 	return do_civicrm_replacement( $form, 'admin_pre_render' );
 } );
 
+/**
+ * Replaces the default_fp tag with the value of the default form processor form setting, if it exists.
+ * Do this in pre_render for the $form context, which is not passed to gform_replace_merge_tags for default values.
+ * 
+ * @param $form
+ * 
+ * @return mixed
+ */
+function replace_default_fp( $form ) {
+	if ( !class_exists( 'GFCiviCRM\FieldsAddOn' ) ) {
+		return; // do nothing
+	}
+	
+	$default_fp_tag = 'default_fp';
+
+	$form_settings    = FieldsAddOn::get_instance()->get_form_settings( $form );
+	$default_fp_value = $form_settings[$default_fp_tag] ?? '';
+
+	// Only proceed if the setting has a value.
+	if ( empty( $default_fp_value ) ) {
+		return;
+	}
+
+	foreach ( $form['fields'] as &$field ) {
+		// Check if a field's default value uses the placeholder merge tag.
+		// We use isset() because not all field types have a defaultValue property.
+		if ( isset( $field->defaultValue ) && strpos( $field->defaultValue, '.default_fp.' ) !== false ) {
+			
+			// Replace 'default_fp' with the actual value from settings.
+			$field->defaultValue = preg_replace_callback(
+				'/{ (civicrm_fp(?:_default)?) \. default_fp \. ([[:alnum:]_]+) }/x',
+				
+				function ( $matches ) use ( $default_fp_value ) {
+					// Reconstruct the merge tag with the real value.
+					return sprintf(
+						'{%s.%s.%s}',
+						$matches[1],
+						$default_fp_value,
+						$matches[2]
+					);
+				},
+				$field->defaultValue
+			);
+		}
+	}
+
+	return $form;
+}
+add_filter( 'gform_pre_render', 'GFCiviCRM\replace_default_fp', 10, 1 );
+
+
 add_filter( 'gform_username', function ( $username ) {
 	return sanitize_user( $username );
 } );
@@ -698,24 +749,6 @@ function replace_merge_tags( $text, $form, $entry, $url_encode, $esc_html, $nl2b
 
 	);
 	*/
-
-	// Replace the default_fp merge tag with the value of the setting.
-	$text = preg_replace_callback(
-		'/{ (civicrm_fp(?:_default)?) \. default_fp \. ([[:alnum:]_]+) }/x',
-		function ($matches) use ($form) {
-			$form_settings = FieldsAddOn::get_instance()->get_form_settings( $form );
-			$default_fp_setting = $form_settings['default_fp'] ?? ''; // TODO what happens if there's no default FP, but the tag exists?
-	
-			// Reconstruct the string with the replacement value in the middle
-			return sprintf(
-				'{%s.%s.%s}',
-				$matches[1],
-				$default_fp_setting,
-				$matches[2]
-			);
-		},
-		$text
-	);
 
 	$text = preg_replace_callback(
 		'{ {civicrm_fp(?:_default)? \. ([[:alnum:]_]+) \. ([[:alnum:]_]+) } }x',
