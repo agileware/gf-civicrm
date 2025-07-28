@@ -154,10 +154,27 @@ function do_civicrm_replacement( $form, $context ) {
 	return $form;
 }
 
-function compose_merge_tags ( $merge_tags ) {
+function compose_merge_tags ( $merge_tags, $form_id ) {
 	try {
+		$form_processors = civicrm_api3( 'FormProcessorInstance', 'get', [ 'sequential' => 1 ] )['values'];
+
+		$form = GFAPI::get_form( $form_id );
+		$form_settings    = FieldsAddOn::get_instance()->get_form_settings( $form );
+		$default_fp_value = rgar( $form_settings, 'default_fp' );
+
+		if ( $default_fp_value ) {
+			$default_fp_options = reset( array_filter( $form_processors, fn($fp) => $fp['name'] === $default_fp_value ) );
+
+			foreach ($default_fp_options['inputs'] as ['name' => $iname, 'title' => $ititle]) {
+				$merge_tags[] = [
+					'label' => sprintf( __( '%s / %s / %s', 'gf-civicrm' ), 'Default', $default_fp_options['title'], $ititle ),
+					'tag'   => "{civicrm_fp.default_fp.{$iname}}",
+				];
+			}
+		}
+
 		foreach (
-			civicrm_api3( 'FormProcessorInstance', 'get', [ 'sequential' => 1 ] )['values']
+			$form_processors
 			as ['inputs' => $inputs, 'name' => $pname, 'title' => $ptitle]
 		) {
 			foreach ( $inputs as ['name' => $iname, 'title' => $ititle] ) {
@@ -249,17 +266,15 @@ add_filter( 'gform_admin_pre_render', function ( $form ) {
  */
 function replace_default_fp( $form ) {
 	if ( !class_exists( 'GFCiviCRM\FieldsAddOn' ) ) {
-		return; // do nothing
+		return $form; // do nothing
 	}
-	
-	$default_fp_tag = 'default_fp';
 
 	$form_settings    = FieldsAddOn::get_instance()->get_form_settings( $form );
 	$default_fp_value = rgar( $form_settings, 'default_fp' );
 
 	// Only proceed if the setting has a value.
 	if ( empty( $default_fp_value ) ) {
-		return;
+		return $form;
 	}
 
 	foreach ( $form['fields'] as &$field ) {
@@ -777,7 +792,7 @@ function replace_merge_tags( $text, $form, $entry, $url_encode, $esc_html, $nl2b
 	return $text;
 }
 
-add_filter( 'gform_custom_merge_tags', 'GFCiviCRM\compose_merge_tags', 10, 1 );
+add_filter( 'gform_custom_merge_tags', 'GFCiviCRM\compose_merge_tags', 10, 2 );
 
 add_filter( 'gform_replace_merge_tags', 'GFCiviCRM\replace_merge_tags', 10, 7 );
 
