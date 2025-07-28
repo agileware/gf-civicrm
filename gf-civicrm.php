@@ -255,7 +255,7 @@ function replace_default_fp( $form ) {
 	$default_fp_tag = 'default_fp';
 
 	$form_settings    = FieldsAddOn::get_instance()->get_form_settings( $form );
-	$default_fp_value = $form_settings[$default_fp_tag] ?? '';
+	$default_fp_value = rgar( $form_settings, 'default_fp' );
 
 	// Only proceed if the setting has a value.
 	if ( empty( $default_fp_value ) ) {
@@ -270,7 +270,7 @@ function replace_default_fp( $form ) {
 			// Replace 'default_fp' with the actual value from settings.
 			$field->defaultValue = preg_replace_callback(
 				'/{ (civicrm_fp(?:_default)?) \. default_fp \. ([[:alnum:]_]+) }/x',
-				
+
 				function ( $matches ) use ( $default_fp_value ) {
 					// Reconstruct the merge tag with the real value.
 					return sprintf(
@@ -492,6 +492,18 @@ function civicrm_optiongroup_setting( $position, $form_id ) {
 				// Form processor extension may not be installed, ignore
 				$form_processors = [];
 			}
+
+			// Build the list of options for the default_fp tag.
+			// If the default_fp form setting has a value, populate with the values for the defined form processor.
+			// Otherwise, do not add anything to the list of options.
+			$form = GFAPI::get_form( $form_id );
+			$form_settings    = FieldsAddOn::get_instance()->get_form_settings( $form );
+			$default_fp_value = rgar( $form_settings, 'default_fp' );
+
+			if ( $default_fp_value ) {
+				$default_fp_options = reset(array_filter( $form_processors, fn($fp) => $fp['name'] === $default_fp_value ));
+			}
+
 			?>
 			<li class="civicrm_optiongroup_setting field_setting">
 				<label for="civicrm_optiongroup_selector">
@@ -500,6 +512,13 @@ function civicrm_optiongroup_setting( $position, $form_id ) {
 				<select id="civicrm_optiongroup_selector"
 				        onchange="SetCiviCRMOptionGroup(this)">
 					<option value=""><?php esc_html_e( 'None' ); ?></option>
+					<?php if ( $default_fp_options ): ?>
+						<optgroup label="DEFAULT Form Processor: <?php echo $default_fp_options['title']; ?>">
+							<?php foreach ( $default_fp_options['options'] as $pr_name => $pr_title ) {
+								echo "<option value=\"civicrm_fp__{$default_fp_options['name']}__{$pr_name}\">{$pr_title}</option>";
+							} ?>
+						</optgroup>
+					<?php endif; ?>
 					<?php foreach ( $form_processors as $processor ): ?>
 						<optgroup label="Form Processor: <?php echo $processor['title']; ?>">
 							<?php foreach ( $processor['options'] as $pr_name => $pr_title ) {
