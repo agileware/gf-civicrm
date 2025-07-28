@@ -277,33 +277,52 @@ function replace_default_fp( $form ) {
 		return $form;
 	}
 
-	foreach ( $form['fields'] as &$field ) {
-		// Check if a field's default value uses the placeholder merge tag.
-		// We use isset() because not all field types have a defaultValue property.
-		if ( isset( $field->defaultValue ) && strpos( $field->defaultValue, '.default_fp.' ) !== false ) {
-			
-			// Replace 'default_fp' with the actual value from settings.
-			$field->defaultValue = preg_replace_callback(
-				'/{ (civicrm_fp(?:_default)?) \. default_fp \. ([[:alnum:]_]+) }/x',
+	/**
+	 * A closure that takes a string by reference and replaces the
+	 * 'default_fp' placeholder with the actual value from form settings.
+	 *
+	 * @param ?string &$string_to_update The string to process.
+	 */
+	$replacer = function ( ?string &$string_to_update ) use ( $default_fp_value ) {
+		if ( empty( $string_to_update ) || strpos( $string_to_update, '.default_fp.' ) === false ) {
+			return;
+		}
 
-				function ( $matches ) use ( $default_fp_value ) {
-					// Reconstruct the merge tag with the real value.
-					return sprintf(
-						'{%s.%s.%s}',
-						$matches[1],
-						$default_fp_value,
-						$matches[2]
-					);
-				},
-				$field->defaultValue
-			);
+		$string_to_update = preg_replace_callback(
+			'/{ (civicrm_fp(?:_default)?) \. default_fp \. ([[:alnum:]_]+) }/x',
+			function ( $matches ) use ( $default_fp_value ) {
+				// Reconstruct the merge tag with the real value.
+				return sprintf(
+					'{%1$s.%2$s.%3$s}',
+					$matches[1],
+					$default_fp_value,
+					$matches[2]
+				);
+			},
+			$string_to_update
+		);
+	};
+
+	foreach ( $form['fields'] as &$field ) {
+		// Process the default value for the main field object.
+		if ( isset( $field->defaultValue ) ) {
+			$replacer( $field->defaultValue );
+		}
+
+		// Process default values for address sub-fields (which are in an array).
+		if ( 'address' === $field->type && ! empty( $field->inputs ) ) {
+			foreach ( $field->inputs as &$input ) {
+				// The defaultValue for sub-fields is an array key.
+				if ( isset( $input['defaultValue'] ) ) {
+					$replacer( $input['defaultValue'] );
+				}
+			}
 		}
 	}
 
 	return $form;
 }
 add_filter( 'gform_pre_render', 'GFCiviCRM\replace_default_fp', 10, 1 );
-
 
 add_filter( 'gform_username', function ( $username ) {
 	return sanitize_user( $username );
