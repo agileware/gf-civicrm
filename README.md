@@ -53,6 +53,23 @@ Use the following steps to set up a _Newsletter Subscription_ form using the exa
 21. Open a new Web Browser window, not logged into the website. Go to the new page and submit the Gravity Form.
 22. In CiviCRM, confirm that the Contact was created and that the Contact was subscribed to the Group in CiviCRM.
 
+# Using the Default Form Processor option
+
+You can optionally set a default form processor for each form. 
+
+If set, 
+
+* `Default / $processor / $field` options will appear in the Merge Tags selector.
+* Using the Merge Tag format `{civicrm_fp.default_fp.$field}` in the **Default Value** will pull the value from the default form processor.
+* The CiviCRM Source option list will include a `DEFAULT Form Processor` option group. This will be populated by the inputs of the default form processor.
+
+To set a default form processor.
+
+1. Open your form's CiviCRM form settings page.
+2. Insert your form processor's name in the *Default Form Processor* field.
+3. Save your settings.
+
+
 # Using Merge Tags for default field values
 
 When setting up your field in Gravity Forms, you can use a Merge Tag of the form `{civicrm_fp.$processor.$field}` in the **Default Value** section of your Field's Advanced settings.
