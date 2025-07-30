@@ -308,7 +308,7 @@ class FieldsAddOn extends GFAddOn {
       'type'        => 'text',
       'name'        => 'default_fp',
       'label'       => 'Default Form Processor',
-      'description' => wp_kses('Optionally nominate a CiviCRM Form Processor as a default for this form, wherever the {default_fp} merge tag is used.', 'data'),
+      'description' => wp_kses('Optionally select a default CiviCRM Form Processor for this form. Use <code>default_fp</code> instead of the form processor name in your merge tags to default to this value.', 'data'),
     ];
 
 		if(!empty($fields)) {
