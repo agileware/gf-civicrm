@@ -1,5 +1,4 @@
 <?php
-
 /**
  * Plugin Name: Gravity Forms CiviCRM Integration
  * Plugin URI: https://github.com/agileware/gf-civicrm
@@ -25,9 +24,7 @@
 
 namespace GFCiviCRM;
 
-use Civi\Api4\OptionValue;
-use Civi\Api4\OptionGroup;
-use Civi\Api4\Contact;
+use Civi\Api4\{OptionValue, OptionGroup, Contact};
 use CRM_Core_Exception;
 use GFCommon;
 use GFAddon;
@@ -45,17 +42,14 @@ define( 'GF_CIVICRM_PLUGIN_GITHUB_REPO', 'agileware/gf-civicrm' ); // GitHub use
 // Include the updater class
 require_once GF_CIVICRM_PLUGIN_PATH . 'includes/class-gf-civicrm-upgrader.php';
 
-add_action(
-  'plugins_loaded',
-  function () {
+add_action('plugins_loaded', function() {
 	// Include the updater class
 	require_once GF_CIVICRM_PLUGIN_PATH . 'includes/class-gf-civicrm-upgrader.php';
 
 	// Initialize the updater
 	$updater = new Upgrader( __FILE__ );
 	$updater->init();
-  }
-);
+});
 
 register_activation_hook(__FILE__, 'GFCiviCRM\check_plugin_dependencies');
 
@@ -63,8 +57,7 @@ register_activation_hook(__FILE__, 'GFCiviCRM\check_plugin_dependencies');
  * Either civicrm or wpcmrf plugins must be active.
  * This is not supported by the Dependencies header, so implement our own check.
  */
-function check_plugin_dependencies()
-{
+function check_plugin_dependencies() {
 	// Check if CiviCRM or WP CMRF plugins are active
 	if ( ! is_plugin_active( 'civicrm/civicrm.php' ) && ! is_plugin_active( 'connector-civicrm-mcrestface/wpcmrf.php' ) ) {
         $notice = sprintf(
@@ -72,21 +65,19 @@ function check_plugin_dependencies()
             esc_html__( 'Before activating %1$s, you must first activate either %2$s or %3$s.', 'gf-civicrm' ),
             'Gravity Forms CiviCRM Integration',
             '<a href="https://wordpress.org/plugins/connector-civicrm-mcrestface/">Connector to CiviCRM with CiviMcRestFace</a>',
-      'CiviCRM'
-    );
+            'CiviCRM' );
 
         // Show an error message and exit immediately
-    \wp_die($notice, __('Plugin Activation Error', 'gf-civicrm'), array('back_link' => true));
+		\wp_die( $notice, __( 'Plugin Activation Error', 'gf-civicrm' ), [ 'back_link' => TRUE ] );
 	}
 }
 
 // Load wpcmrf integration
 add_action( 'gform_loaded', 'GFCiviCRM\gf_civicrm_wpcmrf_bootstrap', 5 );
 
-function gf_civicrm_wpcmrf_bootstrap()
-{
-  require_once GF_CIVICRM_PLUGIN_PATH . 'includes/class-gf-civicrm-exception.php';
-  require_once GF_CIVICRM_PLUGIN_PATH . 'includes/gf-civicrm-wpcmrf.php';
+function gf_civicrm_wpcmrf_bootstrap() {
+	require_once( GF_CIVICRM_PLUGIN_PATH . 'includes/class-gf-civicrm-exception.php' );
+	require_once( GF_CIVICRM_PLUGIN_PATH . 'includes/gf-civicrm-wpcmrf.php' );
 }
 
 /**
@@ -99,8 +90,7 @@ function gf_civicrm_wpcmrf_bootstrap()
  * @throws \API_Exception
  * @throws \Civi\API\Exception\UnauthorizedException
  */
-function do_civicrm_replacement($form, $context)
-{
+function do_civicrm_replacement( $form, $context ) {
 	static $civi_fp_fields;
 	static $option_group_ids;
 
@@ -110,34 +100,33 @@ function do_civicrm_replacement($form, $context)
 	}
 
 	foreach ( $form['fields'] as &$field ) {
-    if (
-      property_exists($field, 'choices') && property_exists($field, 'civicrmOptionGroup')
-      && preg_match('{(?:^|\s) civicrm (?: __ (?<option_group>\S+) | _fp__ (?<processor>\S*?) __ (?<field_name> \S*))}x', $field->civicrmOptionGroup, $matches)
-    ) {
+		if ( property_exists( $field, 'choices' ) && property_exists( $field, 'civicrmOptionGroup' ) &&
+			 preg_match( '{(?:^|\s) civicrm (?: __ (?<option_group>\S+) | _fp__ (?<processor>\S*?) __ (?<field_name> \S*))}x', $field->civicrmOptionGroup, $matches ) ) {
+
 			// Get the CiviCRM REST Connection Profile. This may be the local CiviCRM connection if no profile is set.
 			$profile_name = get_rest_connection_profile( $form );
 
 			[ 'option_group' => $option_group, 'processor' => $processor, 'field_name' => $field_name ] = $matches;
 
-      $default_option = null;
+			$default_option = NULL;
 
-      $field->inputs = null;
+            $field->inputs = NULL;
 
 			if ( $option_group ) {
 				if ( empty( $option_group_ids[$option_group] ) ) {
 					// Get the option group id from the name, since it's more reliable
-          $api_params        = array(
+					$api_params = [
 						'sequential' => 1,
-            'return'              => array('id', 'name'),
+  						'return' => ["id", "name"],
 						'name'		=> $option_group,
 						'is_active' => 1,
-            'api.OptionValue.get' => array(
-              'return'    => array('id', 'label', 'value', 'is_default'),
+						'api.OptionValue.get' => [
+							'return' => ["id", "label", "value", "is_default"], 
 							'is_active' => 1, 
-              'sort'      => 'weight ASC',
-            ),
-          );
-          $option_group_data = api_wrapper($profile_name, 'OptionGroup', 'getsingle', $api_params, array('limit' => 1));
+							'sort' => "weight ASC"
+						],
+					];
+					$option_group_data = api_wrapper( $profile_name, 'OptionGroup', 'getsingle', $api_params, ['limit' => 1] );
 
 					if ( !$option_group_data || !$option_group_data['api.OptionValue.get']['values'] ) {
 						// TODO log an error
@@ -148,7 +137,7 @@ function do_civicrm_replacement($form, $context)
 						// TODO log an error
 						continue; // No options found for the given group
 					} else {
-            $options                      = $option_group_data['api.OptionValue.get']['values'] ?? array();
+						$options = $option_group_data['api.OptionValue.get']['values'] ?? [];
 						$option_group_data['options'] = $options;
 						unset($option_group_data['api.OptionValue.get']);
 					}
@@ -156,22 +145,22 @@ function do_civicrm_replacement($form, $context)
 					$option_group_ids[$option_group] = $option_group_data;
 				}
 
-        $field->choices = array();
+                $field->choices = [];
 
 				// Build the options
                 foreach ( $option_group_ids[$option_group]['options'] as [ 'value' => $value, 'label' => $label, 'is_default' => $is_default ] ) {
-          $field->choices[] = array(
+					$field->choices[] = [
 						'text'       => $label,
 						'value'      => $value,
-            'isSelected' => (bool) ($is_default ?? false),
-          );
+						'isSelected' => (bool) ( $is_default ?? FALSE )
+					];
                 }
 			} elseif ( $processor && $field_name ) {
 				try {
 					if ( ! isset( $civi_fp_fields[$processor] ) ) {
-            $api_params                   = array('api_action' => $processor);
-            $api_options                  = array('limit' => 0);
-            $civi_fp_fields[$processor] = api_wrapper($profile_name, 'FormProcessor', 'getfields', $api_params, $api_options) ?? array();
+						$api_params = [ 'api_action' => $processor ];
+						$api_options = [ 'limit' => 0, ];						
+						$civi_fp_fields[ $processor ] = api_wrapper( $profile_name, 'FormProcessor', 'getfields', $api_params, $api_options ) ?? [];
 					}
 
 					if ( isset( $field->defaultValue ) && ! empty( $field->defaultValue ) ) {
@@ -179,18 +168,14 @@ function do_civicrm_replacement($form, $context)
 						$default_option = $field->defaultValue;
 					} else {
 						// Otherwise, retrieve the default value from the form processor
-            $default_option = fp_tag_default(
-              array(
+						$default_option = fp_tag_default( [
 							$field->civicrmOptionGroup,
 							$processor,
 							$field_name,
-              ),
-              null,
-              true
-            );
+						], NULL, TRUE );
 					}
 
-          $field->choices = array();
+					$field->choices = [];
 
 					// Try to find the field once by name in the key
 					$fp_field = $civi_fp_fields[$processor][$field_name] ?? null;
@@ -208,16 +193,17 @@ function do_civicrm_replacement($form, $context)
 					// Build the options list
 					if ( $fp_field && ! empty( $fp_field['options'] ) ) {
 						foreach ( $fp_field['options'] as $value => $label ) {
-              $field->choices[] = array(
+							$field->choices[] = [
 								'text'       => $label,
 								'value'      => $value,
 								'isSelected' => ( ( is_array( $default_option ) && in_array( $value, $default_option ) ) || ( $value == $default_option ) ),
-              );
+							];
 						}
 
 						// Force the 'Show Values' option to be set, required for the label/value pairs to be saved
 						$field['enableChoiceValue'] = true;
 					}
+					
 				} catch ( CRM_Core_Exception $e ) {
 					// Couldn't get form processor instance, don't try to set options
                     return $form;
@@ -227,28 +213,26 @@ function do_civicrm_replacement($form, $context)
 			// Add checkboxes to the form entry meta
 			if ( $field->type == 'checkbox' ) {
                 $i = 0;
-        $field->inputs = array();
+                $field->inputs = [];
 				foreach ( $field->choices as [ 'label' => $label ] ) {
-          $field->inputs[] = array(
+					$field->inputs[] = [
 						// Avoid multiples of 10, allegedly these are problematic
 						'id'    => $field->id . '.' . ( ++ $i % 10 ? $i : ++ $i ),
 						'label' => $label,
-          );
+					];
 				}
 			}
 
 			// Adds default none option
 			if ( ( $context === 'pre_render' ) && ( ! $field->isRequired ) && ( $field->type != 'multiselect' ) && ( $field->type != 'checkbox' ) ) {
-        array_unshift(
-          $field->choices,
-          array(
+				array_unshift( $field->choices, [
 					'text'       => __( '- None -', 'gf-civicrm' ),
-            'value'      => null,
+					'value'      => NULL,
 					'isSelected' => ! $default_option,
-          )
-        );
+				] );
 			}
 		}
+
 	}
 
 	return $form;
@@ -257,29 +241,28 @@ function do_civicrm_replacement($form, $context)
 /**
  * Adds custom merge tags to Insert Merge tags dropdowns.
  */
-function compose_merge_tags($merge_tags)
-{
+function compose_merge_tags ( $merge_tags ) {
 	try {
 		$profile_name = get_rest_connection_profile();
-    $processors   = api_wrapper($profile_name, 'FormProcessorInstance', 'get', array('sequential' => 1), array('limit' => 0));
+		$processors = api_wrapper( $profile_name, 'FormProcessorInstance', 'get', [ 'sequential' => 1], [ 'limit' => 0 ] );
 		
 		foreach ( $processors as ['inputs' => $inputs, 'name' => $pname, 'title' => $ptitle] ) {
 			foreach ( $inputs as ['name' => $iname, 'title' => $ititle] ) {
-        $merge_tags[] = array(
-          'label' => sprintf(__('%1$s / %2$s', 'gf-civicrm'), $ptitle, $ititle),
+				$merge_tags[] = [
+					'label' => sprintf( __( '%s / %s', 'gf-civicrm' ), $ptitle, $ititle ),
 					'tag'   => "{civicrm_fp.{$pname}.{$iname}}",
-        );
+				];
+			}
 		}
 	}
-  } catch (\CRM_Core_Exception $e) {
+	catch(\CRM_Core_Exception $e) {
 		// ...
 	}
 
 	return $merge_tags;
 }
 
-function pre_render($form, $ajax, $field_values, $context)
-{
+function pre_render( $form, $ajax, $field_values, $context ) {
 	// @TODO - Refactor this to a single loop.
 	// @TODO - do_civicrm_replacement should be done first or last?
 
@@ -299,7 +282,7 @@ function pre_render($form, $ajax, $field_values, $context)
 
 			foreach ( $field->choices as &$choice ) {
 				if ( $choice['text'] == $default_value ) {
-          $choice['isSelected'] = true;
+					$choice['isSelected'] = TRUE;
 				}
 			}
 		}
@@ -308,11 +291,10 @@ function pre_render($form, $ajax, $field_values, $context)
 	// Apply comma separated default values to multiselect and checkbox fields
 	foreach ( $form['fields'] as &$field ) {
 		// Check if the field is of a type that should have comma-separated defaults
-    if (in_array($field->type, array('multiselect', 'checkbox'))) {
+		if ( in_array( $field->type, [ 'multiselect', 'checkbox' ] ) ) {
 			// Check if the custom comma-separated default setting is set
 
-      /*
-            @TODO
+			/* @TODO
 			 * Test 1 - if this works with CiviCRM multi-value options
 			 * Test 2 - what happens when a merge tag returns a value which has commas in it, does it call this function again?
 			 */
@@ -322,7 +304,7 @@ function pre_render($form, $ajax, $field_values, $context)
 				// Apply these defaults to the field
 				foreach ( $field->choices as $i => $choice ) {
 					if ( in_array( trim( $choice['value'] ), $defaults ) ) {
-            $field->choices[$i]['isSelected'] = true;
+						$field->choices[ $i ]['isSelected'] = TRUE;
 					}
 				}
 			}
@@ -333,40 +315,25 @@ function pre_render($form, $ajax, $field_values, $context)
 }
 
 add_filter( 'gform_pre_render', 'GFCiviCRM\pre_render', 10, 4 );
-add_filter(
-  '_disabled_gform_pre_process',
-  function ($form) {
+add_filter( '_disabled_gform_pre_process', function ( $form ) {
 	remove_filter( 'gform_pre_render', 'GFCiviCRM\pre_render' );
 
 	return $form;
-  }
-);
+} );
 
-add_filter(
-  'gform_pre_validation',
-  function ($form) {
+add_filter( 'gform_pre_validation', function ( $form ) {
 	return do_civicrm_replacement( $form, 'pre_validation' );
-  }
-);
-add_filter(
-  'gform_pre_submission_filter',
-  function ($form) {
+} );
+add_filter( 'gform_pre_submission_filter', function ( $form ) {
 	return do_civicrm_replacement( $form, 'pre_submission_filter' );
-  }
-);
-add_filter(
-  'gform_admin_pre_render',
-  function ($form) {
+} );
+add_filter( 'gform_admin_pre_render', function ( $form ) {
 	return do_civicrm_replacement( $form, 'admin_pre_render' );
-  }
-);
+} );
 
-add_filter(
-  'gform_username',
-  function ($username) {
+add_filter( 'gform_username', function ( $username ) {
 	return sanitize_user( $username );
-  }
-);
+} );
 
 /**
  * Replaces comma separated values for multiselect with an actual array for JSON encoding
@@ -379,21 +346,24 @@ add_filter(
  *
  * @return array
  */
-function fix_multi_values(\GF_Field $field, $entry, $input_id = '', $use_text = false, $is_csv = false)
-{
-  $selected = array();
+function fix_multi_values( \GF_Field $field, $entry, $input_id = '', $use_text = FALSE, $is_csv = FALSE ) {
+	$selected = [];
 
 	if ( empty( $input_id ) || absint( $input_id ) == $input_id ) {
+
 		foreach ( $field->inputs as $input ) {
+
 			$index = (string) $input['id'];
 
 			if ( ! rgempty( $index, $entry ) ) {
 				$selected[] = GFCommon::selection_display( rgar( $entry, $index ), $field, rgar( $entry, 'currency' ), $use_text );
 			}
+
 		}
 	}
 
 	return $selected;
+
 }
 
 /*
@@ -404,8 +374,7 @@ function fix_multi_values(\GF_Field $field, $entry, $input_id = '', $use_text = 
 * 
 */
 
-function convertInternationalCurrencyToFloat($currencyValue)
-{
+function convertInternationalCurrencyToFloat( $currencyValue ) {
 	// Remove all non-numeric characters except commas and dots
 	$number = preg_replace( '/[^\d.,]/', '', $currencyValue );
 
@@ -432,8 +401,7 @@ function convertInternationalCurrencyToFloat($currencyValue)
 
 add_filter( 'gform_max_async_feed_attempts', 'GFCiviCRM\custom_max_async_feed_attempts' );
 
-function custom_max_async_feed_attempts($max_attempts)
-{
+function custom_max_async_feed_attempts( $max_attempts ) {
 	return 999999; // @TODO this could be a configurable option
 }
 
@@ -447,13 +415,12 @@ function custom_max_async_feed_attempts($max_attempts)
  *
  * @return array
  */
-function webhooks_request_data($request_data, $feed, $entry, $form)
-{
+function webhooks_request_data( $request_data, $feed, $entry, $form ) {
 	// Form hooks don't seem to be called during webform request, so do it ourselves
 	$form = do_civicrm_replacement( $form, 'webhook_request_data' );
 
 	if ( $feed['meta']['requestFormat'] === 'json' ) {
-    $rewrite_data = array();
+    $rewrite_data = [];
 
 		$multi_json = (bool) FieldsAddOn::get_instance()->get_plugin_setting( 'civicrm_multi_json' );
 
@@ -462,8 +429,8 @@ function webhooks_request_data($request_data, $feed, $entry, $form)
 			if ( property_exists( $field, 'storageType' ) && $field->storageType == 'json' ) {
 				$rewrite_data[ $field['id'] ] = json_decode( $entry[ $field['id'] ] );
 			} elseif (
-        ! empty($multi_json)  // JSON encoding selected in settings
-        && (is_a($field, 'GF_Field_Checkbox') || is_a($field, 'GF_Field_MultiSelect')) // Multi-value field
+				! empty( $multi_json ) &&  // JSON encoding selected in settings
+				( is_a( $field, 'GF_Field_Checkbox' ) || is_a( $field, 'GF_Field_MultiSelect' ) ) // Multi-value field
 			) {
 				$rewrite_data[ $field->id ] = fix_multi_values( $field, $entry );
 			}
@@ -478,7 +445,7 @@ function webhooks_request_data($request_data, $feed, $entry, $form)
 			}
 		}
 		foreach ( $feed['meta']['fieldValues'] as $field_value ) {
-      if ((! empty($field_value['custom_key'])) && ($value = $rewrite_data[$field_value['value']] ?? null)) {
+			if ( ( ! empty( $field_value['custom_key'] ) ) && ( $value = $rewrite_data[ $field_value['value'] ] ?? NULL ) ) {
 				$request_data[ $field_value['custom_key'] ] = $value;
 			}
 		}
@@ -498,8 +465,7 @@ add_filter( 'gform_webhooks_request_data', 'GFCiviCRM\webhooks_request_data', 10
  * @throws \API_Exception
  * @throws \Civi\API\Exception\UnauthorizedException
  */
-function civicrm_optiongroup_setting($position, $form_id)
-{
+function civicrm_optiongroup_setting( $position, $form_id ) {
 	$profile_name = get_rest_connection_profile( $form_id );
 
 	// Check if a CiviCRM installation exists
@@ -509,55 +475,45 @@ function civicrm_optiongroup_setting($position, $form_id)
 
 	switch ( $position ) {
 		case BEFORE_CHOICES_SETTING:
-      $api_params    = array(
-        'return' => array('name', 'title'), // Specify the fields to return
-      );
-      $api_options   = array(
+      $api_params = [
+				'return' => ['name', 'title'], // Specify the fields to return
+			];
+			$api_options = [
 				'check_permissions' => 0, // Set check_permissions to false
-				'sort' 				=> 'title ASC',
-				'limit'				=> 0,
-      );
-      $option_groups = api_wrapper($profile_name, 'OptionGroup', 'get', $api_params, $api_options) ?? array();
+				'sort'              => 'title ASC',
+				'limit'             => 0,
+			];
+      $option_groups = api_wrapper( $profile_name, 'OptionGroup', 'get', $api_params, $api_options ) ?? [];
 
 			try {
-        $form_processors = api_wrapper($profile_name, 'FormProcessorInstance', 'get', array('sequential' => 1), array('limit' => 0)) ?? array();
+        $form_processors = api_wrapper($profile_name, 'FormProcessorInstance', 'get', [ 'sequential' => 1], [ 'limit' => 0]) ?? [];
 
-        $form_processors = array_filter(
-          array_map(
-            function ($processor) use ($option_groups) {
-              $mapped = array(
+				$form_processors = array_filter( array_map( function ( $processor ) use ( $option_groups ) {
+					$mapped = [
 						'name'    => $processor['name'],
 						'title'   => $processor['title'],
-                'options' => array(),
-              );
+						'options' => [],
+					];
 
 					foreach ( $processor['inputs'] as $input ) {
 						$type = &$input['type']['name'];
 
-                if (
-                  in_array(
-                    $type,
-                    array(
+						if ( in_array( $type, [
 							'OptionGroup',
 							'CustomOptionListType',
 							'YesNoOptionList',
 							'MailingGroup',
 							'Tag',
-                    )
-                  )
-                ) {
+						] ) ) {
 							$mapped['options'][ $input['name'] ] = $input['title'];
 						}
 					}
 
-              return ! empty($mapped['options']) ? $mapped : false;
-            },
-            $form_processors
-          )
-        );
+					return ! empty( $mapped['options'] ) ? $mapped : FALSE;
+				}, $form_processors ) );
 			} catch ( CRM_Core_Exception $e ) {
 				// Form processor extension may not be installed, ignore
-        $form_processors = array();
+        $form_processors = [];
 			}
 			?>
 			<li class="civicrm_optiongroup_setting field_setting">
@@ -569,19 +525,15 @@ function civicrm_optiongroup_setting($position, $form_id)
 					<option value=""><?php esc_html_e( 'None' ); ?></option>
 					<?php foreach ( $form_processors as $processor ): ?>
 						<optgroup label="Form Processor: <?php echo $processor['title']; ?>">
-              <?php
-              foreach ($processor['options'] as $pr_name => $pr_title) {
+							<?php foreach ( $processor['options'] as $pr_name => $pr_title ) {
 								echo "<option value=\"civicrm_fp__{$processor['name']}__{$pr_name}\">{$pr_title}</option>";
-              }
-              ?>
+							} ?>
 						</optgroup>
 					<?php endforeach; ?>
 					<optgroup label="Option Groups">
-            <?php
-            foreach ($option_groups as $group) {
-              echo "<option value=\"civicrm__{$group['name']}\">" . sprintf(__('%1$s (ID: %2$u)', 'gf-civicrm'), $group['title'], $group['id']) . '</option>';
-            }
-            ?>
+						<?php foreach ( $option_groups as $group ) {
+							echo "<option value=\"civicrm__{$group['name']}\">" . sprintf( __( '%1$s (ID: %2$u)', 'gf-civicrm' ), $group['title'], $group['id'] ) . "</option>";
+						} ?>
 					</optgroup>
 				</select>
 			</li>
@@ -595,62 +547,59 @@ add_action( 'gform_field_standard_settings', 'GFCiviCRM\civicrm_optiongroup_sett
 /**
  * Embed javascript to save the selected CiviCRM Source option.
  */
-function editor_script()
-{
+function editor_script() {
 	?>
-  <script src="<?php echo plugin_dir_url(__FILE__) . 'js/gf-civicrm-merge-tags.js?ver=' . GF_CIVICRM_FIELDS_ADDON_VERSION; ?>"></script>
-  <script src="<?php echo plugin_dir_url(__FILE__) . 'js/gf-civicrm-fields.js?ver=' . GF_CIVICRM_FIELDS_ADDON_VERSION; ?>"></script>
+  <script src="<?= plugin_dir_url( __FILE__ ) . 'js/gf-civicrm-merge-tags.js?ver=' . GF_CIVICRM_FIELDS_ADDON_VERSION; ?>"></script>
+	<script src="<?= plugin_dir_url( __FILE__ ) . 'js/gf-civicrm-fields.js?ver=' . GF_CIVICRM_FIELDS_ADDON_VERSION; ?>"></script>
 
 	<script type="text/javascript">
-      for (let field of ['select', 'multiselect', 'checkbox', 'radio']) {
-        fieldSettings[field] += ', .civicrm_optiongroup_setting'
-      }
+    for (let field of ['select', 'multiselect', 'checkbox', 'radio']) {
+      fieldSettings[field] += ', .civicrm_optiongroup_setting'
+    }
 
-      jQuery(document).bind('gform_load_field_settings', function (event, field) {
-        jQuery('#civicrm_optiongroup_selector').val(field.civicrmOptionGroup)
-      })
+    jQuery(document).bind('gform_load_field_settings', function (event, field) {
+      jQuery('#civicrm_optiongroup_selector').val(field.civicrmOptionGroup)
+    })
 
-    function SetCiviCRMOptionGroup({
-      value
-    }) {
-        SetFieldProperty('civicrmOptionGroup', value);
-      }
+    function SetCiviCRMOptionGroup({value}) {
+      SetFieldProperty('civicrmOptionGroup', value);
+    }
 
 	  jQuery(document).ready(function($) {
-            // Enable display of the default value field for these other field types
-            $(document).on('gform_load_field_settings', function(event, field, form) {
-                if (field.inputType === 'radio' || field.inputType === 'multiselect' || field.inputType === 'checkbox') {
-                    $('.default_value_setting').show();
-                    $('#field_default_value').val(field.defaultValue);
-                }
-            });
+      // Enable display of the default value field for these other field types
+      $(document).on('gform_load_field_settings', function(event, field, form) {
+        if (field.inputType === 'radio' || field.inputType === 'multiselect' || field.inputType === 'checkbox') {
+          $('.default_value_setting').show();
+          $('#field_default_value').val(field.defaultValue);
+        }
+      });
 			// Add default value, comma separated values help text
 			$(document).bind('gform_load_field_settings', function(event, field, form) {
-                // Check for specific field types or all types
-                if (field.type === 'multiselect' || field.type === 'checkbox') {
-                    // Locate the default value setting field
-                    var defaultValueSetting = $('.field_setting:contains("Default Value")');
+        // Check for specific field types or all types
+        if (field.type === 'multiselect' || field.type === 'checkbox') {
+          // Locate the default value setting field
+          var defaultValueSetting = $('.field_setting:contains("Default Value")');
 
-                    // Check if the help text is already added
-                    if (!defaultValueSetting.find('.custom-help-text').length) {
-                        // Append the help text
-                        defaultValueSetting.append('<p class="custom-help-text description">Enter comma-separated values for default selections.</p>');
-                    }
-                }
-            });
+          // Check if the help text is already added
+          if (!defaultValueSetting.find('.custom-help-text').length) {
+            // Append the help text
+            defaultValueSetting.append('<p class="custom-help-text description">Enter comma-separated values for default selections.</p>');
+          }
+        }
+      });
 
 			// Hide all choice labels for checkbox fields, feature is replaced by the default value field
 			function updateChoiceLabelDisplay() {                
-                $('.field-choice-label').css('display', 'none');
-            }
+        $('.field-choice-label').css('display', 'none');
+      }
 
-            // Run when the form editor is initially loaded
-            updateChoiceLabelDisplay();
+      // Run when the form editor is initially loaded
+      updateChoiceLabelDisplay();
 
-            // Bind to the event that triggers when field settings are loaded/changed
-            $(document).bind('gform_load_field_settings', function() {
-                updateChoiceLabelDisplay();
-            });
+      // Bind to the event that triggers when field settings are loaded/changed
+      $(document).bind('gform_load_field_settings', function() {
+        updateChoiceLabelDisplay();
+      });
 
 
 			function handleEditChoicesVisibility(selector) {
@@ -690,7 +639,7 @@ function editor_script()
 				characterData: true    // Monitor changes to text nodes
 			};
 			observer.observe(targetNode, config);
-        });
+    });
 	</script>
 	<?php
 }
@@ -704,9 +653,8 @@ add_action( 'gform_editor_js', 'GFCiviCRM\editor_script', 11, 0 );
  *
  * @return string
  */
-function fp_tag_default($matches, $fallback = '', $multiple = false)
-{
-  static $defaults = array();
+function fp_tag_default( $matches, $fallback = '', $multiple = false ) {
+  static $defaults = [];
 
 	$result = $fallback;
 	[ , $processor, $field ] = $matches;
@@ -726,7 +674,7 @@ function fp_tag_default($matches, $fallback = '', $multiple = false)
 			$api_options = array(
 				'check_permissions' => 1, // Set check_permissions to false
 				'limit'	=> 0,
-        'cache'             => null,
+				'cache' => NULL,
 			);
 
 			// Get the form processor fields
@@ -741,7 +689,7 @@ function fp_tag_default($matches, $fallback = '', $multiple = false)
 			// Get field default values
 			$defaults[ $processor ] = api_wrapper( $profile_name, 'FormProcessorDefaults', $processor, $api_params, $api_options );
 		} catch ( CRM_Core_Exception $e ) {
-      $defaults[$processor] = false;
+      $defaults[ $processor ] = FALSE;
 		}
 	}
 
@@ -775,8 +723,7 @@ function fp_tag_default($matches, $fallback = '', $multiple = false)
  *
  * @return string
  */
-function replace_merge_tags($text, $form, $entry, $url_encode, $esc_html, $nl2br, $format)
-{
+function replace_merge_tags( $text, $form, $entry, $url_encode, $esc_html, $nl2br, $format ) {
 	$gf_civicrm_site_key_merge_tag = '{gf_civicrm_site_key}';
 	$gf_civicrm_api_key_merge_tag = '{gf_civicrm_api_key}';
 	$needs_site_key = strpos( $text, $gf_civicrm_site_key_merge_tag ) !== false;
@@ -824,24 +771,23 @@ function replace_merge_tags($text, $form, $entry, $url_encode, $esc_html, $nl2br
 
 add_filter( 'gform_custom_merge_tags', 'GFCiviCRM\compose_merge_tags', 10, 1 );
 
-add_filter('gform_pre_replace_merge_tags', 'GFCiviCRM\replace_merge_tags', 9, 7);
+add_filter( 'gform_pre_replace_merge_tags', 'GFCiviCRM\replace_merge_tags', 9, 7 );
 
-define('GF_CIVICRM_FIELDS_ADDON_VERSION', get_file_data(__FILE__, array('Version' => 'Version'))['Version']);
+define( 'GF_CIVICRM_FIELDS_ADDON_VERSION', get_file_data( __FILE__, [ 'Version' => 'Version' ] )['Version'] );
 
 add_action( 'gform_loaded', 'GFCiviCRM\addon_bootstrap', 5 );
 
-function addon_bootstrap()
-{
+function addon_bootstrap() {
 
 	if ( ! method_exists( 'GFForms', 'include_addon_framework' ) ) {
 		return;
 	}
 
-  require_once 'class-gf-civicrm-fields.php';
-  require_once 'includes/class-gf-civicrm-export-addon.php';
+	require_once( 'class-gf-civicrm-fields.php' );
+  require_once( 'includes/class-gf-civicrm-export-addon.php' );
 
 	GFAddOn::register( 'GFCiviCRM\FieldsAddOn' );
-    GFAddOn::register( 'GFCiviCRM\ExportAddOn' );
+  GFAddOn::register( 'GFCiviCRM\ExportAddOn' );
 }
 
 /**
@@ -850,8 +796,7 @@ function addon_bootstrap()
  * GFCV-89
  */
 add_filter( 'gform_counter_script', 'GFCiviCRM\set_text_input_counter', 10, 5 );
-function set_text_input_counter($script, $form_id, $input_id, $max_length, $field)
-{
+function set_text_input_counter( $script, $form_id, $input_id, $max_length, $field ) {
 	if ($max_length > 255) {
 		$max_length = 255;
 	}
@@ -875,12 +820,12 @@ function set_text_input_counter($script, $form_id, $input_id, $max_length, $fiel
  * Replace the default countries list with CiviCRM's list.
  *
  * @param array $choices
+ * 
  */
 add_filter( 'gform_countries', 'GFCiviCRM\address_replace_countries_list' );
-function address_replace_countries_list($choices)
-{
-  $replace   = array();
-  $countries = array();
+function address_replace_countries_list( $choices ) {
+  $replace = [];
+	$countries = [];
 
 	if ( $cached_countries_data = get_transient( 'gfcv_civicrm_countries' ) ) {
 		$countries = $cached_countries_data;
@@ -893,36 +838,30 @@ function address_replace_countries_list($choices)
 			$profile_name = get_rest_connection_profile();
 
 			// Get the list of available countries configured in CiviCRM Settings
-      $api_params          = array(
-        'return' => array('countryLimit'),
-      );
-      $api_options         = array(
+      $api_params = [
+				'return' => [ 'countryLimit' ],
+			];
+			$api_options = [
 				'check_permissions' => 0, // Set check_permissions to false
 				'limit' => 0,
-      );
+			];
 			$available_countries = api_wrapper( $profile_name, 'Setting', 'get', $api_params, $api_options );
 			$available_countries = reset($available_countries);
 
-      $api_params = array(
-        'select'                => array('id', 'name', 'iso_code'),
-        'api.StateProvince.get' => array(
-          'options' => array(
-            'limit' => 0,
-            'sort'  => 'name ASC',
-          ),
-        ),
-        'options'               => array(
-          'limit' => 0,
-          'sort'  => 'name ASC',
-        ),
-      );
+      $api_params = [
+				'select' => [ 'id', 'name', 'iso_code' ],
+				'api.StateProvince.get' => [
+					'options' => ['limit' => 0, 'sort' => "name ASC"],
+				],
+				'options' => ['limit' => 0, 'sort' => "name ASC"],
+			];
 			if ( !empty( $available_countries['countryLimit'] ) ) {
-        $api_params['id'] = array('IN' => $available_countries['countryLimit']);
+				$api_params['id'] = [ 'IN' => $available_countries['countryLimit'] ];
 			}
-      $api_options = array(
+      $api_options = [
 				'check_permissions' => 0, // Set check_permissions to false
 				'limit' => 0,
-      );
+			];
 
 			// Get Countries and their States/Provinces from CiviCRM
 			$countries_data = api_wrapper( $profile_name, 'Country', 'get', $api_params, $api_options );
@@ -958,8 +897,7 @@ function address_replace_countries_list($choices)
  * Replace dropdown field null values with blank "" on submission.
  */
 add_action( 'gform_pre_submission', 'GFCiviCRM\handle_optional_select_field_values' );
-function handle_optional_select_field_values($form)
-{
+function handle_optional_select_field_values( $form ) {
 	// Get the input id for multi select type fields
 	$fields = $form['fields'];
 
@@ -976,8 +914,7 @@ function handle_optional_select_field_values($form)
 	}
 }
 
-function validateChecksumFromURL($cid_param = 'cid', $cs_param = 'cs'): int|null
-{
+function validateChecksumFromURL( $cid_param = 'cid', $cs_param = 'cs' ): int|null {
 	$contact_id = rgget( $cid_param );
 	$checksum   = rgget( $cs_param );
 
@@ -989,10 +926,10 @@ function validateChecksumFromURL($cid_param = 'cid', $cs_param = 'cs'): int|null
 		$profile_name = get_rest_connection_profile();
 		
 		// Get Payment Processors from CiviCRM
-    $api_params = array(
+    $api_params = [
 			'id' => $contact_id,
 			'checksum' => $checksum ,
-    );
+		];
 		$validator = api_wrapper( $profile_name, 'ContactChecksum', 'validate', $api_params );
 
 		if ( ! $validator[1][0] ) { // checksum validation value
@@ -1005,18 +942,13 @@ function validateChecksumFromURL($cid_param = 'cid', $cs_param = 'cs'): int|null
 	return $contact_id;
 }
 
-add_action(
-  'admin_notices',
-  function () {
+add_action( 'admin_notices', function() {
 	if ( class_exists( 'GFAPI' ) && class_exists( 'GFCiviCRM\FieldsAddOn' ) ) {
 		echo FieldsAddOn::get_instance()->warn_auth_checksum();
 	}
-  }
-);
+} );
 
-add_action(
-  'gform_admin_error_messages',
-  function ($messages) {
+add_action( 'gform_admin_error_messages', function( $messages ) {
 	if ( class_exists( 'GFCiviCRM\FieldsAddOn' ) ) {
 		$message = FieldsAddOn::get_instance()->warn_auth_checksum( '%s' );
 		if ( $message ) {
@@ -1025,14 +957,12 @@ add_action(
 	}
 
 	return $messages;
-  }
-);
+} );
 
 /**
  * Handles sending webhook alerts for failures to the alerts email address provided in the GF CiviCRM Settings.
  */
-function webhook_alerts($response, $feed, $entry, $form)
-{
+function webhook_alerts( $response, $feed, $entry, $form ) {
 	if ( !class_exists( 'GFCiviCRM\FieldsAddOn' ) ) {
 		return;
 	}
@@ -1047,25 +977,25 @@ function webhook_alerts($response, $feed, $entry, $form)
 	if ( is_wp_error( $response ) ) {
 		// If its a WP_Error
 		$error_code = $response->get_error_code();
-        $error_message = $response->get_error_message();
+    $error_message = $response->get_error_message();
 
 		// Build the webhook response entry content
-    $webhook_feed_response = array(
+    $webhook_feed_response = [ 
 			'date' => current_datetime(),
 			'body' => $error_message, 
-      'response' => $error_code,
-    );
+			'response' => $error_code
+		];
 
 		GFCommon::log_debug( __METHOD__ . '(): WP_Error detected.' );
 	} else {
 		$response_data = $response['body'] ? json_decode($response['body'], true) : '';
 
 		// Build the webhook response entry content
-    $webhook_feed_response = array(
+    $webhook_feed_response = [ 
 			'date' => $response['headers']['data']['date'],
 			'body' => $response_data, 
-      'response' => $response['response'],
-    );
+			'response' => $response['response']
+		];
 
 		if ( is_wp_error( $response ) ) {
 			// If its a WP_Error in the webhook feed response
@@ -1104,7 +1034,7 @@ function webhook_alerts($response, $feed, $entry, $form)
 	}
 
   if ($current_response) {
-	$current_response[$feed['id']] = $webhook_feed_response;
+	  $current_response[$feed['id']] = $webhook_feed_response;
   }
 	gform_update_meta( $entry['id'], 'webhook_feed_response', $current_response );
 
@@ -1114,10 +1044,8 @@ function webhook_alerts($response, $feed, $entry, $form)
 
 		// Do not continue if enable_emails is not true, or if no alerts email has been provided
 		$plugin_settings = FieldsAddOn::get_instance()->get_plugin_settings();
-    if (
-      ! isset($plugin_settings['enable_emails']) || ! $plugin_settings['enable_emails']
-      || ! isset($plugin_settings['gf_civicrm_alerts_email']) || empty($plugin_settings['gf_civicrm_alerts_email'])
-    ) {
+    if ( !isset($plugin_settings['enable_emails']) || !$plugin_settings['enable_emails'] || 
+			!isset($plugin_settings['gf_civicrm_alerts_email']) || empty($plugin_settings['gf_civicrm_alerts_email']) ) {
 			return;
 		}
 
@@ -1130,17 +1058,17 @@ function webhook_alerts($response, $feed, $entry, $form)
     $request_url = apply_filters('gform_pre_replace_merge_tags', $request_url, $form, $entry, false, false, false, 'html');
 
 		$body    = sprintf(
-					'Webhook feed on %s failed.' . "\n\n%s%s\n" . 'Feed: "%s" (ID: %s) from form "%s" (ID: %s)' . "\n" . 'Request URL: %s' . "\n" . 'Failed Entry ID: %s',
-					get_site_url(),
-      $error_code ? 'Error Code: ' . $error_code . "\n" : '',
-      $error_message ? 'Error: ' . $error_message . "\n" : '',
-					$feed['meta']['feedName'], 
-					$feed['id'], 
-					$form['title'], 
-					$form['id'], 
-					$request_url,
-					$entry_id
-				);
+      'Webhook feed on %s failed.' . "\n\n%s%s\n" . 'Feed: "%s" (ID: %s) from form "%s" (ID: %s)' . "\n" . 'Request URL: %s' . "\n" . 'Failed Entry ID: %s',
+      get_site_url(),
+      $error_code ? "Error Code: " . $error_code . "\n": '', 
+      $error_message ? "Error: " . $error_message . "\n": '', 
+      $feed['meta']['feedName'], 
+      $feed['id'], 
+      $form['title'], 
+      $form['id'], 
+      $request_url,
+      $entry_id
+    );
 
 		// Send an email to the nominated alerts email address
 		wp_mail( $to, $subject, $body );
@@ -1155,134 +1083,117 @@ add_action( 'gform_webhooks_post_request', 'GFCiviCRM\webhook_alerts', 10, 4);
  * Request URL is processed before request args. We'll use both filters to build the request
  * data. Supports multiple feeds.
  */
-add_filter(
-  'gform_webhooks_request_url',
-  function ($request_url, $feed, $entry, $form) {
+add_filter( 'gform_webhooks_request_url', function ( $request_url, $feed, $entry, $form ) {
 	// Add the webhook request to the entry meta
 	$current_request = gform_get_meta( $entry['id'], 'webhook_feed_request' );
-    if ($current_request) {
-      if (! is_array($current_request)) {
-        $current_request = array(
-          $feed['id'] => array(
-            'request_url' => $request_url,
-          ),
-        );
-      } else {
-        $current_request[$feed['id']] = array(
-          'request_url' => $request_url,
-        );
-      }
+  if ($current_request) {
+    if (! is_array($current_request)) {
+      $current_request = [
+        $feed['id'] => [
+          'request_url' => $request_url
+        ],
+      ];
     } else {
-      $current_request = array(
-        $feed['id'] => array(
-          'request_url' => $request_url,
-        ),
-      );
+      $current_request[$feed['id']] = [
+        'request_url' => $request_url,
+      ];
     }
+  } else {
+    $current_request = [
+      $feed['id'] => [
+        'request_url' => $request_url,
+      ],
+    ];
+  }
 	gform_update_meta( $entry['id'], 'webhook_feed_request', $current_request );
 	return $request_url;
-  },
-  10,
-  4
-);
+}, 10, 4 );
 
-add_filter(
-  'gform_webhooks_request_args',
-  function ($request_args, $feed, $entry, $form) {
-    // Ensure that other WordPress plugins have not lowered the curl timeout which impacts Gravity Forms webhook requests.
-    // Set timeout to 10 seconds
-    $request_args['timeout'] = 10000;
+add_filter( 'gform_webhooks_request_args', function ( $request_args, $feed, $entry, $form ) {
+  // Ensure that other WordPress plugins have not lowered the curl timeout which impacts Gravity Forms webhook requests.
+  // Set timeout to 10 seconds
+  $request_args['timeout'] = 10000;
 
 	// Add the webhook request to the entry meta
 	$current_request = gform_get_meta( $entry['id'], 'webhook_feed_request' );
     if (! is_array($current_request)) {
-      $current_request = array($feed['id'] => array('request_url' => $current_request));
+      $current_request = [
+        $feed['id'] => [
+          'request_url' => $current_request
+        ]
+      ];
     }
-    $current_request[$feed['id']] = array(
-		'request_url' => $current_request[$feed['id']]['request_url'] ?? '',
+    $current_request[$feed['id']] = [
+      'request_url' => $current_request[$feed['id']]['request_url'] ?? '',
       'request_args' => $request_args,
-    );
+    ];
 	gform_update_meta( $entry['id'], 'webhook_feed_request', $current_request );
 	return $request_args;
-  },
-  10,
-  4
-);
+}, 10, 4 );
 
 /**
  * Register custom Entry meta fields.
  */
-add_filter(
-  'gform_entry_meta',
-  function ($entry_meta, $form_id) {
-    $entry_meta['webhook_feed_request']  = array(
-        'label'       => esc_html__( 'Webhook Request', 'gf-civicrm' ),
-        'is_numeric'  => false,
-        'update_entry_meta_callback' => null, // Optional callback for updating.
-        'filter'      => true, // Enable filtering in the Entries UI
-    );
-    $entry_meta['webhook_feed_response'] = array(
-        'label'       => esc_html__( 'Webhook Response', 'gf-civicrm' ),
-        'is_numeric'  => false,
-        'update_entry_meta_callback' => null,
-        'filter'      => true,
-    );
-    return $entry_meta;
-  },
-  10,
-  2
-);
+add_filter( 'gform_entry_meta', function ( $entry_meta, $form_id ) {
+  $entry_meta['webhook_feed_request'] = [
+    'label'       => esc_html__( 'Webhook Request', 'gf-civicrm' ),
+    'is_numeric'  => false,
+    'update_entry_meta_callback' => null, // Optional callback for updating.
+    'filter'      => true, // Enable filtering in the Entries UI
+  ];
+  $entry_meta['webhook_feed_response'] = [
+    'label'       => esc_html__( 'Webhook Response', 'gf-civicrm' ),
+    'is_numeric'  => false,
+    'update_entry_meta_callback' => null,
+    'filter'      => true,
+  ];
+  return $entry_meta;
+}, 10, 2 );
 
 /**
  * Display the webhook feed result as a metabox when viewing an entry.
  */
-add_filter(
-  'gform_entry_detail_meta_boxes',
-  function ($meta_boxes, $entry, $form) {
-    // Add a new meta box for the webhook request.
-    $meta_boxes['webhook_feed_request'] = array(
-        'title'    => esc_html__( 'Webhook Request', 'gf-civicrm' ),
-        'callback' => function($args) {
-        display_webhook_meta_box($args, 'webhook_feed_request');
-		},
-        'context'  => 'normal', // Can be 'normal', 'side', or 'advanced'.
-		'priority' => 'low', // Ensure the meta box appears at the bottom of the section.
-    );
-	// Add a new meta box for the webhook response.
-    $meta_boxes['webhook_feed_response'] = array(
-        'title'    => esc_html__( 'Webhook Response', 'gf-civicrm' ),
-        'callback' => function($args) {
-        display_webhook_meta_box($args, 'webhook_feed_response');
-		},
-        'context'  => 'normal',
-		'priority' => 'low',
-    );
+add_filter( 'gform_entry_detail_meta_boxes', function ( $meta_boxes, $entry, $form ) {
+  // Add a new meta box for the webhook request.
+  $meta_boxes['webhook_feed_request'] = [
+    'title'    => esc_html__( 'Webhook Request', 'gf-civicrm' ),
+    'callback' => function( $args ) {
+      display_webhook_meta_box( $args, "webhook_feed_request" );
+    },
+    'context'  => 'normal', // Can be 'normal', 'side', or 'advanced'.
+    'priority' => 'low', // Ensure the meta box appears at the bottom of the section.
+  ];
+  // Add a new meta box for the webhook response.
+  $meta_boxes['webhook_feed_response'] = [
+    'title'    => esc_html__( 'Webhook Response', 'gf-civicrm' ),
+    'callback' => function($args) {
+      display_webhook_meta_box( $args, "webhook_feed_response" );
+    },
+    'context'  => 'normal',
+    'priority' => 'low',
+  ];
 
-    return $meta_boxes;
-  },
-  10,
-  3
-);
+  return $meta_boxes;
+}, 10, 3 );
 
-function display_webhook_meta_box($args, $meta_key)
-{
+function display_webhook_meta_box( $args, $meta_key ) {
 	// Don't display if the current user is not an admin.
 	if (!in_array( 'administrator', (array) wp_get_current_user()->roles )) {
 		echo '<p>' . esc_html__( 'You need the administrator role to view this data.', 'gf-civicrm' ) . '</p>';
 		return;
 	}
 
-    $entry = $args['entry']; // Current entry object.
+  $entry = $args['entry']; // Current entry object.
 
-    // Retrieve the webhook meta data.
-    $meta = rgar( $entry, $meta_key );
+  // Retrieve the webhook meta data.
+  $meta = rgar( $entry, $meta_key );
 
-    if ( ! empty( $meta ) && is_array( $meta ) ) {
-        // Display the response code and message.
-        echo '<pre style="text-wrap: auto;">';
-		print_r( $meta );
-		echo '</pre>';
-    } else {
-        echo '<p>' . esc_html__( 'No data available.', 'gf-civicrm' ) . '</p>';
-    }
+  if ( ! empty( $meta ) && is_array( $meta ) ) {
+    // Display the response code and message.
+    echo '<pre style="text-wrap: auto;">';
+    print_r( $meta );
+    echo '</pre>';
+  } else {
+    echo '<p>' . esc_html__( 'No data available.', 'gf-civicrm' ) . '</p>';
+  }
 }
