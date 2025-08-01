@@ -130,7 +130,6 @@ class FieldsAddOn extends \GFAddOn {
 
     add_action( 'admin_init', [ $this, 'maybe_run_merge_tags_replacer' ] );
     
-    add_filter( 'gform_gravityformswebhooks_feed_settings_fields', [ $this, 'webhook_feed_settings' ], 10, 2 );
     add_filter( 'gform_custom_merge_tags', [ $this, 'compose_merge_tags' ], 10, 1 );
   }
   
@@ -312,45 +311,27 @@ class FieldsAddOn extends \GFAddOn {
 			];
 		}
 
-    $fields[] = [
-      'type'        => 'text',
+    $fields['civicrm_settings'] = [
+      'title'  => esc_html__( 'Form Processor', 'gf-civicrm' ),
+    ];
+
+    $fields['civicrm_settings']['fields'][] = [
+		  'type'        => 'text',
       'name'        => 'default_fp',
       'label'       => 'Default Form Processor',
       'description' => wp_kses('Optionally select a default CiviCRM Form Processor for this form. Use <code>default_fp</code> instead of the form processor name in your merge tags to default to this value.', 'data'),
     ];
 
-    if(!empty($fields)) {
-			return [
-				[
-					'title'  => esc_html__( 'CiviCRM Settings', 'gf-civicrm' ),
-					'fields' => &$fields,
-				],
-			];
-		} else {
-			return [];
-		}
-  }
-
-  /**
-   * Add CMRF setting options to the WebHook Feed settings.
-   *
-   * @param array  $feed_settings_fields   An array of feed settings fields which will be displayed on the Feed Settings edit view.
-   * @param object $addon                  The current instance of the \GFAddon object which extends \GFFeedAddOn or \GFPaymentAddOn.
-   */
-  public function webhook_feed_settings( $feed_settings_fields, $addon ) {
     if ( is_plugin_active( 'connector-civicrm-mcrestface/wpcmrf.php' ) ) {
-      $civicrm_section_settings = [
-        'title'   => esc_html__( 'CiviCRM CMRF Settings', 'gf-civicrm' ),
-        'tooltip' => sprintf(
-          '<h6>%s</h6> %s',
-          esc_html__('Options to override the CMRF options used for this WebHook', 'gf-civicrm'),
-          esc_html__('You can choose whether you would like to override merge tags from this WebHook with data from CMRF and specify which connector to use.', 'gf-civicrm')
-        ),
-        'fields'  => [],
+      $fields['wpcmrf_settings'] = [
+        'title'  => esc_html__( 'CMRF Settings', 'gf-civicrm' ),
+        'description' => esc_html__( 'Optionally enable using a CMRF Connection Profile as the REST API endpoint for this form. You can use the <code>{civicrm_cmrf_url}</code> merge tag in your Webhook Feed Request URL.', 'gf-civicrm' ),
       ];
-      $civicrm_section_settings['fields'][] = [
+
+      $fields['wpcmrf_settings']['fields'][] = [
         'type'        => 'checkbox',
         'name'        => 'civicrm_use_cmrf',
+        'label'       => 'CMRF Connection',
         'description' => esc_html__( 'Whether to use the CiviCRM REST Connection Profile for this form.', 'gf-civicrm' ),
         'choices'     => [
           [
@@ -361,8 +342,7 @@ class FieldsAddOn extends \GFAddOn {
         'onclick'     => "jQuery(this).parents('form').submit();",
       ];
 
-      // CiviCRM McRestFace
-      $civicrm_section_settings['fields'][] = [
+      $fields['wpcmrf_settings']['fields'][] = [
         'label' => esc_html__( 'CiviCRM REST Connection Profile', 'gf-civicrm' ),
         'type'        => 'select',
         'name'        => 'civicrm_rest_connection',
@@ -378,12 +358,14 @@ class FieldsAddOn extends \GFAddOn {
         ],
         'choices'     => $this->get_cmrf_profile_options(),
       ];
-
-      $feed_settings_fields = array_merge( $feed_settings_fields, [ $civicrm_section_settings ] );
 		}
 
-    return $feed_settings_fields;
-	}
+    if(!empty($fields)) {
+			return $fields;
+		} else {
+			return [];
+		}
+  }
 
   public function plugin_settings_fields() {
     $nonce = wp_create_nonce( 'webhook_merge_tags_replacement_nonce' );
@@ -554,11 +536,11 @@ class FieldsAddOn extends \GFAddOn {
    * @return array An array of $feeds
    */
   public function webhooks_request_url( $request_url, $feed, $entry, $form ) {
-    $use_cmrf = rgars($feed, 'meta/civicrm_use_cmrf');
+    $use_cmrf = rgars($form, 'gf-civicrm/civicrm_use_cmrf');
 
     if ( !empty( $use_cmrf ) && boolval( $use_cmrf ) ) {
       $profiles     = get_profiles();
-      $profile_name = rgars($feed, 'meta/civicrm_rest_connection');
+      $profile_name = rgars($form, 'gf-civicrm/civicrm_rest_connection');
 
       if ( isset( $profiles[ $profile_name ] ) ) {
         $profile = $profiles[ $profile_name ];

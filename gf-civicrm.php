@@ -1097,6 +1097,9 @@ function webhook_alerts( $response, $feed, $entry, $form ) {
 
 	// Add the webhook response to the entry meta. Supports multiple feeds.
 	$current_response = gform_get_meta( $entry['id'], 'webhook_feed_response' );
+	if ( empty( $current_response ) ) {
+		$current_response = [];
+	}
 
 	$error_code = null;
 	$error_message 	= '';
@@ -1161,9 +1164,7 @@ function webhook_alerts( $response, $feed, $entry, $form ) {
 		}
 	}
 
-	if ($current_response) {
-		$current_response[$feed['id']] = $webhook_feed_response;
-	}
+	$current_response[$feed['id']] = $webhook_feed_response;
 	gform_update_meta( $entry['id'], 'webhook_feed_response', $current_response );
 
 	// Send an alert email if we have an error code
