@@ -322,44 +322,6 @@ class FieldsAddOn extends \GFAddOn {
       'description' => wp_kses('Optionally select a default CiviCRM Form Processor for this form. Use <code>default_fp</code> instead of the form processor name in your merge tags to default to this value.', 'data'),
     ];
 
-    if ( is_plugin_active( 'connector-civicrm-mcrestface/wpcmrf.php' ) ) {
-      $fields['wpcmrf_settings'] = [
-        'title'  => esc_html__( 'CMRF Settings', 'gf-civicrm' ),
-        'description' => wp_kses( 'Optionally enable using a CMRF Connection Profile as the REST API endpoint for this form. You can use the <code>{civicrm_cmrf_url}</code> merge tag in your Webhook Feed Request URL.', 'gf-civicrm' ),
-      ];
-
-      $fields['wpcmrf_settings']['fields'][] = [
-        'type'        => 'checkbox',
-        'name'        => 'civicrm_use_cmrf',
-        'label'       => 'CMRF Connection',
-        'description' => esc_html__( 'Whether to use the CiviCRM REST Connection Profile for this form.', 'gf-civicrm' ),
-        'choices'     => [
-          [
-            'label' => esc_html__('Use CiviCRM REST Connection Profile', 'gf-civicrm'),
-            'name'  => 'civicrm_use_cmrf',
-          ],
-        ],
-        'onclick'     => "jQuery(this).parents('form').submit();",
-      ];
-
-      $fields['wpcmrf_settings']['fields'][] = [
-        'label' => esc_html__( 'CiviCRM REST Connection Profile', 'gf-civicrm' ),
-        'type'        => 'select',
-        'name'        => 'civicrm_rest_connection',
-        'description' => esc_html__(
-          'Select which CMRF connection profile to use for this form.',
-          'gf-civicrm'
-        ),
-        'dependency'  => [
-          [
-            'field'  => 'civicrm_use_cmrf',
-            'values' => [1],
-          ]
-        ],
-        'choices'     => $this->get_cmrf_profile_options(),
-      ];
-		}
-
     if(!empty($fields)) {
 			return $fields;
 		} else {
