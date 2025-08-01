@@ -1216,18 +1216,10 @@ add_filter( 'gform_webhooks_request_url', function ( $request_url, $feed, $entry
 	// Add the webhook request to the entry meta
 	$current_request = gform_get_meta( $entry['id'], 'webhook_feed_request' );
 
-	if ($current_request) {
-		if (! is_array($current_request)) {
-			$current_request = [
-				$feed['id'] => [
-					'request_url' => $request_url
-				],
-			];
-		} else {
-			$current_request[$feed['id']] = [
-				'request_url' => $request_url,
-			];
-		}
+	if ( $current_request && is_array($current_request) ) {
+		$current_request[$feed['id']] = [
+			'request_url' => $request_url,
+		];
 	} else {
 		$current_request = [
 			$feed['id'] => [
