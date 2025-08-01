@@ -325,7 +325,7 @@ class FieldsAddOn extends \GFAddOn {
     if ( is_plugin_active( 'connector-civicrm-mcrestface/wpcmrf.php' ) ) {
       $fields['wpcmrf_settings'] = [
         'title'  => esc_html__( 'CMRF Settings', 'gf-civicrm' ),
-        'description' => esc_html__( 'Optionally enable using a CMRF Connection Profile as the REST API endpoint for this form. You can use the <code>{civicrm_cmrf_url}</code> merge tag in your Webhook Feed Request URL.', 'gf-civicrm' ),
+        'description' => wp_kses( 'Optionally enable using a CMRF Connection Profile as the REST API endpoint for this form. You can use the <code>{civicrm_cmrf_url}</code> merge tag in your Webhook Feed Request URL.', 'gf-civicrm' ),
       ];
 
       $fields['wpcmrf_settings']['fields'][] = [
