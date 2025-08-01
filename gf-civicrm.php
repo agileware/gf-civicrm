@@ -766,7 +766,7 @@ function replace_merge_tags( $text, $form, $entry, $url_encode, $esc_html, $nl2b
 
 add_filter( 'gform_custom_merge_tags', 'GFCiviCRM\compose_merge_tags', 10, 1 );
 
-add_filter( 'gform_pre_replace_merge_tags', 'GFCiviCRM\replace_merge_tags', 9, 7 );
+add_filter( 'gform_replace_merge_tags', 'GFCiviCRM\replace_merge_tags', 10, 7 );
 
 define( 'GF_CIVICRM_FIELDS_ADDON_VERSION', get_file_data( __FILE__, [ 'Version' => 'Version' ] )['Version'] );
 
@@ -1055,7 +1055,7 @@ function webhook_alerts( $response, $feed, $entry, $form ) {
 		$request_url 	= $feed['meta']['requestURL'];
 		$entry_id 		= $entry['id'];
 
-    	$request_url = apply_filters('gform_pre_replace_merge_tags', $request_url, $form, $entry, false, false, false, 'html');
+    	$request_url = apply_filters('gform_replace_merge_tags', $request_url, $form, $entry, false, false, false, 'html');
 
 		$body    = sprintf(
 			'Webhook feed on %s failed.' . "\n\n%s%s\n" . 'Feed: "%s" (ID: %s) from form "%s" (ID: %s)' . "\n" . 'Request URL: %s' . "\n" . 'Failed Entry ID: %s',
