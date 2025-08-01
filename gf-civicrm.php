@@ -496,61 +496,62 @@ function webhooks_request_data( $request_data, $feed, $entry, $form ) {
 	if ( $feed['meta']['requestFormat'] === 'json' ) {
     	$rewrite_data = [];
 
-    $multi_json = (bool) FieldsAddOn::get_instance()->get_plugin_setting( 'civicrm_multi_json' );
+		$multi_json = (bool) FieldsAddOn::get_instance()->get_plugin_setting( 'civicrm_multi_json' );
 
-    $feed_keys = [];
+		$feed_keys = [];
 
-    // Find the field ids to process
-    foreach( $feed[ 'meta' ][ 'fieldValues' ] as $fv ) {
-        $feed_keys[ $fv[ 'value' ] ] = $fv[ 'custom_key' ];
-    }
+		// Find the field ids to process
+		foreach( $feed[ 'meta' ][ 'fieldValues' ] as $fv ) {
+			$feed_keys[ $fv[ 'value' ] ] = $fv[ 'custom_key' ];
+		}
 
-    /** @var \GF_Field $field */
-    foreach ( $form['fields'] as $field ) {
-        // Skip if not part of entry meta
-        if( !$feed_keys[ $field->id ] ) {
-            continue;
-        }
+		/** @var \GF_Field $field */
+		foreach ( $form['fields'] as $field ) {
+			// Skip if not part of entry meta
+			if( !$feed_keys[ $field->id ] ) {
+				continue;
+			}
 
-        // Send multi-value fields encode in json instead of comma separated
-	    if ( $feed['meta']['requestFormat'] === 'json' ) {
-		    if ( property_exists( $field, 'storageType' ) && $field->storageType == 'json' ) {
-			    $rewrite_data[ $field['id'] ] = json_decode( $entry[ $field['id'] ] );
-		    } elseif (
-			    ! empty( $multi_json ) &&  // JSON encoding selected in settings
-			    ( is_a( $field, 'GF_Field_Checkbox' ) || is_a( $field, 'GF_Field_MultiSelect' ) ) // Multi-value field
-		    ) {
-			    $rewrite_data[ $field->id ] = fix_multi_values( $field, $entry );
-		    }
-	    }
+			// Send multi-value fields encode in json instead of comma separated
+			if ( $feed['meta']['requestFormat'] === 'json' ) {
+				if ( property_exists( $field, 'storageType' ) && $field->storageType == 'json' ) {
+					$rewrite_data[ $field['id'] ] = json_decode( $entry[ $field['id'] ] );
+				} elseif (
+					! empty( $multi_json ) &&  // JSON encoding selected in settings
+					( is_a( $field, 'GF_Field_Checkbox' ) || is_a( $field, 'GF_Field_MultiSelect' ) ) // Multi-value field
+				) {
+					$rewrite_data[ $field->id ] = fix_multi_values( $field, $entry );
+				}
+			}
 
-	    /*
-		 * Custom Price, Product fields send the value in $ 50.00 format which is problematic
-		 * @TODO If the $feed['meta']['fieldValues'][x] field has a value=gf_custom then custom_value will contain something like {membership_type:83:price} - this requires new logic extract the field ID. Will not contain the usual field ID.
-		 */
-	    if ( is_a( $field, 'GF_Field_Price' ) && $field->inputType == 'price' && isset( $entry[ $field->id ] ) ) {
-		    $rewrite_data[ $field->id ] = convertInternationalCurrencyToFloat( $entry[ $field->id ] );
-	    }
+			/*
+			* Custom Price, Product fields send the value in $ 50.00 format which is problematic
+			* @TODO If the $feed['meta']['fieldValues'][x] field has a value=gf_custom then custom_value will contain something like {membership_type:83:price} - this requires new logic extract the field ID. Will not contain the usual field ID.
+			*/
+			if ( is_a( $field, 'GF_Field_Price' ) && $field->inputType == 'price' && isset( $entry[ $field->id ] ) ) {
+				$rewrite_data[ $field->id ] = convertInternationalCurrencyToFloat( $entry[ $field->id ] );
+			}
 
-        // URL encode file url parts.  The is mostly because PHP does not count URLs with UTF-8 in them as valid.
-        if( is_a( $field, 'GF_Field_FileUpload' ) ) {
-            // Assume the scheme + domain is already encoded, extract path part
-            if(preg_match('{ (^ .+? ://+ .+? / ) ( .+ ) }x', $entry[ $field->id ], $matches)) {
-                [, $base, $path] = $matches;
+			// URL encode file url parts.  The is mostly because PHP does not count URLs with UTF-8 in them as valid.
+			if( is_a( $field, 'GF_Field_FileUpload' ) ) {
+				// Assume the scheme + domain is already encoded, extract path part
+				if(preg_match('{ (^ .+? ://+ .+? / ) ( .+ ) }x', $entry[ $field->id ], $matches)) {
+					[, $base, $path] = $matches;
 
-                // Each path, query, and fragment part, should be passed through urlencode
-                $path = preg_replace_callback( '{ ( [^/?#&]+ ) }x', fn($part) => urlencode( $part[1] ), $path );
+					// Each path, query, and fragment part, should be passed through urlencode
+					$path = preg_replace_callback( '{ ( [^/?#&]+ ) }x', fn($part) => urlencode( $part[1] ), $path );
 
-                // Recombine for the rewritten data
-                $rewrite_data[ $field->id ] = $base . $path;
-            }
-        }
-    }
-    foreach ( $feed['meta']['fieldValues'] as $field_value ) {
-        if ( ( ! empty( $field_value['custom_key'] ) ) && ( $value = $rewrite_data[ $field_value['value'] ] ?? NULL ) ) {
-            $request_data[ $field_value['custom_key'] ] = $value;
-        }
-    }
+					// Recombine for the rewritten data
+					$rewrite_data[ $field->id ] = $base . $path;
+				}
+			}
+		}
+		foreach ( $feed['meta']['fieldValues'] as $field_value ) {
+			if ( ( ! empty( $field_value['custom_key'] ) ) && ( $value = $rewrite_data[ $field_value['value'] ] ?? NULL ) ) {
+				$request_data[ $field_value['custom_key'] ] = $value;
+			}
+		}
+	}
 
 	return $request_data;
 }
