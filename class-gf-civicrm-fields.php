@@ -536,31 +536,21 @@ class FieldsAddOn extends \GFAddOn {
    * @return array An array of $feeds
    */
   public function webhooks_request_url( $request_url, $feed, $entry, $form ) {
-    $use_cmrf = rgars($form, 'gf-civicrm/civicrm_use_cmrf');
+    $profile_name = get_rest_connection_profile();
+    $profiles = get_profiles();
+    $profile = $profiles[ $profile_name ] ?? null;
 
-    if ( !empty( $use_cmrf ) && boolval( $use_cmrf ) ) {
-      $profiles     = get_profiles();
-      $profile_name = rgars($form, 'gf-civicrm/civicrm_rest_connection');
+    // Make sure we in fact have a profile to set the url with.
+    if ( isset( $profile ) && is_array( $profile ) ) {
+      $cmrf_url = add_query_arg(
+        [
+          'key'     => $profile['site_key'],
+          'api_key' => $profile['api_key'],
+        ],
+        $profile['url']
+      );
 
-      if ( isset( $profiles[ $profile_name ] ) ) {
-        $profile = $profiles[ $profile_name ];
-      } else if ( is_null( $profile_name ) || $profile_name === "default" ) {
-        // Fallback to default setting or first profile setup.
-        $profile = get_rest_connection_profile();
-      }
-
-      // Make sure we in fact have a profile to set the url with.
-      if ( isset( $profile ) && is_array( $profile ) ) {
-        $cmrf_url = add_query_arg(
-          [
-            'key'     => $profile['site_key'],
-            'api_key' => $profile['api_key'],
-          ],
-          $profile['url']
-        );
-
-        $request_url = str_replace( '{civicrm_cmrf_url}', $cmrf_url, $feed['meta']['requestURL'] );
-      }
+      $request_url = str_replace( '{civicrm_cmrf_url}', $cmrf_url, $feed['meta']['requestURL'] );
     }
 
     return $request_url;
