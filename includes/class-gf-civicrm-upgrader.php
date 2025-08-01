@@ -47,7 +47,7 @@ class Upgrader extends \Plugin_Upgrader {
 
         // Get plugin Update URI
         $settings = get_option( 'gravityformsaddon_gf-civicrm_settings' );
-        $enable_prereleases = rgar( $settings, 'enable_prereleases' );
+        $enable_prereleases = is_array($settings) && ($settings['enable_prereleases'] ?? FALSE);
         if ( $enable_prereleases ) {
             $plugin_update_uri = 'https://api.github.com/repos/' . GF_CIVICRM_PLUGIN_GITHUB_REPO . '/releases?per_page=5'; // GFCV-72 Temp. Allow prereleases for upgrader.
         } else {

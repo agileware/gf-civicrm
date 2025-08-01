@@ -286,11 +286,7 @@ class FieldsAddOn extends \GFAddOn {
   public function add_form_settings_menu( $tabs, $form_id ) {
 	  $settings = $this->get_form_settings( $form_id );
 
-	  if ( ! empty( $settings['civicrm_auth_checksum'] ) ) {
-		  return parent::add_form_settings_menu( $tabs, $form_id );
-	  } else {
-		  return $tabs;
-	  }
+    return parent::add_form_settings_menu( $tabs, $form_id );
   }
 
   public function form_settings_fields($form) {
@@ -313,8 +309,15 @@ class FieldsAddOn extends \GFAddOn {
 						'name'  => 'civicrm_auth_checksum'
 					]
 				]
-		  ];
-    }
+			];
+		}
+
+    $fields[] = [
+      'type'        => 'text',
+      'name'        => 'default_fp',
+      'label'       => 'Default Form Processor',
+      'description' => wp_kses('Optionally select a default CiviCRM Form Processor for this form. Use <code>default_fp</code> instead of the form processor name in your merge tags to default to this value.', 'data'),
+    ];
 
     if(!empty($fields)) {
 			return [

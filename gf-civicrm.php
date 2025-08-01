@@ -39,9 +39,6 @@ define( 'GF_CIVICRM_PLUGIN_PATH', plugin_dir_path( __FILE__ ) );
 define( 'GF_CIVICRM_PLUGIN_SLUG', plugin_basename( __FILE__ ) );
 define( 'GF_CIVICRM_PLUGIN_GITHUB_REPO', 'agileware/gf-civicrm' ); // GitHub username and repo
 
-// Include the updater class
-require_once GF_CIVICRM_PLUGIN_PATH . 'includes/class-gf-civicrm-upgrader.php';
-
 add_action('plugins_loaded', function() {
 	// Include the updater class
 	require_once GF_CIVICRM_PLUGIN_PATH . 'includes/class-gf-civicrm-upgrader.php';
@@ -214,7 +211,7 @@ function do_civicrm_replacement( $form, $context ) {
 			if ( $field->type == 'checkbox' ) {
                 $i = 0;
                 $field->inputs = [];
-				foreach ( $field->choices as [ 'label' => $label ] ) {
+				foreach ( $field->choices as [ 'text' => $label ] ) {
 					$field->inputs[] = [
 						// Avoid multiples of 10, allegedly these are problematic
 						'id'    => $field->id . '.' . ( ++ $i % 10 ? $i : ++ $i ),
@@ -237,15 +234,29 @@ function do_civicrm_replacement( $form, $context ) {
 	return $form;
 }
 
-/**
- * Adds custom merge tags to Insert Merge tags dropdowns.
- */
-function compose_merge_tags ( $merge_tags ) {
+function compose_merge_tags ( $merge_tags, $form_id ) {
 	try {
-		$profile_name = get_rest_connection_profile();
-		$processors = api_wrapper( $profile_name, 'FormProcessorInstance', 'get', [ 'sequential' => 1], [ 'limit' => 0 ] );
-		
-		foreach ( $processors as ['inputs' => $inputs, 'name' => $pname, 'title' => $ptitle] ) {
+		$form_processors = civicrm_api3( 'FormProcessorInstance', 'get', [ 'sequential' => 1 ] )['values'];
+
+		$form = GFAPI::get_form( $form_id );
+		$form_settings    = FieldsAddOn::get_instance()->get_form_settings( $form );
+		$default_fp_value = rgar( $form_settings, 'default_fp' );
+
+		if ( $default_fp_value ) {
+			$default_fp_options = reset( array_filter( $form_processors, fn($fp) => $fp['name'] === $default_fp_value ) );
+
+			foreach ($default_fp_options['inputs'] as ['name' => $iname, 'title' => $ititle]) {
+				$merge_tags[] = [
+					'label' => sprintf( __( '%s / %s / %s', 'gf-civicrm' ), 'Default', $default_fp_options['title'], $ititle ),
+					'tag'   => "{civicrm_fp.default_fp.{$iname}}",
+				];
+			}
+		}
+
+		foreach (
+			$form_processors
+			as ['inputs' => $inputs, 'name' => $pname, 'title' => $ptitle]
+		) {
 			foreach ( $inputs as ['name' => $iname, 'title' => $ititle] ) {
 				$merge_tags[] = [
 					'label' => sprintf( __( '%s / %s', 'gf-civicrm' ), $ptitle, $ititle ),
@@ -329,6 +340,74 @@ add_filter( 'gform_pre_submission_filter', function ( $form ) {
 add_filter( 'gform_admin_pre_render', function ( $form ) {
 	return do_civicrm_replacement( $form, 'admin_pre_render' );
 } );
+
+/**
+ * Replaces the default_fp tag with the value of the default form processor form setting, if it exists.
+ * Do this in pre_render for the $form context, which is not passed to gform_replace_merge_tags for default values.
+ * 
+ * @param $form
+ * 
+ * @return mixed
+ */
+function replace_default_fp( $form ) {
+	if ( !class_exists( 'GFCiviCRM\FieldsAddOn' ) ) {
+		return $form; // do nothing
+	}
+
+	$form_settings    = FieldsAddOn::get_instance()->get_form_settings( $form );
+	$default_fp_value = rgar( $form_settings, 'default_fp' );
+
+	// Only proceed if the setting has a value.
+	if ( empty( $default_fp_value ) ) {
+		return $form;
+	}
+
+	/**
+	 * A closure that takes a string by reference and replaces the
+	 * 'default_fp' placeholder with the actual value from form settings.
+	 *
+	 * @param ?string &$string_to_update The string to process.
+	 */
+	$replacer = function ( ?string &$string_to_update ) use ( $default_fp_value ) {
+		if ( empty( $string_to_update ) || strpos( $string_to_update, '.default_fp.' ) === false ) {
+			return;
+		}
+
+		$string_to_update = preg_replace_callback(
+			'/{ (civicrm_fp(?:_default)?) \. default_fp \. ([[:alnum:]_]+) }/x',
+			function ( $matches ) use ( $default_fp_value ) {
+				// Reconstruct the merge tag with the real value.
+				return sprintf(
+					'{%1$s.%2$s.%3$s}',
+					$matches[1],
+					$default_fp_value,
+					$matches[2]
+				);
+			},
+			$string_to_update
+		);
+	};
+
+	foreach ( $form['fields'] as &$field ) {
+		// Process the default value for the main field object.
+		if ( isset( $field->defaultValue ) ) {
+			$replacer( $field->defaultValue );
+		}
+
+		// Process default values for address sub-fields (which are in an array).
+		if ( 'address' === $field->type && ! empty( $field->inputs ) ) {
+			foreach ( $field->inputs as &$input ) {
+				// The defaultValue for sub-fields is an array key.
+				if ( isset( $input['defaultValue'] ) ) {
+					$replacer( $input['defaultValue'] );
+				}
+			}
+		}
+	}
+
+	return $form;
+}
+add_filter( 'gform_pre_render', 'GFCiviCRM\replace_default_fp', 10, 1 );
 
 add_filter( 'gform_username', function ( $username ) {
 	return sanitize_user( $username );
@@ -417,34 +496,61 @@ function webhooks_request_data( $request_data, $feed, $entry, $form ) {
 	if ( $feed['meta']['requestFormat'] === 'json' ) {
     	$rewrite_data = [];
 
-		$multi_json = (bool) FieldsAddOn::get_instance()->get_plugin_setting( 'civicrm_multi_json' );
+    $multi_json = (bool) FieldsAddOn::get_instance()->get_plugin_setting( 'civicrm_multi_json' );
 
-		/** @var \GF_Field $field */
-		foreach ( $form['fields'] as $field ) {
-			if ( property_exists( $field, 'storageType' ) && $field->storageType == 'json' ) {
-				$rewrite_data[ $field['id'] ] = json_decode( $entry[ $field['id'] ] );
-			} elseif (
-				! empty( $multi_json ) &&  // JSON encoding selected in settings
-				( is_a( $field, 'GF_Field_Checkbox' ) || is_a( $field, 'GF_Field_MultiSelect' ) ) // Multi-value field
-			) {
-				$rewrite_data[ $field->id ] = fix_multi_values( $field, $entry );
-			}
-            
-			/*
-			* Custom Price, Product fields send the value in $ 50.00 format which is problematic
-			* @TODO If the $feed['meta']['fieldValues'][x] field has a value=gf_custom then custom_value will contain something like {membership_type:83:price} - this requires new logic extract the field ID. Will not contain the usual field ID.			
-			*/
+    $feed_keys = [];
 
-			if ( is_a( $field, 'GF_Field_Price' ) && $field->inputType == 'price' && isset( $entry[ $field->id ] ) ) {
-				$rewrite_data[ $field->id ] = convertInternationalCurrencyToFloat( $entry[ $field->id ] );
-			}
-		}
-		foreach ( $feed['meta']['fieldValues'] as $field_value ) {
-			if ( ( ! empty( $field_value['custom_key'] ) ) && ( $value = $rewrite_data[ $field_value['value'] ] ?? NULL ) ) {
-				$request_data[ $field_value['custom_key'] ] = $value;
-			}
-		}
-	}
+    // Find the field ids to process
+    foreach( $feed[ 'meta' ][ 'fieldValues' ] as $fv ) {
+        $feed_keys[ $fv[ 'value' ] ] = $fv[ 'custom_key' ];
+    }
+
+    /** @var \GF_Field $field */
+    foreach ( $form['fields'] as $field ) {
+        // Skip if not part of entry meta
+        if( !$feed_keys[ $field->id ] ) {
+            continue;
+        }
+
+        // Send multi-value fields encode in json instead of comma separated
+	    if ( $feed['meta']['requestFormat'] === 'json' ) {
+		    if ( property_exists( $field, 'storageType' ) && $field->storageType == 'json' ) {
+			    $rewrite_data[ $field['id'] ] = json_decode( $entry[ $field['id'] ] );
+		    } elseif (
+			    ! empty( $multi_json ) &&  // JSON encoding selected in settings
+			    ( is_a( $field, 'GF_Field_Checkbox' ) || is_a( $field, 'GF_Field_MultiSelect' ) ) // Multi-value field
+		    ) {
+			    $rewrite_data[ $field->id ] = fix_multi_values( $field, $entry );
+		    }
+	    }
+
+	    /*
+		 * Custom Price, Product fields send the value in $ 50.00 format which is problematic
+		 * @TODO If the $feed['meta']['fieldValues'][x] field has a value=gf_custom then custom_value will contain something like {membership_type:83:price} - this requires new logic extract the field ID. Will not contain the usual field ID.
+		 */
+	    if ( is_a( $field, 'GF_Field_Price' ) && $field->inputType == 'price' && isset( $entry[ $field->id ] ) ) {
+		    $rewrite_data[ $field->id ] = convertInternationalCurrencyToFloat( $entry[ $field->id ] );
+	    }
+
+        // URL encode file url parts.  The is mostly because PHP does not count URLs with UTF-8 in them as valid.
+        if( is_a( $field, 'GF_Field_FileUpload' ) ) {
+            // Assume the scheme + domain is already encoded, extract path part
+            if(preg_match('{ (^ .+? ://+ .+? / ) ( .+ ) }x', $entry[ $field->id ], $matches)) {
+                [, $base, $path] = $matches;
+
+                // Each path, query, and fragment part, should be passed through urlencode
+                $path = preg_replace_callback( '{ ( [^/?#&]+ ) }x', fn($part) => urlencode( $part[1] ), $path );
+
+                // Recombine for the rewritten data
+                $rewrite_data[ $field->id ] = $base . $path;
+            }
+        }
+    }
+    foreach ( $feed['meta']['fieldValues'] as $field_value ) {
+        if ( ( ! empty( $field_value['custom_key'] ) ) && ( $value = $rewrite_data[ $field_value['value'] ] ?? NULL ) ) {
+            $request_data[ $field_value['custom_key'] ] = $value;
+        }
+    }
 
 	return $request_data;
 }
@@ -452,7 +558,8 @@ function webhooks_request_data( $request_data, $feed, $entry, $form ) {
 add_filter( 'gform_webhooks_request_data', 'GFCiviCRM\webhooks_request_data', 10, 4 );
 
 /**
- * Add setting for CiviCRM Source to Gravity Forms editor standard settings
+ * Add setting for CiviCRM Source to Gravity Forms editor standard settings.
+ * Allows you to select a Form Processor input as the source for values for a Gravity Forms field.
  *
  * @param int $position
  * @param int $form_id
@@ -510,6 +617,18 @@ function civicrm_optiongroup_setting( $position, $form_id ) {
 				// Form processor extension may not be installed, ignore
         		$form_processors = [];
 			}
+
+			// Build the list of options for the default_fp tag.
+			// If the default_fp form setting has a value, populate with the values for the defined form processor.
+			// Otherwise, do not add anything to the list of options.
+			$form = GFAPI::get_form( $form_id );
+			$form_settings    = FieldsAddOn::get_instance()->get_form_settings( $form );
+			$default_fp_value = rgar( $form_settings, 'default_fp' );
+
+			if ( $default_fp_value ) {
+				$default_fp_options = reset(array_filter( $form_processors, fn($fp) => $fp['name'] === $default_fp_value ));
+			}
+
 			?>
 			<li class="civicrm_optiongroup_setting field_setting">
 				<label for="civicrm_optiongroup_selector">
@@ -518,6 +637,13 @@ function civicrm_optiongroup_setting( $position, $form_id ) {
 				<select id="civicrm_optiongroup_selector"
 				        onchange="SetCiviCRMOptionGroup(this)">
 					<option value=""><?php esc_html_e( 'None' ); ?></option>
+					<?php if ( $default_fp_options ): ?>
+						<optgroup label="DEFAULT Form Processor: <?php echo $default_fp_options['title']; ?>">
+							<?php foreach ( $default_fp_options['options'] as $pr_name => $pr_title ) {
+								echo "<option value=\"civicrm_fp__{$default_fp_options['name']}__{$pr_name}\">{$pr_title}</option>";
+							} ?>
+						</optgroup>
+					<?php endif; ?>
 					<?php foreach ( $form_processors as $processor ): ?>
 						<optgroup label="Form Processor: <?php echo $processor['title']; ?>">
 							<?php foreach ( $processor['options'] as $pr_name => $pr_title ) {
@@ -756,6 +882,7 @@ function replace_merge_tags( $text, $form, $entry, $url_encode, $esc_html, $nl2b
 
 	);
 	*/
+
 	$text = preg_replace_callback(
 		'{ {civicrm_fp(?:_default)? \. ([[:alnum:]_]+) \. ([[:alnum:]_]+) } }x',
 		'GFCiviCRM\fp_tag_default',
@@ -764,7 +891,7 @@ function replace_merge_tags( $text, $form, $entry, $url_encode, $esc_html, $nl2b
 	return $text;
 }
 
-add_filter( 'gform_custom_merge_tags', 'GFCiviCRM\compose_merge_tags', 10, 1 );
+add_filter( 'gform_custom_merge_tags', 'GFCiviCRM\compose_merge_tags', 10, 2 );
 
 add_filter( 'gform_replace_merge_tags', 'GFCiviCRM\replace_merge_tags', 10, 7 );
 
