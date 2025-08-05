@@ -67,6 +67,7 @@ class FieldsAddOn extends GFAddOn {
     if ($this->is_gravityforms_supported() && class_exists('GF_Field')) {
       require_once('includes/class-gf-field-group-contact-select.php');
       require_once('includes/class-civicrm-payment-token.php');
+      require_once('includes/custom-conditional-logic.php');
     }
   }
 
