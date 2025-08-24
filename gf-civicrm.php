@@ -6,7 +6,7 @@
  * Requires plugins: civicrm, gravityforms
  * Author: Agileware
  * Author URI: https://agileware.com.au
- * Version: 1.11.0
+ * Version: 1.11.1
  * Text Domain: gf-civicrm
  * 
  * Copyright (c) Agileware Pty Ltd (email : support@agileware.com.au)
@@ -389,13 +389,16 @@ function convertInternationalCurrencyToFloat( $currencyValue ) {
 }
 
 /*
-* Extend the maximum attempts for webhook calls, so Gravity Forms does not give up and start bailing
+* Extend the maximum attempts for webhook calls, so Gravity Forms does not give up if unable to connect on first go
 */
 
-add_filter( 'gform_max_async_feed_attempts', 'GFCiviCRM\custom_max_async_feed_attempts' );
+add_filter( 'gform_max_async_feed_attempts', 'GFCiviCRM\custom_max_async_feed_attempts', 10, 5 );
 
-function custom_max_async_feed_attempts( $max_attempts ) {
-	return 999999; // @TODO this could be a configurable option
+function custom_max_async_feed_attempts( $max_attempts, $form, $entry, $addon_slug, $feed ) {
+    if ( $addon_slug == 'gravityformswebhooks' ) {
+        $max_attempts = 3;
+    }
+    return $max_attempts;
 }
 
 /**
