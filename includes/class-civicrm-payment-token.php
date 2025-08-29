@@ -237,19 +237,20 @@ class CiviCRM_Payment_Token extends GF_Field {
 					'id', 'masked_account_number', 'expiry_date', 'token',
 					'contribution_recur.contribution_status_id:label',
 					'contribution_recur.amount',
+					'contribution_recur.currency:abbr',
 					'contribution_recur.frequency_unit:label',
 					'contribution_recur.frequency_interval',
 					'contribution_recur.financial_type_id:label',
 					'contribution_recur.id',
 					'membership.membership_type_id:label',
 					'contribution.source',
-					'contribution.contribution_page_id:label',
+					'contribution.contribution_page_id:label'
 				)
-				->addJoin( 'ContributionRecur AS contribution_recur', 'INNER', [ 'id', '=', 'contribution_recur.payment_token_id', ] )
-				->addJoin( 'Membership as membership', 'LEFT', [ 'membership.contribution_recur_id', '=', 'contribution_recur.id', ] )
-				->addJoin( 'Contribution as contribution', 'INNER', [ 'contribution.contribution_recur_id', '=', 'contribution_recur.id', ] )
+				->addJoin( 'ContributionRecur AS contribution_recur', 'INNER', [ 'id', '=', 'contribution_recur.payment_token_id' ] )
+				->addJoin( 'Membership AS membership', 'LEFT', [ 'contribution_recur.id', '=', 'membership.contribution_recur_id' ] )
+				->addJoin( 'Contribution AS contribution', 'LEFT', [ 'contribution_recur.id', '=', 'contribution.contribution_recur_id' ] )
 				->addWhere( 'payment_processor_id', '=', $field['civicrm_payment_processor'] )
-				->addWhere( 'contribution_recur.contribution_status_id:name', 'IN', [ 'In Progress', 'Pending', 'Failing', ] )
+				->addWhere( 'contribution_recur.contribution_status_id:name', 'IN', [ 'In Progress', 'Pending', 'Failing', 'Processing', ] )
 				->addOrderBy( 'expiry_date', 'DESC' )
 				->addOrderBy( 'contribution_recur.id', 'DESC' );
 
@@ -271,7 +272,13 @@ class CiviCRM_Payment_Token extends GF_Field {
 												 'contribution.source'                             => 'source',
 												 'contribution.contribution_page_id:label'         => 'contribution_page',
 											 ] )
-											 ->indexBy( 'id' );
+											 ->getArrayCopy();
+
+			$payment_tokens_unique = array_column( $payment_tokens, NULL, 'id' );
+
+			foreach( array_filter( $payment_tokens, fn($t) => !empty($t['membership_type']) ) as $payment_token ) {
+				$payment_tokens_unique[$payment_token['id']]['membership_type'] ??= $payment_token['membership_type'];
+			}
 
             $field->choices = [];
 
@@ -283,7 +290,13 @@ class CiviCRM_Payment_Token extends GF_Field {
                 ];
             }
 
-			foreach ( $payment_tokens as $payment_token ) {
+			foreach ( $payment_tokens_unique as $payment_token ) {
+				$for_string = ( $payment_token['membership_type'] ? 'Membership: ' . $payment_token['membership_type'] : NULL );
+				$for_string ??= ( $payment_token['source']
+								  ?? $payment_token['contribution_page']
+								  ?? $payment_token['financial_type']
+								  ?? 'unknown' );
+				$for_string = strtr($for_string, ["\r" => '', "\n" => ' ']);
 				$field->choices[] = [
 					'text' => sprintf( '*%1$s (Expires %2$s) - $%3$.2f every %4$u %5$s for %6$s',
 						substr( $payment_token['masked_account_number'], - 4 ),
@@ -291,7 +304,7 @@ class CiviCRM_Payment_Token extends GF_Field {
 						$payment_token['amount'],
 						$payment_token['interval'],
 						$payment_token['unit'],
-						$payment_token['membership_type'] ?? $payment_token['source'] ?? $payment_token['contribution_page'] ?? $payment_token['financial_type'] ?? 'unknown',
+						$for_string
 					),
 					'value'      => (string) $payment_token['id'],
 					'isSelected' => false,
