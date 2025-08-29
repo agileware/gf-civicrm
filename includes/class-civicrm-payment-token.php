@@ -107,7 +107,7 @@ class CiviCRM_Payment_Token extends GF_Field {
 		        $( document ).bind( "gform_load_field_settings", function( event, field ) {
 		            if( GetInputType( field ) == field_type ) {
 		                console.debug( `Loading ${field.civicrm_payment_processor} as default`, field );
-		                $( "#civicrm_payment_processor" ).val( field.civicrm_payment_processor );		                
+		                $( "#civicrm_payment_processor" ).val( field.civicrm_payment_processor );
 		            }
 		        } );
 		    } )( jQuery ); ',
@@ -232,10 +232,26 @@ class CiviCRM_Payment_Token extends GF_Field {
 			// Fetch the payment tokens for the selector processor
             // No apparent permissions for payment token, permissions check seems to fail without admin
             // contact_id = user_contact_id should be sufficient security.
-			$payment_tokens = PaymentToken::get( false )
-			                              ->addSelect( 'id', 'masked_account_number', 'expiry_date', 'token' )
-			                              ->addWhere( 'payment_processor_id', '=', $field['civicrm_payment_processor'] )
-			                              ->addOrderBy( 'expiry_date', 'DESC' );
+			$payment_tokens = PaymentToken::get( FALSE )
+				->addSelect(
+					'id', 'masked_account_number', 'expiry_date', 'token',
+					'contribution_recur.contribution_status_id:label',
+					'contribution_recur.amount',
+					'contribution_recur.frequency_unit:label',
+					'contribution_recur.frequency_interval',
+					'contribution_recur.financial_type_id:label',
+					'contribution_recur.id',
+					'membership.membership_type_id:label',
+					'contribution.source',
+					'contribution.contribution_page_id:label',
+				)
+				->addJoin( 'ContributionRecur AS contribution_recur', 'INNER', [ 'id', '=', 'contribution_recur.payment_token_id', ] )
+				->addJoin( 'Membership as membership', 'LEFT', [ 'membership.contribution_recur_id', '=', 'contribution_recur.id', ] )
+				->addJoin( 'Contribution as contribution', 'INNER', [ 'contribution.contribution_recur_id', '=', 'contribution_recur.id', ] )
+				->addWhere( 'payment_processor_id', '=', $field['civicrm_payment_processor'] )
+				->addWhere( 'contribution_recur.contribution_status_id:name', 'IN', [ 'In Progress', 'Pending', 'Failing', ] )
+				->addOrderBy( 'expiry_date', 'DESC' )
+				->addOrderBy( 'contribution_recur.id', 'DESC' );
 
             if(empty(\CRM_Core_Session::getLoggedInContactID()) && $contact_id = validateChecksumFromURL()) {
                 $payment_tokens->addWhere( 'contact_id', '=', $contact_id );
@@ -243,7 +259,19 @@ class CiviCRM_Payment_Token extends GF_Field {
 	            $payment_tokens->addWhere( 'contact_id', '=', 'user_contact_id' );
             }
 
-            $payment_tokens = $payment_tokens->execute();
+			$payment_tokens = $payment_tokens->execute()
+											 ->rekey( [
+												 'contribution_recur.contribution_status_id:label' => 'label',
+												 'contribution_recur.amount'                       => 'amount',
+												 'contribution_recur.frequency_interval'           => 'interval',
+												 'contribution_recur.frequency_unit:label'         => 'unit',
+												 'contribution_recur.financial_type_id:label'      => 'financial_type',
+												 'contribution_recur.id'                           => 'contribution_recur_id',
+												 'membership.membership_type_id:label'             => 'membership_type',
+												 'contribution.source'                             => 'source',
+												 'contribution.contribution_page_id:label'         => 'contribution_page',
+											 ] )
+											 ->indexBy( 'id' );
 
             $field->choices = [];
 
@@ -257,7 +285,14 @@ class CiviCRM_Payment_Token extends GF_Field {
 
 			foreach ( $payment_tokens as $payment_token ) {
 				$field->choices[] = [
-					'text'       => sprintf( '%s (Expires %s)', $payment_token['masked_account_number'], date_create_immutable( $payment_token['expiry_date'] )->format( 'm/y' ) ),
+					'text' => sprintf( '*%1$s (Expires %2$s) - $%3$.2f every %4$u %5$s for %6$s',
+						substr( $payment_token['masked_account_number'], - 4 ),
+						date_create_immutable( $payment_token['expiry_date'] )->format( 'm/y' ),
+						$payment_token['amount'],
+						$payment_token['interval'],
+						$payment_token['unit'],
+						$payment_token['membership_type'] ?? $payment_token['source'] ?? $payment_token['contribution_page'] ?? $payment_token['financial_type'] ?? 'unknown',
+					),
 					'value'      => (string) $payment_token['id'],
 					'isSelected' => false,
 				];
