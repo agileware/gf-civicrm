@@ -6,7 +6,7 @@
  * Requires plugins: civicrm, gravityforms
  * Author: Agileware
  * Author URI: https://agileware.com.au
- * Version: 1.11.2
+ * Version: 1.11.3
  * Text Domain: gf-civicrm
  * 
  * Copyright (c) Agileware Pty Ltd (email : support@agileware.com.au)
@@ -192,8 +192,13 @@ function compose_merge_tags ( $merge_tags, $form_id ) {
 	return $merge_tags;
 }
 
-function pre_render( $form ) {
-	// @TODO - Refactor this to a single loop.
+function pre_render( $form, $ajax, $field_values, $context ) {
+	if($context == 'form_config') {
+        // Do not perform our pre-render callbacks when retrieving form configuration
+        return $form;
+    }
+
+    // @TODO - Refactor this to a single loop.
 	// @TODO - do_civicrm_replacement should be done first or last?
 
 	// Use the default value if set for radio buttons 
@@ -239,7 +244,7 @@ function pre_render( $form ) {
 	return do_civicrm_replacement( $form, 'pre_render' );
 }
 
-add_filter( 'gform_pre_render', 'GFCiviCRM\pre_render', 10, 1 );
+add_filter( 'gform_pre_render', 'GFCiviCRM\pre_render', 10, 4 );
 add_filter( '_disabled_gform_pre_process', function ( $form ) {
 	remove_filter( 'gform_pre_render', 'GFCiviCRM\pre_render' );
 
