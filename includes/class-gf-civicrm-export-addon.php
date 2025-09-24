@@ -1056,10 +1056,11 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
                 $html .= '</div>';
 
                 $message = sprintf(
-                    '<p><strong>%1$s</strong></p><p>%2$s</p>%3$s',
-                    esc_html__( 'Your forms - and any related Webhook Feeds and CiviCRM Form Processors - have been imported. ', 'gravityforms' ),
+                    '<p><strong>%1$s</strong></p><p>%2$s</p><p>%3$s</p>%4$s',
+                    esc_html__( 'Your forms - and any related Webhook Feeds and CiviCRM Form Processors - have been imported.', 'gravityforms' ),
+                    wp_kses_post( __( 'If you have imported a Form Processor, <a href="/wp-admin/admin.php?page=CiviCRM&q=civicrm%2Fmenu%2Frebuild&reset=1">clear the CiviCRM cache now</a>.', 'gravityforms' ) ),
                     esc_html__( 'The following were imported.', 'gravityforms' ),
-                    $html,
+                    $html
                 );
 
                 printf( '<div class="notice notice-success gf-notice" id="gform_import_export_status_notice">%s</div>', $message );
