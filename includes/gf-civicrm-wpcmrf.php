@@ -202,6 +202,51 @@ function check_civicrm_installation( $profile = null ) {
  * Checks if the user specified by CiviCRM Site Key and API Key has the necessary permissions 
  * to perform core CiviCRM API requests for this plugin.
  */
-function check_civicrm_remote_authentication_connection() {
-	
+function check_civicrm_remote_authentication_connection( $profile_id ) {
+	$is_successful = ( $profile_id !== '_local_civi_' );
+
+    if ( $is_successful ) {
+        return [ 'success' => true, 'message' => "Connection successful!" ];
+    } else {
+        return [ 'success' => false, 'message' => "Connection failed." ];
+    }
+}
+
+add_action( 'wp_ajax_check_civi_connection', 'GFCiviCRM\handle_ajax_connection_preflight_check' );
+
+function handle_ajax_connection_preflight_check() {
+    // Verify the security nonce.
+    check_ajax_referer( 'gf_civicrm_ajax_nonce', 'security' );
+
+    // Sanitize and retrieve the values.
+    $profile_name 	= isset($_POST['profile']) ? sanitize_text_field($_POST['profile']) : '';
+    $check_type 	= isset($_POST['check_type']) ? sanitize_key($_POST['check_type']) : '';
+
+    if ( empty( $profile_name ) || empty( $check_type ) ) {
+		wp_send_json_error(['message' => 'Missing parameters.']);
+    }
+
+	// Dispatch to the correct function based on the check type
+	$result = null;
+    switch ($check_type) {
+        case 'settings':
+            $result = api_wrapper($profile_name, 'Setting', 'get', ['return' => 'version']);
+            break;
+        case 'groups':
+            $result = api_wrapper($profile_name, 'Group', 'get', ['limit' => 1]);
+            break;
+        case 'countries':
+            $result = api_wrapper($profile_name, 'Country', 'get', ['limit' => 1]);
+            break;
+        // Add more 'case' statements here for your other checks...
+        default:
+            wp_send_json_error(['message' => 'Invalid check type specified.']);
+    }
+
+    // Send a JSON response back.
+    if ( isset($result['is_error']) && $result['is_error'] === 1 ) {
+		wp_send_json_error( ['message' => $result['error_message']] );
+    } else {
+        wp_send_json_success( $result );
+    }
 }

@@ -40,6 +40,8 @@ class FieldsAddOn extends \GFAddOn {
 		$this->_capabilities_settings_page	= 'gravityforms_edit_settings';
 		$this->_capabilities_form_settings	= 'gravityforms_edit_forms';
 		$this->_capabilities_uninstall		= 'gravityforms_uninstall';
+
+    add_action('admin_enqueue_scripts', [$this, 'localize_settings_script'], 20);
 	}
 
   /**
@@ -177,6 +179,18 @@ class FieldsAddOn extends \GFAddOn {
 		}
 	}
 
+  /**
+   * Passes PHP data to the settings page JavaScript file.
+   */
+  public function localize_settings_script() {
+    if ( $this->is_plugin_settings( $this->_slug ) ) {
+      wp_localize_script( 'gf_civicrm_wpcmrf', 'gf_civicrm_ajax_data', [
+          'ajax_url' => admin_url('admin-ajax.php'),
+          'nonce'    => wp_create_nonce('gf_civicrm_ajax_nonce'),
+      ]);
+    }
+  }
+
   public function warn_auth_checksum( $wrapper = '<div class="notice notice-warning is-dismissible">%s</div>' ) {
 		$forms = GFAPI::get_forms();
 
@@ -252,6 +266,16 @@ class FieldsAddOn extends \GFAddOn {
         'in_footer'	=> true,
         'enqueue' 	=> [
 		      [ $this->gf_civicrm_address_field, 'applyGFCiviCRMAddressField' ]
+        ],
+      ],
+      [
+        'handle'  	=> 'gf_civicrm_wpcmrf',
+        'src'		=> $this->get_base_url() . '/js/gf-civicrm-wpcmrf.js',
+        'version'	=> $this->_version,
+        'deps'		=> ['jquery', 'wp-util'],
+        'in_footer'	=> true,
+        'enqueue' 	=> [
+		      [ 'admin_page' => [ 'plugin_settings' ], 'tab' => 'gf-civicrm' ]
         ],
       ],
     ];
@@ -376,7 +400,11 @@ class FieldsAddOn extends \GFAddOn {
             'type'      => 'select',
             'name'      => 'civicrm_rest_connection',
             'choices'   => $this->get_cmrf_profile_options( true ),
-          ] 
+          ],
+          [
+            'type' => 'html',
+            'html' => '<div id="api-checks-results" class="api-checks-container"></div>',
+          ]
         ],
       ];
     }
