@@ -273,7 +273,12 @@ function compose_merge_tags ( $merge_tags, $form_id ) {
 }
 
 function pre_render( $form, $ajax, $field_values, $context ) {
-	// @TODO - Refactor this to a single loop.
+	if($context == 'form_config') {
+        // Do not perform our pre-render callbacks when retrieving form configuration
+        return $form;
+    }
+
+    // @TODO - Refactor this to a single loop.
 	// @TODO - do_civicrm_replacement should be done first or last?
 
 	// Only do this on form_display
@@ -324,6 +329,7 @@ function pre_render( $form, $ajax, $field_values, $context ) {
 	return do_civicrm_replacement( $form, 'pre_render' );
 }
 
+add_filter( 'gform_pre_render', 'GFCiviCRM\pre_render', 10, 4 );
 add_filter( 'gform_pre_render', 'GFCiviCRM\pre_render', 10, 4 );
 add_filter( '_disabled_gform_pre_process', function ( $form ) {
 	remove_filter( 'gform_pre_render', 'GFCiviCRM\pre_render' );
@@ -470,13 +476,16 @@ function convertInternationalCurrencyToFloat( $currencyValue ) {
 }
 
 /*
-* Extend the maximum attempts for webhook calls, so Gravity Forms does not give up and start bailing
+* Extend the maximum attempts for webhook calls, so Gravity Forms does not give up if unable to connect on first go
 */
 
-add_filter( 'gform_max_async_feed_attempts', 'GFCiviCRM\custom_max_async_feed_attempts' );
+add_filter( 'gform_max_async_feed_attempts', 'GFCiviCRM\custom_max_async_feed_attempts', 10, 5 );
 
-function custom_max_async_feed_attempts( $max_attempts ) {
-	return 999999; // @TODO this could be a configurable option
+function custom_max_async_feed_attempts( $max_attempts, $form, $entry, $addon_slug, $feed ) {
+    if ( $addon_slug == 'gravityformswebhooks' ) {
+        $max_attempts = 3;
+    }
+    return $max_attempts;
 }
 
 /**

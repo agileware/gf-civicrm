@@ -118,7 +118,7 @@ class CiviCRM_Payment_Token extends GF_Field {
 		        $( document ).bind( "gform_load_field_settings", function( event, field ) {
 		            if( GetInputType( field ) == field_type ) {
 		                console.debug( `Loading ${field.civicrm_payment_processor} as default`, field );
-		                $( "#civicrm_payment_processor" ).val( field.civicrm_payment_processor );		                
+		                $( "#civicrm_payment_processor" ).val( field.civicrm_payment_processor );
 		            }
 		        } );
 		    } )( jQuery ); ',
@@ -243,7 +243,27 @@ class CiviCRM_Payment_Token extends GF_Field {
 			// Fetch the payment tokens for the selector processor
             // No apparent permissions for payment token, permissions check seems to fail without admin
             // contact_id = user_contact_id should be sufficient security.
-			$profile_name = get_rest_connection_profile();
+			$payment_tokens = PaymentToken::get( FALSE )
+				->addSelect(
+					'id', 'masked_account_number', 'expiry_date', 'token',
+					'contribution_recur.contribution_status_id:label',
+					'contribution_recur.amount',
+					'contribution_recur.currency:abbr',
+					'contribution_recur.frequency_unit:label',
+					'contribution_recur.frequency_interval',
+					'contribution_recur.financial_type_id:label',
+					'contribution_recur.id',
+					'membership.membership_type_id:label',
+					'contribution.source',
+					'contribution.contribution_page_id:label'
+				)
+				->addJoin( 'ContributionRecur AS contribution_recur', 'INNER', [ 'id', '=', 'contribution_recur.payment_token_id' ] )
+				->addJoin( 'Membership AS membership', 'LEFT', [ 'contribution_recur.id', '=', 'membership.contribution_recur_id' ] )
+				->addJoin( 'Contribution AS contribution', 'LEFT', [ 'contribution_recur.id', '=', 'contribution.contribution_recur_id' ] )
+				->addWhere( 'payment_processor_id', '=', $field['civicrm_payment_processor'] )
+				->addWhere( 'contribution_recur.contribution_status_id:name', 'IN', [ 'In Progress', 'Pending', 'Failing', 'Processing', ] )
+				->addOrderBy( 'expiry_date', 'DESC' )
+				->addOrderBy( 'contribution_recur.id', 'DESC' );
 
 			// Get Payment Processors from CiviCRM
 			$api_params = [
@@ -263,12 +283,24 @@ class CiviCRM_Payment_Token extends GF_Field {
 				$api_params['contact_id'] = 'user_contact_id';
 			}
 
-			$api_options = [ 'limit' => 0, 'sort' => "expiry_date DESC" ];
-			$payment_tokens = api_wrapper( $profile_name, 'PaymentToken', 'get', $api_params, $api_options );
+			$payment_tokens = $payment_tokens->execute()
+											 ->rekey( [
+												 'contribution_recur.contribution_status_id:label' => 'label',
+												 'contribution_recur.amount'                       => 'amount',
+												 'contribution_recur.frequency_interval'           => 'interval',
+												 'contribution_recur.frequency_unit:label'         => 'unit',
+												 'contribution_recur.financial_type_id:label'      => 'financial_type',
+												 'contribution_recur.id'                           => 'contribution_recur_id',
+												 'membership.membership_type_id:label'             => 'membership_type',
+												 'contribution.source'                             => 'source',
+												 'contribution.contribution_page_id:label'         => 'contribution_page',
+											 ] )
+											 ->getArrayCopy();
 
-			if ( $payment_tokens['is_error'] ) {
-				// Received error response from API endpoint
-				throw new \GFCiviCRM_Exception( $payment_tokens['error_message'], $payment_tokens['error_code']);
+			$payment_tokens_unique = array_column( $payment_tokens, NULL, 'id' );
+
+			foreach( array_filter( $payment_tokens, fn($t) => !empty($t['membership_type']) ) as $payment_token ) {
+				$payment_tokens_unique[$payment_token['id']]['membership_type'] ??= $payment_token['membership_type'];
 			}
 
             $field->choices = [];
@@ -281,9 +313,22 @@ class CiviCRM_Payment_Token extends GF_Field {
                 ];
             }
 
-			foreach ( $payment_tokens as $payment_token ) {
+			foreach ( $payment_tokens_unique as $payment_token ) {
+				$for_string = ( $payment_token['membership_type'] ? 'Membership: ' . $payment_token['membership_type'] : NULL );
+				$for_string ??= ( $payment_token['source']
+								  ?? $payment_token['contribution_page']
+								  ?? $payment_token['financial_type']
+								  ?? 'unknown' );
+				$for_string = strtr($for_string, ["\r" => '', "\n" => ' ']);
 				$field->choices[] = [
-					'text'       => sprintf( '%s (Expires %s)', $payment_token['masked_account_number'], date_create_immutable( $payment_token['expiry_date'] )->format( 'm/y' ) ),
+					'text' => sprintf( '*%1$s (Expires %2$s) - $%3$.2f every %4$u %5$s for %6$s',
+						substr( $payment_token['masked_account_number'], - 4 ),
+						date_create_immutable( $payment_token['expiry_date'] )->format( 'm/y' ),
+						$payment_token['amount'],
+						$payment_token['interval'],
+						$payment_token['unit'],
+						$for_string
+					),
 					'value'      => (string) $payment_token['id'],
 					'isSelected' => false,
 				];
