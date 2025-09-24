@@ -384,8 +384,8 @@ class Upgrader extends \Plugin_Upgrader {
         if ( $hook_extra['action'] != 'update' || $hook_extra['type'] != 'plugin' ) {
             return;
         }
-
-        if ( !in_array( $this->plugin, $hook_extra['plugins'], true ) ) {
+        
+        if ( !is_array( $hook_extra['plugins'] ) || !in_array( $this->plugin, $hook_extra['plugins'], true ) ) {
             return;
         }
 
