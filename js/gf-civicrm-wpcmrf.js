@@ -33,7 +33,7 @@ document.addEventListener("DOMContentLoaded", function () {
         checks.forEach(check => {
             const listItemHTML = `
                 <li id="check-${check.id}" class="api-check-item pending">
-                    <span class="api-check-icon">⏳</span>
+                    <span class="api-check-icon"><span class="dashicons dashicons-marker"></span></span>
                     <span class="api-check-label">${check.label}</span>
                     <span class="api-check-message"></span>
                 </li>`;
@@ -43,77 +43,49 @@ document.addEventListener("DOMContentLoaded", function () {
 
         resultsContainer.style.display = 'block';
 
-        // Create an array of promises, one for each check (this part is already vanilla JS).
-        const promises = checks.map(check => {
+        checks.forEach(check => {
+            // Get the specific list item for this check.
+            const listItem = document.getElementById(`check-${check.id}`);
+            const iconSpan = listItem.querySelector('.api-check-icon');
+            const messageSpan = listItem.querySelector('.api-check-message');
+
             const formData = new URLSearchParams();
             formData.append('action', 'check_civi_connection');
             formData.append('security', gf_civicrm_ajax_data.nonce);
             formData.append('profile', selectedValue);
             formData.append('check_type', check.id);
 
-            return fetch(gf_civicrm_ajax_data.ajax_url, {
+            fetch(gf_civicrm_ajax_data.ajax_url, {
                 method: 'POST',
                 body: formData,
-            }).then(response => {
+            })
+            .then(response => {
                 if (!response.ok) {
                     throw new Error(`HTTP Error: ${response.statusText}`);
                 }
                 return response.json();
-            }).then(data => {
+            })
+            .then(data => {
                 if (!data.success) {
+                    // This is an API-level error (e.g., bad permissions).
                     throw new Error(data.data.message);
                 }
-                return data.data;
-            });
-        });
-
-        // Run all promises and update the UI as they complete.
-        Promise.allSettled(promises).then(results => {
-            results.forEach((result, index) => {
-                const check = checks[index];
-                const listItem = document.getElementById(`check-${check.id}`);
-
+                
+                // --- SUCCESS ---
                 listItem.classList.remove('pending');
-                const iconSpan = listItem.querySelector('.api-check-icon');
-                const messageSpan = listItem.querySelector('.api-check-message');
-
-                if (result.status === 'fulfilled') {
-                    // The promise was successful.
-                    listItem.classList.add('success');
-                    iconSpan.textContent = '✅';
-                    messageSpan.textContent = 'OK';
-                } else {
-                    // The promise failed (network error or API error).
-                    listItem.classList.add('failed');
-                    iconSpan.textContent = '❌';
-                    messageSpan.textContent = result.reason.message;
-                }
+                listItem.classList.add('success');
+                iconSpan.innerHTML = '<span class="dashicons dashicons-yes"></span>';
+                messageSpan.textContent = 'OK';
+            })
+            .catch(error => {
+                // --- FAILED ---
+                listItem.classList.remove('pending');
+                listItem.classList.add('failed');
+                iconSpan.innerHTML = '<span class="dashicons dashicons-no"></span>';
+                messageSpan.textContent = error.message;
             });
         });
 
-        /**
-         * Working, single AJAX call
-        const formData = new URLSearchParams();
-        formData.append('action', 'check_civi_connection');
-        formData.append('profile', selectedValue);
-        formData.append('security', gf_civicrm_ajax_data.nonce);
-
-        // Use the Fetch API to send the data to WordPress.
-        fetch(gf_civicrm_ajax_data.ajax_url, {
-            method: 'POST',
-            body: formData,
-        })
-        .then(response => response.json()) // Parse the JSON response from PHP
-        .then(data => {
-            if (data.success) {
-                console.log('Success:', data.data.message);
-            } else {
-                console.error('Error:', data.data.message);
-            }
-        })
-        .catch(error => {
-            console.error('Request failed:', error);
-        });
-        */
+        
     });
 });

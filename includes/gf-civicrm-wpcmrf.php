@@ -269,7 +269,7 @@ function handle_ajax_connection_preflight_check() {
 		case 'payment_tokens':
 			$result = api_wrapper($profile_name, 'PaymentToken', 'get', ['limit' => 1], $cache);
 			break;
-        // Add more 'case' statements here for your other checks...
+        // Add more checks here...
         default:
             wp_send_json_error(['message' => 'Invalid check type specified.']);
     }
@@ -302,6 +302,6 @@ function get_helpful_error_message( $result ) {
 			=> $result . ': Check the settings for the connection profile.',
 		str_contains( $result, 'Mandatory key(s) missing from params array: id, checksum' ) // Validate Checksum check
 			=> 0,
-		// ... 
+		default => $result // Return the original error message if we haven't caught the case
 	};
 }
