@@ -26,7 +26,8 @@ document.addEventListener("DOMContentLoaded", function () {
         let selectedValue = event.target.value || '';
 
         // Do nothing if "None" is selected
-        if (empty(selectedValue)) {
+        if (!selectedValue) {
+            resultsContainer.innerHTML = '';
             return;
         }
 
