@@ -227,26 +227,81 @@ function handle_ajax_connection_preflight_check() {
     }
 
 	// Dispatch to the correct function based on the check type
+	$cache = [ 'cache' => '0' ];
 	$result = null;
     switch ($check_type) {
         case 'settings':
-            $result = api_wrapper($profile_name, 'Setting', 'get', ['return' => 'version']);
+            $result = api_wrapper($profile_name, 'Setting', 'get', ['return' => 'version'], $cache);
             break;
+		case 'validate_checksum':
+			// No parameters passed through, but if the user does not have sufficient permissions, 
+			// we'll see that error before we see the missing parameter error.
+			$result = api_wrapper($profile_name, 'ContactChecksum', 'validate', [], $cache);
+			break;
         case 'groups':
-            $result = api_wrapper($profile_name, 'Group', 'get', ['limit' => 1]);
+            $result = api_wrapper($profile_name, 'Group', 'get', ['limit' => 1], $cache);
             break;
+		case 'option_groups':
+			// If we can get the OptionGroup, there should be no problem getting OptionValues
+			$result = api_wrapper($profile_name, 'OptionGroup', 'get', ['limit' => 1], $cache);
+			break;
         case 'countries':
-            $result = api_wrapper($profile_name, 'Country', 'get', ['limit' => 1]);
+			// If we can get Countries, there should be no problem getting States/Provinces
+            $result = api_wrapper($profile_name, 'Country', 'get', ['limit' => 1], $cache);
             break;
+		case 'saved_searches':
+			$result = api_wrapper($profile_name, 'SavedSearch', 'get', ['limit' => 1], $cache);
+			break;
+		case 'formprocessor_getfields':
+			// No parameters passed through, but if the user does not have sufficient permissions, 
+			// we'll see that error.
+			$result = api_wrapper($profile_name, 'FormProcessor', 'getfields', [], $cache);
+			break;
+		case 'formprocessor_instance':
+			$result = api_wrapper($profile_name, 'FormProcessorInstance', 'get', ['limit' => 1], $cache);
+			break;
+		case 'formprocessor_defaults':
+			$result = api_wrapper($profile_name, 'FormProcessorDefaults', 'getfields', [], $cache);
+			break;
+		case 'payment_processors':
+			$result = api_wrapper($profile_name, 'PaymentProcessor', 'get', ['limit' => 1], $cache);
+			break;
+		case 'payment_tokens':
+			$result = api_wrapper($profile_name, 'PaymentToken', 'get', ['limit' => 1], $cache);
+			break;
         // Add more 'case' statements here for your other checks...
         default:
             wp_send_json_error(['message' => 'Invalid check type specified.']);
     }
 
     // Send a JSON response back.
-    if ( isset($result['is_error']) && $result['is_error'] === 1 ) {
-		wp_send_json_error( ['message' => $result['error_message']] );
+    if ( isset( $result['is_error'] ) && $result['is_error'] === 1 ) {
+		$message = get_helpful_error_message( $result['error_message'] );
+		if ( $message === 0 ) {
+			// It may have been a false-positive error (e.g. Validate Checksum)
+			wp_send_json_success( $result );
+		}
+		wp_send_json_error( ['message' => $message] );
+	} else if ( isset( $result['code'] ) && $result['code'] === 'civicrm_rest_api_error' ) {
+		// Error from CMRF
+		$message = get_helpful_error_message( $result['message'] );
+		wp_send_json_error( ['message' => $message] );
     } else {
         wp_send_json_success( $result );
     }
+}
+
+function get_helpful_error_message( $result ) {
+	return match (true) {
+		str_contains( $result, 'API permission check failed' ), 
+		str_contains( $result, 'insufficient permission' ), 
+			=> "Permission Error: Check the API user for this connection profile has the required permissions.",
+		str_contains( $result, 'Failed to connect' ) 
+			=> 'Failed to connect: Check the REST URL settings for the connection profile.',
+		str_contains( $result, 'Missing or invalid param' ) 
+			=> $result . ': Check the settings for the connection profile.',
+		str_contains( $result, 'Mandatory key(s) missing from params array: id, checksum' ) // Validate Checksum check
+			=> 0,
+		// ... 
+	};
 }

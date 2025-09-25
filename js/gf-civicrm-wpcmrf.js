@@ -10,16 +10,24 @@ document.addEventListener("DOMContentLoaded", function () {
 
     // Define all the checks to perform
     const checks = [
-        { id: 'settings', label: 'Retrieve Settings' },
-        { id: 'groups', label: 'Retrieve Groups' },
-        { id: 'countries', label: 'Retrieve Countries & States' },
+        { id: 'settings', label: 'Get Settings' },
+        { id: 'validate_checksum', label: 'Validate Checksums' },
+        { id: 'groups', label: 'Get Groups' },
+        { id: 'option_groups', label: 'Get OptionGroups' },
+        { id: 'countries', label: 'Get Countries & States' },
+        { id: 'saved_searches', label: 'Get SavedSearches' },
+        { id: 'formprocessor_getfields', label: 'Get FormProcessor fields' },
+        { id: 'formprocessor_instance', label: 'Get FormProcessorInstances' },
+        { id: 'formprocessor_defaults', label: 'Get FormProcessorDefaults' },
+        { id: 'payment_processors', label: 'Get PaymentProcessors' },
+        { id: 'payment_tokens', label: 'Get PaymentTokens' },
         // Add more checks here as you implement them in PHP
     ];
 
     civicrm_rest_connection.addEventListener('change', function(event) {
         let selectedValue = event.target.value || '_local_civi_';
 
-        resultsContainer.innerHTML = '<h4>API Pre-flight Checks</h4><ul></ul>';
+        resultsContainer.innerHTML = '<h4>API Pre-flight Checks</h4><p></p><ul></ul>';
         const list = resultsContainer.querySelector('ul');
 
         checks.forEach(check => {
