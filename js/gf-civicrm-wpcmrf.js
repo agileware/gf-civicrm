@@ -1,6 +1,4 @@
 document.addEventListener("DOMContentLoaded", function () {
-    console.log('loaded gf-civicrm-wpcmrf');
-
     const civicrm_rest_connection = document.getElementById('civicrm_rest_connection');
     const resultsContainer = document.getElementById('api-checks-results');
 
@@ -25,16 +23,21 @@ document.addEventListener("DOMContentLoaded", function () {
     ];
 
     civicrm_rest_connection.addEventListener('change', function(event) {
-        let selectedValue = event.target.value || '_local_civi_';
+        let selectedValue = event.target.value || '';
 
-        resultsContainer.innerHTML = '<h4>API Pre-flight Checks</h4><p></p><ul></ul>';
+        // Do nothing if "None" is selected
+        if (empty(selectedValue)) {
+            return;
+        }
+
+        resultsContainer.innerHTML = '<h4>API Pre-flight Checks</h4><p>Verfies the connection profile can establish baseline connection requirements.</p><ul></ul>';
         const list = resultsContainer.querySelector('ul');
 
         checks.forEach(check => {
             const listItemHTML = `
                 <li id="check-${check.id}" class="api-check-item pending">
                     <span class="api-check-icon"><span class="dashicons dashicons-marker"></span></span>
-                    <span class="api-check-label">${check.label}</span>
+                    <span class="api-check-label" style="font-weight: bold;">${check.label}</span>
                     <span class="api-check-message"></span>
                 </li>`;
             // Append the new list item's HTML to the list.
@@ -74,18 +77,16 @@ document.addEventListener("DOMContentLoaded", function () {
                 // --- SUCCESS ---
                 listItem.classList.remove('pending');
                 listItem.classList.add('success');
-                iconSpan.innerHTML = '<span class="dashicons dashicons-yes"></span>';
+                iconSpan.innerHTML = '<span class="dashicons dashicons-yes" style="color: green;"></span>';
                 messageSpan.textContent = 'OK';
             })
             .catch(error => {
                 // --- FAILED ---
                 listItem.classList.remove('pending');
                 listItem.classList.add('failed');
-                iconSpan.innerHTML = '<span class="dashicons dashicons-no"></span>';
+                iconSpan.innerHTML = '<span class="dashicons dashicons-no" style="color: red;"></span>';
                 messageSpan.textContent = error.message;
             });
         });
-
-        
     });
 });
