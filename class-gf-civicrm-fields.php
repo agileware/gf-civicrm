@@ -70,8 +70,6 @@ class FieldsAddOn extends \GFAddOn {
       require_once 'includes/class-gf-field-group-contact-select.php';
       require_once 'includes/class-civicrm-payment-token.php';
     }
-
-    add_filter( 'gform_webhooks_request_url', array( $this, 'webhooks_request_url' ), 5, 4 );
   }
 
   public function init_admin() {
@@ -131,8 +129,6 @@ class FieldsAddOn extends \GFAddOn {
     } );
 
     add_action( 'admin_init', [ $this, 'maybe_run_merge_tags_replacer' ] );
-    
-    add_filter( 'gform_custom_merge_tags', [ $this, 'compose_merge_tags' ], 10, 1 );
   }
   
   public function maybe_run_merge_tags_replacer() {
@@ -523,52 +519,4 @@ class FieldsAddOn extends \GFAddOn {
 
 		return $options;
 	}
-
-  /**
-   * Attempt to replace tags before feeds are processed.
-   *
-   * @since 2.0
-   *
-   * @param string      $requestUrl The url of the current feed being processed.
-   * @param false|array $feed  The current feed to be processed
-   * @param array       $entry Current entry for which feeds will be processed
-   * @param array       $form  Current form object.
-   *
-   * @return array An array of $feeds
-   */
-  public function webhooks_request_url( $request_url, $feed, $entry, $form ) {
-    $profile_name = get_rest_connection_profile();
-    $profiles = get_profiles();
-    $profile = $profiles[ $profile_name ] ?? null;
-
-    // Make sure we in fact have a profile to set the url with.
-    if ( isset( $profile ) && is_array( $profile ) ) {
-      $cmrf_url = add_query_arg(
-        [
-          'key'     => $profile['site_key'],
-          'api_key' => $profile['api_key'],
-        ],
-        $profile['url']
-      );
-
-      $request_url = str_replace( '{civicrm_cmrf_url}', $cmrf_url, $feed['meta']['requestURL'] );
-    }
-
-    return $request_url;
-  }
-
-  /**
-   * Add merge tag for CMRF.
-   *
-   * @param array $merge_tags The current merge tags.
-   * @return array
-   */
-  public function compose_merge_tags( $merge_tags ) {
-    $merge_tags[] = [
-      'label' => __('CiviCRM CMRF Url', 'gf-civicrm'),
-      'tag'   => '{civicrm_cmrf_url}',
-    ];
-
-    return $merge_tags;
-  }
 }
