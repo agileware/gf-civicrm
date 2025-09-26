@@ -102,7 +102,15 @@
         const held = input.value;
 
         // Create options from the list of state and use only those for the select
-        const options = states.map(([key, name]) => $(`<option value="${name}">${name}</option>`)[0]);
+        // GFCV-174 For some reason this started coming through as an object instead of an array at some point,
+        // even though it's an array before localising in loadCountriesAndStatesData().
+        // Handle both Array and Object
+        let options = null;
+        if (Array.isArray(states)) {
+            options = states.map(([key, name]) => $(`<option value="${name}">${name}</option>`)[0]);
+        } else {
+            options = Object.entries(states).map(([key, name]) => $(`<option value="${name[1]}">${name[1]}</option>`)[0]);
+        }
         input.replaceChildren(emptyOption, ...options);
 
         // Reset the value _after_ mutations have run.
