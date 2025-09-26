@@ -412,23 +412,34 @@ class FieldsAddOn extends \GFAddOn {
     // Only use these fields if CMRF is not active.
     if ( !is_plugin_active( 'connector-civicrm-mcrestface/wpcmrf.php' ) ) {
       $fields[] = [
-        'title'       => esc_html__( 'CiviCRM Site Key', 'gf-civicrm' ),
-        'description' => esc_html__( 'Provide the CiviCRM site key for making API calls, can be output using the merge tag {gf_civicrm_site_key}.', 'gf-civicrm' ),
-        'fields'      => [ [
-          'type'          => 'text',
-          'name'          => 'gf_civicrm_site_key',
-          'default_value' => '',
-        ] ],
-      ];
-  
-      $fields[] = [
-        'title'       => esc_html__( 'CiviCRM API Key', 'gf-civicrm' ),
-        'description' => esc_html__( 'Provide the CiviCRM API key for making API calls, can be output using the merge tag {gf_civicrm_api_key}.', 'gf-civicrm' ),
-        'fields'      => [ [
-          'type'          => 'text',
-          'name'          => 'gf_civicrm_api_key',
-          'default_value' => '',
-        ] ],
+        'title'       => esc_html__( 'CiviCRM API Settings', 'gf-civicrm' ),
+        'fields'      => [ 
+          [
+            'type'          => 'text',
+            'name'          => 'gf_civicrm_site_key',
+            'label'         => 'CiviCRM Site Key',
+            'description'   => esc_html__( 'Provide the CiviCRM site key for making API calls, can be output using the merge tag {gf_civicrm_site_key}.', 'gf-civicrm' ),
+            'default_value' => '',
+          ],
+          [
+            'type'          => 'text',
+            'name'          => 'gf_civicrm_api_key',
+            'label'         => 'CiviCRM API Key',
+            'description'   => esc_html__( 'Provide the CiviCRM API key for making API calls, can be output using the merge tag {gf_civicrm_api_key}.', 'gf-civicrm' ),
+            'default_value' => '',
+          ],
+          // Additional information
+          [
+            'type' => 'html',
+            'html' => sprintf(
+                  '<p><em>%s <a href="%s" target="_blank" rel="noopener">%s</a>%s</em></p>',
+                  esc_html__( 'Optional: To support remote CiviCRM installations, enable the ', 'gf-civicrm' ),
+                  'https://wordpress.org/plugins/connector-civicrm-mcrestface/',
+                  esc_html__( 'Connector to CiviCRM with CiviMcRestFace', 'gf-civicrm' ),
+                  esc_html__( ' plugin.', 'gf-civicrm' )
+            ),
+          ]
+        ],
       ];
     }
 
