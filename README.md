@@ -169,17 +169,9 @@ Once you have installed CMRF, you must configure a REST Connection profile and s
 1. Go to Settings > CiviCRM McRestFace Connections.
 1. Add a new connection profile to your desired CiviCRM installation and save it.
 1. Go to Forms > Settings. Open the CiviCRM subview.
-1. Under CiviCRM Settings, choose a connection profile for use in CiviCRM REST Connection Profile. This will be the default connection profile for all forms.
-1. Save your changes
-
-### TODO
-
-- Add support for setting a connection profile override for each form. This will enable forms to be built to connect to separate CiviCRM installations via connection profiles. e.g. One form connects to a local CRM, another form connects to a different remote CRM.
-
-## Implementation Notes
-
-At the time of development of this feature, CMRF only supports CiviCRM APIv3 calls. When developing API requests, this had to be taken into consideration, so all calls must use the APIv3 framework.
-
+1. Under **CiviCRM REST Connection Profile**, choose a connection profile to use. This will be the default connection profile for all forms.
+1. When you select a connection profile, a series of **preflight checks** will run to confirm a baseline connection to CiviCRM. This will help identify if a connection can be established and if the nominated API user who owns the API key provided has sufficient permissions for core CiviCRM API calls used by this plugin.
+1. **Save** your changes.
 
 # Troubleshooting
 

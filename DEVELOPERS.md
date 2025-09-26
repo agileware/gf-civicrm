@@ -3,7 +3,7 @@
 This experimental feature is to implement remote CiviCRM support via the CiviMcRestFace framework. 
 Use of this version of the gf-civicrm plugin is not yet recommended and impossible for non-developers.
 
-# Remote CivicRM Integration through CiviMcRestFace
+# Remote CiviCRM Integration through CiviMcRestFace
 
 ## Installation
 
@@ -15,13 +15,16 @@ Use of this version of the gf-civicrm plugin is not yet recommended and impossib
 1. Go to **Settings -> CiviCRM McRestFace Connections**
 1. Add a new connection profile to your remote CiviCRM Installation. CMRF will validate your connection.
 1. Go to **Forms -> Settings** and open the **CiviCRM Settings** subview.
-1. Under CiviCRM REST Connection Profile, select your connection profile. **NOTE:** By default if no connection profile is selected, GF CiviCRM will attempt to find a local installation.
+1. Under **CiviCRM REST Connection Profile**, select your connection profile. **NOTE:** By default if no connection profile is selected, GF CiviCRM will attempt to find a local installation.
+1. When you select a connection profile, a series of **preflight checks** will run to confirm a baseline connection to CiviCRM. This will help identify if a connection can be established and if the nominated API user who owns the API key provided has sufficient permissions for core CiviCRM API calls used by this plugin.
 
 ## Performing API calls
 
-Pass your API arguments through `api_wrapper()`. See `gf-civicrm-wpcmrf.php`.
+Pass your API arguments through `api_wrapper()`. By default this will run an API v3 query. Specify version 4 to run API v4.
 
-For example:
+See `gf-civicrm-wpcmrf.php`.
+
+### API v3 example
 
 ```
 // Chained API call to get an option group by the name, and all the options associated.
@@ -45,9 +48,41 @@ $option_group_data = api_wrapper( $profile_name, $entity, $action, $api_params, 
 
 ```
 
-### Limitations
+### API v4 example
 
-WPCMRF currently only supports APIv3 calls, as per CMRF_Abstract_Core. This is marked to change in the next major release.
+Easiest way to build the parameters is to use the API Explorer v4, and copy the Traditional style PHP arguments.
 
+```
+// Join API call to get payment tokens.
+$api_params = [
+    'select' => [
+        'id', 'masked_account_number', 'expiry_date', 'token',
+        'contribution_recur.contribution_status_id:label',
+        'contribution_recur.amount',
+        'contribution_recur.currency:abbr',
+        'contribution_recur.frequency_unit:label',
+        'contribution_recur.frequency_interval',
+        'contribution_recur.financial_type_id:label',
+        'contribution_recur.id',
+        'membership.membership_type_id:label',
+        'contribution.source',
+        'contribution.contribution_page_id:label'
+    ],
+    'join' => [
+        ['ContributionRecur AS contribution_recur', 'LEFT', ['contribution_recur.payment_token_id', '=', 'id']],
+        ['Contribution AS contribution', 'LEFT', ['contribution.contribution_recur_id', '=', 'contribution_recur.id']],
+    ],
+    'where' => [
+        ['contribution_recur.contribution_status_id', 'IN', [5, 2, 8, 7]],
+        ['payment_processor_id', '=', 4],
+        ['contact_id', '=', 'user_contact_id']
+    ],
+    'orderBy' => [
+        'expiry_date' => 'DESC',
+        'contribution_recur.id' => 'DESC',
+    ]
+];
 
+$payment_tokens = api_wrapper($profile_name, 'PaymentToken', 'get', $api_params, [], 4);
 
+```
