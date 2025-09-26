@@ -228,7 +228,8 @@ class Address_Field {
 
 			if($state_input && empty($state)) {
 				try {
-					$statecount = civicrm_api3( 'StateProvince', 'getcount', [ 'country_id.name' => $country ] );
+					$profile_name = get_rest_connection_profile( $form );
+					$statecount = api_wrapper( $profile_name, 'StateProvince', 'getcount', [ 'country_id.name' => $country ], [] );
 
 					if ( ! $statecount ) {
 						$field->inputs[ $state_input ]['isHidden'] = TRUE;
