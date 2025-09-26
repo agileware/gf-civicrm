@@ -236,7 +236,8 @@ function do_civicrm_replacement( $form, $context ) {
 
 function compose_merge_tags ( $merge_tags, $form_id ) {
 	try {
-		$form_processors = civicrm_api3( 'FormProcessorInstance', 'get', [ 'sequential' => 1 ] )['values'];
+		$profile_name = get_rest_connection_profile( $form_id );
+		$form_processors = api_wrapper( $profile_name, 'FormProcessorInstance', 'get', [], [] ) ?? [];
 
 		$form = GFAPI::get_form( $form_id );
 		$form_settings    = FieldsAddOn::get_instance()->get_form_settings( $form );
