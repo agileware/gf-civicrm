@@ -856,12 +856,14 @@ function fp_tag_default( $matches, $fallback = '', $multiple = false ) {
  * @return string
  */
 function replace_merge_tags( $text, $form, $entry, $url_encode, $esc_html, $nl2br, $format ) {
+	$gf_civicrm_rest_url_merge_tag = '{gf_civicrm_rest_url}';
 	$gf_civicrm_site_key_merge_tag = '{gf_civicrm_site_key}';
 	$gf_civicrm_api_key_merge_tag = '{gf_civicrm_api_key}';
+	$needs_rest_url  = strpos( $text, $gf_civicrm_rest_url_merge_tag ) !== false;
 	$needs_site_key = strpos( $text, $gf_civicrm_site_key_merge_tag ) !== false;
 	$needs_api_key  = strpos( $text, $gf_civicrm_api_key_merge_tag ) !== false;
 
-	if ( $needs_site_key || $needs_api_key ) {
+	if ( $needs_rest_url || $needs_site_key || $needs_api_key ) {
 		// Only call these once if needed
 		$profile_name = get_rest_connection_profile();
 		$profiles     = get_profiles();
@@ -873,13 +875,18 @@ function replace_merge_tags( $text, $form, $entry, $url_encode, $esc_html, $nl2b
 			$profile = null;
 		}
 
+		if ( $needs_rest_url ) {
+			$gf_civicrm_rest_url = $profile && isset( $profile['url'] ) ? $profile['url'] : GFCommon::format_variable_value( rest_url(), $url_encode, $esc_html, $format, $nl2br );
+			$text = str_replace( $gf_civicrm_rest_url_merge_tag, $gf_civicrm_rest_url, $text );
+		}
+
 		if ( $needs_site_key ) {
-			$gf_civicrm_site_key = $profile ? $profile['site_key'] : FieldsAddOn::get_instance()->get_plugin_setting( 'gf_civicrm_site_key' );
+			$gf_civicrm_site_key = $profile && isset( $profile['site_key'] ) ? $profile['site_key'] : FieldsAddOn::get_instance()->get_plugin_setting( 'gf_civicrm_site_key' );
 			$text = str_replace( $gf_civicrm_site_key_merge_tag, $gf_civicrm_site_key, $text );
 		}
 
 		if ( $needs_api_key ) {
-			$gf_civicrm_api_key = $profile ? $profile['api_key'] : FieldsAddOn::get_instance()->get_plugin_setting( 'gf_civicrm_api_key' );
+			$gf_civicrm_api_key = $profile && isset( $profile['api_key'] ) ? $profile['api_key'] : FieldsAddOn::get_instance()->get_plugin_setting( 'gf_civicrm_api_key' );
 			$text = str_replace( $gf_civicrm_api_key_merge_tag, $gf_civicrm_api_key, $text );
 		}
 	}
