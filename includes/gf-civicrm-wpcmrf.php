@@ -305,3 +305,34 @@ function get_helpful_error_message( $result ) {
 		default => $result // Return the original error message if we haven't caught the case
 	};
 }
+
+add_action( 'wp_ajax_check_connection_profile_type', 'GFCiviCRM\handle_ajax_get_connection_profile_type' );
+
+function handle_ajax_get_connection_profile_type() {
+	// Verify the security nonce.
+	check_ajax_referer( 'gf_civicrm_ajax_nonce', 'security' );
+
+	static $profiles;
+
+	if ( !$profiles ) {
+		$profiles = get_profiles();
+	}
+
+    // Sanitize and retrieve the values.
+    $profile_name 	= isset($_POST['profile']) ? sanitize_text_field($_POST['profile']) : '';
+
+    if ( empty( $profile_name ) ) {
+		wp_send_json_error(['message' => 'Missing parameters.']);
+    }
+
+	if ( !isset( $profiles[$profile_name] ) ) {
+		wp_send_json_error( ['message' => 'Connection profile not found.'] );
+	}
+
+	if ( !isset( $profiles[$profile_name]['connector'] ) ) {
+		// If no connector, assume this is local
+		wp_send_json_success( "local" );
+	}
+	
+	wp_send_json_success( $profiles[$profile_name]['connector'] );
+}

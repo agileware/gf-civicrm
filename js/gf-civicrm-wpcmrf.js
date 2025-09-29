@@ -1,6 +1,13 @@
 document.addEventListener("DOMContentLoaded", function () {
     const civicrm_rest_connection = document.getElementById('civicrm_rest_connection');
     const resultsContainer = document.getElementById('api-checks-results');
+    const civicrm_api_settings = document.getElementById('gform-settings-section-gfcv-api-settings');
+    const civicrm_api_settings_help = document.querySelector('#gform-settings-section-gfcv-api-settings .gform-settings-field__html');
+
+    // Only display the help text to enable CMRF if CMRF is not enabled
+    if (civicrm_rest_connection && civicrm_api_settings_help) {
+        civicrm_api_settings_help.style.display = 'none';
+    }
 
     if (!civicrm_rest_connection) {
         return;
@@ -22,15 +29,8 @@ document.addEventListener("DOMContentLoaded", function () {
         // Add more checks here as you implement them in PHP
     ];
 
-    civicrm_rest_connection.addEventListener('change', function(event) {
-        let selectedValue = event.target.value || '';
-
-        // Do nothing if "None" is selected
-        if (!selectedValue) {
-            resultsContainer.innerHTML = '';
-            return;
-        }
-
+    // Handle pre-flight checks to test the connection and API user
+    function handle_preflight_checks(selectedValue) {
         resultsContainer.innerHTML = '<h4>API Pre-flight Checks</h4><p>Verfies the connection profile can establish baseline connection requirements.</p><ul></ul>';
         const list = resultsContainer.querySelector('ul');
 
@@ -89,5 +89,62 @@ document.addEventListener("DOMContentLoaded", function () {
                 messageSpan.textContent = error.message;
             });
         });
+    }
+
+    // Handle enable/disable Site Key and API Key settings when connection profile is selected
+    function toggle_site_and_api_key(selectedValue) {
+        if (!civicrm_api_settings) {
+            return;
+        }
+
+        if (!selectedValue) {
+            civicrm_api_settings.style.display = 'block';
+        }
+
+        const formData = new URLSearchParams();
+        formData.append('action', 'check_connection_profile_type');
+        formData.append('security', gf_civicrm_ajax_data.nonce);
+        formData.append('profile', selectedValue);
+
+        fetch(gf_civicrm_ajax_data.ajax_url, {
+            method: 'POST',
+            body: formData,
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP Error: ${response.statusText}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (!data.success) {
+                // This is an API-level error (e.g. bad permissions).
+                throw new Error(data.data.message);
+            }
+            if (data.data === "local") {
+                civicrm_api_settings.style.display = 'block';
+            } else {
+                civicrm_api_settings.style.display = 'none';
+            }
+        })
+        .catch(error => {
+            // This is an API-level error (e.g. missing connection profile).
+            civicrm_api_settings.style.display = 'block'; // Display the settings fields as a fallback
+            throw new Error(data.data.message);
+        });
+    }
+    
+    civicrm_rest_connection.addEventListener('change', function(event) {
+        let selectedValue = event.target.value || '';
+
+        toggle_site_and_api_key(selectedValue);
+
+        // Do nothing else if "None" is selected
+        if (!selectedValue) {
+            resultsContainer.innerHTML = '';
+            return;
+        }
+
+        handle_preflight_checks(selectedValue);
     });
 });
