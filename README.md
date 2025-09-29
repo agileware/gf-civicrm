@@ -42,7 +42,7 @@ Use the following steps to set up a _Newsletter Subscription_ form using the exa
 10. Configure the **Webhook**
 11. Configure the Webhook as shown below. ![Gravity Form, Webhook](images/gravityforms-webhook.png)
 12. In the **Request URL** parameters for the Webhook, replace the following values:
-    1. `{rest_api_url}` - This Gravity Forms, Webhook, Merge Tag will return the WordPress REST endpoint, for example: https://bananas.org.au/wp-json/
+    1. `{rest_api_url}` - This Gravity Forms, Webhook, Merge Tag will return the WordPress REST endpoint, for example: https://bananas.org.au/wp-json/. Alternatively use `{gf_civicrm_rest_url}`, see [{gf_civicrm_rest_url} custom merge tag](#gf_civicrm_rest_url-custom-merge-tag).
     3. `key`, enter the **CiviCRM Site API Key**. It is recommended to use the CiviCRM Site Key field in the Gravity Forms CiviCRM Settings page (`/wp-admin/admin.php?page=gf_settings&subview=gf-civicrm`) so the key can remain consistent across all Request URLs by using the `{gf_civicrm_site_key}` merge tag.
     4. `api_key`, enter the **CiviCRM API Key** It is recommended to use the CiviCRM API Key field in the Gravity Forms CiviCRM Settings page (`/wp-admin/admin.php?page=gf_settings&subview=gf-civicrm`) so the key can remain consistent across all Request URLs by using the `{gf_civicrm_api_key}` merge tag.
     5.  Example URL: `{rest_api_url}civicrm/v3/rest?entity=FormProcessor&action=newsletter_subscribe&key={gf_civicrm_site_key}&api_key={gf_civicrm_api_key}&json=1`
@@ -172,6 +172,12 @@ Once you have installed CMRF, you must configure a REST Connection profile and s
 1. Under **CiviCRM REST Connection Profile**, choose a connection profile to use. This will be the default connection profile for all forms.
 1. When you select a connection profile, a series of **preflight checks** will run to confirm a baseline connection to CiviCRM. This will help identify if a connection can be established and if the nominated API user who owns the API key provided has sufficient permissions for core CiviCRM API calls used by this plugin.
 1. **Save** your changes.
+
+## {gf_civicrm_rest_url} custom merge tag
+
+You may use `{gf_civicrm_rest_url}` in your webhook **Request URL**. This will output either the full v3 REST URL from the selected connection profile, or the same contents as `{rest_api_url}` if not found.
+
+Note that `{rest_api_url}` will not include `civicrm/v3/rest` at the end of the API URL, but `{gf_civicrm_rest_url}` will.
 
 # Troubleshooting
 
