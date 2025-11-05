@@ -278,7 +278,7 @@ class CiviCRM_Payment_Token extends GF_Field {
 			if ( $contact_id = validateChecksumFromURL() ) {
 				// cid and cs provided in URL. Could be remote, or non-logged in
 				$api_params['where'][] = ['contact_id', '=', $contact_id];
-			} else if ( !empty( \CRM_Core_Session::getLoggedInContactID() ) ) {
+			} else if ( method_exists( 'CRM_Core_Session', 'getLoggedInContactID' ) && !empty( \CRM_Core_Session::getLoggedInContactID() ) ) {
 				// Assume Local connection, get logged in contact. Default to auto-select current user
 				$api_params['where'][] = ['contact_id', '=', 'user_contact_id'];
 			} else {
