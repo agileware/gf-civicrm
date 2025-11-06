@@ -241,73 +241,119 @@ class CiviCRM_Payment_Token extends GF_Field {
 
 		try {
 			$profile_name = get_rest_connection_profile();
+			$profiles = get_profiles();
+			$profile = $profiles[ $profile_name ] ?? [];
 
-			// Fetch the payment tokens for the selector processor
-            // No apparent permissions for payment token, permissions check seems to fail without admin
-            // contact_id = user_contact_id should be sufficient security.
-			$api_params = [
-				'select' => [
-					'id', 'masked_account_number', 'expiry_date', 'token',
-					'contribution_recur.contribution_status_id:label',
-					'contribution_recur.amount',
-					'contribution_recur.currency:abbr',
-					'contribution_recur.frequency_unit:label',
-					'contribution_recur.frequency_interval',
-					'contribution_recur.financial_type_id:label',
-					'contribution_recur.id',
-					'membership.membership_type_id:label',
-					'contribution.source',
-					'contribution.contribution_page_id:label'
-				],
-				'join' => [
-					['ContributionRecur AS contribution_recur', 'LEFT', ['contribution_recur.payment_token_id', '=', 'id']],
-					['Membership AS membership', 'LEFT', ['membership.contribution_recur_id', '=', 'contribution_recur.id']],
-					['Contribution AS contribution', 'LEFT', ['contribution.contribution_recur_id', '=', 'contribution_recur.id']],
-				],
-				'where' => [
-					['contribution_recur.contribution_status_id', 'IN', [5, 2, 8, 7]],
-					['payment_processor_id', '=', 4],
-				],
-				'orderBy' => [
-					'expiry_date' => 'DESC',
-					'contribution_recur.id' => 'DESC',
-				]
-			];
-			
-			
-			if ( $contact_id = validateChecksumFromURL() ) {
-				// cid and cs provided in URL. Could be remote, or non-logged in
-				$api_params['where'][] = ['contact_id', '=', $contact_id];
-			} else if ( method_exists( 'CRM_Core_Session', 'getLoggedInContactID' ) && !empty( \CRM_Core_Session::getLoggedInContactID() ) ) {
-				// Assume Local connection, get logged in contact. Default to auto-select current user
-				$api_params['where'][] = ['contact_id', '=', 'user_contact_id'];
+			$contact_id = validateChecksumFromURL();
+
+			// TODO: Recent CMRF Versions have remove the local CiviCRM connection profile option. This name is one we've
+			// added ourselves in GF CiviCRM.
+			if ( $profile_name !== "_local_civi_" && isset($profile['connector']) ) {
+				/**
+				 * DEV NOTE: This is a workaround.
+				 * 
+				 * It utilises a SearchKit set up as an API endpoint, so we can get PaymentToken values for remote installations,
+				 * circumventing permissions. This is NOT final. In future we are looking to implement a more robust, cleaner solution.
+				 */
+				$api_params = [];
+				$api_params['checkPermissions'] = false;
+				$api_params['display'] = 'API';
+				$api_params['savedSearch'] = 'API_Credit_card_tokens_with_associated_payment_data';
+				$api_params['afform'] = 'afsearchAPIForm';
+				$api_params['filters'] = [
+					"payment_processor_id" => $field['civicrm_payment_processor'], 
+					"contact_id" => $contact_id
+				];
+
+				$payment_tokens = api_wrapper($profile_name, 'SearchDisplay', 'run', $api_params, [], 4);
+				$payment_tokens = array_column($payment_tokens, 'data');
+
+				$keymap = [
+					'PaymentToken_ContributionRecur_payment_token_id_01_ContributionRecur_Contribution_contribution_recur_id_01.contribution_status_id:label' 		=> 'label',
+					'PaymentToken_ContributionRecur_payment_token_id_01.amount'                       																=> 'amount',
+					'PaymentToken_ContributionRecur_payment_token_id_01.currency:label'																				=> 'currency',
+					'PaymentToken_ContributionRecur_payment_token_id_01.frequency_interval'           																=> 'interval',
+					'PaymentToken_ContributionRecur_payment_token_id_01.frequency_unit:label'         																=> 'unit',
+					'PaymentToken_ContributionRecur_payment_token_id_01.financial_type_id:label'      																=> 'financial_type',
+					'PaymentToken_ContributionRecur_payment_token_id_01.id'                           																=> 'contribution_recur_id',
+					'PaymentToken_ContributionRecur_payment_token_id_01_ContributionRecur_Membership_contribution_recur_id_01.membership_type_id:label'             => 'membership_type',
+					'PaymentToken_ContributionRecur_payment_token_id_01_ContributionRecur_Contribution_contribution_recur_id_01.source'                             => 'source',
+					'PaymentToken_ContributionRecur_payment_token_id_01_ContributionRecur_Contribution_contribution_recur_id_01.contribution_page_id:label'         => 'contribution_page',
+				];
 			} else {
-				// Couldn't establish a local connection or retrieve a contact ID from a local installation, 
-				// and no valid cid and cs provided.
+				// Fetch the payment tokens for the selector processor
+				// No apparent permissions for payment token, permissions check seems to fail without admin
+				// contact_id = user_contact_id should be sufficient security.
+				$api_params = [
+					'select' => [
+						'id', 'masked_account_number', 'expiry_date', 'token',
+						'contribution_recur.contribution_status_id:label',
+						'contribution_recur.amount',
+						'contribution_recur.currency:abbr',
+						'contribution_recur.frequency_unit:label',
+						'contribution_recur.frequency_interval',
+						'contribution_recur.financial_type_id:label',
+						'contribution_recur.id',
+						'membership.membership_type_id:label',
+						'contribution.source',
+						'contribution.contribution_page_id:label'
+					],
+					'join' => [
+						['ContributionRecur AS contribution_recur', 'LEFT', ['contribution_recur.payment_token_id', '=', 'id']],
+						['Membership AS membership', 'LEFT', ['membership.contribution_recur_id', '=', 'contribution_recur.id']],
+						['Contribution AS contribution', 'LEFT', ['contribution.contribution_recur_id', '=', 'contribution_recur.id']],
+					],
+					'where' => [
+						['contribution_recur.contribution_status_id:name', 'IN', [ 'In Progress', 'Pending', 'Failing', 'Processing', ]],
+						['payment_processor_id', '=', $field['civicrm_payment_processor']],
+					],
+					'orderBy' => [
+						'expiry_date' => 'DESC',
+						'contribution_recur.id' => 'DESC',
+					],
+					'checkPermissions' => FALSE,
+				];
+				
+				
+				if ( $contact_id = validateChecksumFromURL() ) {
+					// cid and cs provided in URL. Could be remote, or non-logged in
+					$api_params['where'][] = ['contact_id', '=', $contact_id];
+				} else if ( method_exists( 'CRM_Core_Session', 'getLoggedInContactID' ) && !empty( \CRM_Core_Session::getLoggedInContactID() ) ) {
+					// Assume Local connection, get logged in contact. Default to auto-select current user
+					$api_params['where'][] = ['contact_id', '=', 'user_contact_id'];
+				} else {
+					// Couldn't establish a local connection or retrieve a contact ID from a local installation, 
+					// and no valid cid and cs provided.
+					return $empty_option;
+				}
+				$payment_tokens = api_wrapper($profile_name, 'PaymentToken', 'get', $api_params, [], 4);
+
+				$keymap = [
+					'contribution_recur.contribution_status_id:label' => 'label',
+					'contribution_recur.amount'                       => 'amount',
+					'contribution_recur.frequency_interval'           => 'interval',
+					'contribution_recur.frequency_unit:label'         => 'unit',
+					'contribution_recur.financial_type_id:label'      => 'financial_type',
+					'contribution_recur.id'                           => 'contribution_recur_id',
+					'membership.membership_type_id:label'             => 'membership_type',
+					'contribution.source'                             => 'source',
+					'contribution.contribution_page_id:label'         => 'contribution_page',
+				];
+			}
+
+			if ( empty($payment_tokens) ) {
+				// TODO Add frontend messaging that no payment methods were found
 				return $empty_option;
 			}
 
-			$payment_tokens = api_wrapper($profile_name, 'PaymentToken', 'get', $api_params, [], 4);
-
-			// Rekey the results
-			$keymap = [
-				'contribution_recur.contribution_status_id:label' => 'label',
-				'contribution_recur.amount'                       => 'amount',
-				'contribution_recur.frequency_interval'           => 'interval',
-				'contribution_recur.frequency_unit:label'         => 'unit',
-				'contribution_recur.financial_type_id:label'      => 'financial_type',
-				'contribution_recur.id'                           => 'contribution_recur_id',
-				'membership.membership_type_id:label'             => 'membership_type',
-				'contribution.source'                             => 'source',
-				'contribution.contribution_page_id:label'         => 'contribution_page',
-			];
+			// Rekey the results from the keymap
 			$payment_tokens = array_map( function( $entry ) use ( $keymap ) {
 				$new_entry = [];
-				foreach ( $entry as $old_key => $new_key ) {
+				foreach ( $entry as $old_key => $value ) {
 					if ( array_key_exists( $old_key, $keymap ) ) {
-						$new_entry[$new_key] = $entry[$old_key];
+						$new_entry[$keymap[$old_key]] = $value;
 					} else {
-						$new_entry[$old_key] = $entry[$old_key];
+						$new_entry[$old_key] = $value;
 					}
 				}
 				return $new_entry;
