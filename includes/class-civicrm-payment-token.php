@@ -254,8 +254,9 @@ class CiviCRM_Payment_Token extends GF_Field {
 				 * 
 				 * It utilises a SearchKit set up as an API endpoint, so we can get PaymentToken values for remote installations,
 				 * circumventing permissions. This is NOT final. In future we are looking to implement a more robust, cleaner solution.
+				 * 
+				 * 
 				 */
-				$api_params = [];
 				$api_params['checkPermissions'] = false;
 				$api_params['display'] = 'API';
 				$api_params['savedSearch'] = 'API_Credit_card_tokens_with_associated_payment_data';
