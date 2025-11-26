@@ -6,7 +6,7 @@
  * Requires plugins: civicrm, gravityforms
  * Author: Agileware
  * Author URI: https://agileware.com.au
- * Version: 1.11.4
+ * Version: 1.11.5
  * Text Domain: gf-civicrm
  * 
  * Copyright (c) Agileware Pty Ltd (email : support@agileware.com.au)
@@ -317,7 +317,7 @@ function replace_default_fp( $form ) {
 		if ( 'html' === $field->type ) {
 			$replacer( $field->content );
 		}
-		
+
 		// Process default values for address sub-fields (which are in an array).
 		if ( 'address' === $field->type && ! empty( $field->inputs ) ) {
 			foreach ( $field->inputs as &$input ) {
