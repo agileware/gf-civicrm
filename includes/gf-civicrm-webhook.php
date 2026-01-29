@@ -291,6 +291,7 @@ add_filter( 'gform_entry_meta', function ( $entry_meta, $form_id ) {
 		'is_numeric'  => false,
 		'update_entry_meta_callback' => null,
 		'filter'      => true,
+		'is_default_column' => true, // Automatically adds column to the entries list
 	];
 
 	return $entry_meta;
