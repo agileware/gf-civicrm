@@ -173,8 +173,13 @@ function webhook_alerts( $response, $feed, $entry, $form ) {
 		}
 	}
 
+	// Save the full response details
 	$current_response[$feed['id']] = $webhook_feed_response;
 	gform_update_meta( $entry['id'], 'webhook_feed_response', $current_response );
+
+	// Save the response status separately
+	$current_response_status = $error_code !== null ? 'Fail' : 'Success';
+	gform_update_meta( $entry['id'], 'webhook_feed_response_status', $current_response_status );
 
 	// Send an alert email if we have an error code
 	if ( $error_code !== null ) {
@@ -277,6 +282,12 @@ add_filter( 'gform_entry_meta', function ( $entry_meta, $form_id ) {
 	];
 	$entry_meta['webhook_feed_response'] = [
 		'label'       => esc_html__( 'Webhook Response', 'gf-civicrm' ),
+		'is_numeric'  => false,
+		'update_entry_meta_callback' => null,
+		'filter'      => true,
+	];
+	$entry_meta['webhook_feed_response_status'] = [
+		'label'       => esc_html__( 'Webhook Response Status', 'gf-civicrm' ),
 		'is_numeric'  => false,
 		'update_entry_meta_callback' => null,
 		'filter'      => true,
