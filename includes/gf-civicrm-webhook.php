@@ -2,6 +2,8 @@
 
 namespace GFCiviCRM;
 
+use GFCommon;
+
 /**
  * Replace request data output with json-decoded structures where applicable.
  *
