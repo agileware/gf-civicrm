@@ -41,12 +41,15 @@ function api_wrapper( $profile, $entity, $action, $params, $options=[], $api_ver
 	if ( isset( $profiles[$profile]['file'] ) ) {
 		require_once( $profiles[$profile]['file'] );
 	}
+
+	// Mark this api request if CMRF is enabled (remote installation)
+	if ( is_plugin_active( 'connector-civicrm-mcrestface/wpcmrf.php' ) ) {
+		$ts = time();
+		$params['_gf_ts'] = $ts;
+		$params['_gf_sig'] = generate_signature($entity, $action, $ts);
+	}
 	
-	$ts = time();
-	$params['_gf_ts'] = $ts;
-	$params['_gf_sig'] = generate_signature($entity, $action, $ts);
-	
-	// Perform the API call
+	// Perform the API call */
 	try {
 		$result = call_user_func( $profiles[$profile]['function'], $profile, $entity, $action, $params, $options, $api_version );
 	} catch ( GFCiviCRM_Exception $e ) {
