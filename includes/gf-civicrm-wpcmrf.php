@@ -56,7 +56,7 @@ function api_wrapper( $profile, $entity, $action, $params, $options=[], $api_ver
 		$e->logErrorMessage( $e->getErrorMessage(), true );
 	}
 
-	if ( !empty( $result['is_error'] ) ) {
+	if ( !empty( $result['is_error'] ) || !empty( $result['error_code'] )) { 
 		return [
 			'is_error' => 1,
 			'error_message' => __( $result['error_message'], 'gf-civicrm' ),
@@ -311,7 +311,8 @@ function get_helpful_error_message( $result ) {
 	return match (true) {
 		str_contains( $result, 'API permission check failed' ), 
 		str_contains( $result, 'insufficient permission' ), 
-			=> "Permission Error: Check the API user for this connection profile has the required permissions.",
+			=> "Permission Error: Check the API user for this connection profile has the required permissions: " . 
+               (explode("insufficient permission:", $result)[1] ?? ''),
 		str_contains( $result, 'Failed to connect' ) 
 			=> 'Failed to connect: Check the REST URL settings for the connection profile.',
 		str_contains( $result, 'Missing or invalid param' ) 
