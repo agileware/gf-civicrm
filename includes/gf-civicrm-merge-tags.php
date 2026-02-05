@@ -40,6 +40,11 @@ function fp_tag_default( $matches, $fallback = '', $multiple = false ) {
 			// Get the form processor fields
 			$fields = api_wrapper( $profile_name, 'FormProcessorDefaults', 'getfields', $api_params, $api_options );
 
+			// Safely return if there was an error
+			if ( ( isset( $fields['is_error'] ) && $fields['is_error'] === 1 ) || ( isset( $result['code'] ) && $result['code'] === 'civicrm_rest_api_error' ) ) {
+				return $result;
+			}
+
 			foreach ( $fields as $value ) {
 				if ( ! empty( $_GET[ $value['name'] ] ) ) {
 					$api_params[ $value['name'] ] = $_GET[ $value['name'] ];
