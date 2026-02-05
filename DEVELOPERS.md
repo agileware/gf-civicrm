@@ -1,6 +1,6 @@
-# Experimental feature
+# Overview
 
-This experimental feature is to implement remote CiviCRM support via the CiviMcRestFace framework. 
+This feature is to implements remote CiviCRM support via the CiviMcRestFace (CMRF) framework. 
 Use of this version of the gf-civicrm plugin is not yet recommended and impossible for non-developers.
 
 # Remote CiviCRM Integration through CiviMcRestFace
@@ -17,6 +17,19 @@ Use of this version of the gf-civicrm plugin is not yet recommended and impossib
 1. Go to **Forms -> Settings** and open the **CiviCRM Settings** subview.
 1. Under **CiviCRM REST Connection Profile**, select your connection profile. **NOTE:** By default if no connection profile is selected, GF CiviCRM will attempt to find a local installation.
 1. When you select a connection profile, a series of **preflight checks** will run to confirm a baseline connection to CiviCRM. This will help identify if a connection can be established and if the nominated API user who owns the API key provided has sufficient permissions for core CiviCRM API calls used by this plugin.
+
+## GF CiviCRM Companion Extension
+
+GF CiviCRM requires a Remote API user to perform API requests to CiviCRM. For the full feature set of GF CiviCRM to work, this remote user must have the 'administer CiviCRM' permission. Unfortunately, poses security risks.
+
+The [GF CiviCRM Companion Extension](https://github.com/agileware/au.com.agileware.gfcivicrmcompanion) is designed to allow API requests to complete successfully with a lower level permission given to the Remote API User, 'access AJAX API'.
+
+It is highly recommended to install the companion extension in CiviCRM when configuring remote installations.
+
+### Known Issues
+
+**Retrieval of PaymentTokens is not currently supported.** Recommend managing these on the CiviCRM site.
+
 
 ## Performing API calls
 
