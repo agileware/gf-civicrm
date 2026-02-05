@@ -79,7 +79,11 @@ document.addEventListener("DOMContentLoaded", function () {
                 listItem.classList.remove('pending');
                 listItem.classList.add('success');
                 iconSpan.innerHTML = '<span class="dashicons dashicons-yes" style="color: green;"></span>';
-                messageSpan.textContent = 'OK';
+                let message = 'OK';
+                if (check.id === 'payment_tokens') {
+                    message += ' - CAUTION: Remote installations are not supported at this time.';
+                }
+                messageSpan.textContent = message;
             })
             .catch(error => {
                 // --- FAILED ---
