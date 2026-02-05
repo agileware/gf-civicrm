@@ -41,7 +41,11 @@ function api_wrapper( $profile, $entity, $action, $params, $options=[], $api_ver
 	if ( isset( $profiles[$profile]['file'] ) ) {
 		require_once( $profiles[$profile]['file'] );
 	}
-
+	
+	$ts = time();
+	$params['_gf_ts'] = $ts;
+	$params['_gf_sig'] = generate_signature($entity, $action, $ts);
+	
 	// Perform the API call
 	try {
 		$result = call_user_func( $profiles[$profile]['function'], $profile, $entity, $action, $params, $options, $api_version );
@@ -62,6 +66,15 @@ function api_wrapper( $profile, $entity, $action, $params, $options=[], $api_ver
 	}
 	
 	return $result;
+}
+
+/**
+ * Generates the HMAC signature for a CiviCRM API request.
+ */
+function generate_signature($entity, $action, $timestamp) {
+	$secret = defined('GF_CIVICRM_SECRET') ? GF_CIVICRM_SECRET : get_option('gf_civicrm_secret'); // This must match the CiviCRM side
+    $message = $entity . $action . $timestamp;
+    return hash_hmac('sha256', $message, $secret);
 }
 
 /**
