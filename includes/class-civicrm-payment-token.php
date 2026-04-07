@@ -250,7 +250,7 @@ class CiviCRM_Payment_Token extends GF_Field {
 				->addJoin( 'Membership AS membership', 'LEFT', [ 'contribution_recur.id', '=', 'membership.contribution_recur_id' ] )
 				->addJoin( 'Contribution AS contribution', 'LEFT', [ 'contribution_recur.id', '=', 'contribution.contribution_recur_id' ] )
 				->addWhere( 'payment_processor_id', '=', $field['civicrm_payment_processor'] )
-				->addWhere( 'contribution_recur.contribution_status_id:name', 'IN', [ 'In Progress', 'Pending', 'Failing', 'Processing', ] )
+				->addWhere( 'contribution_recur.contribution_status_id:name', 'IN', [ 'In Progress', 'Pending', 'Failing', 'Failed', 'Processing', ] )
 				->addOrderBy( 'expiry_date', 'DESC' )
 				->addOrderBy( 'contribution_recur.id', 'DESC' );
 
