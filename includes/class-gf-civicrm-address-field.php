@@ -207,8 +207,8 @@ class Address_Field {
 
 		/** @var \GF_Field_Address $field */
 		foreach($fields as $field) {
-			$country = \rgpost( 'input_' . $field->id . '_' . self::country );
-			$state = \rgpost( 'input_' . $field->id . '_' . self::state );
+			$country = sanitize_text_field( \rgpost( 'input_' . $field->id . '_' . self::country ) );
+			$state = sanitize_text_field( \rgpost( 'input_' . $field->id . '_' . self::state ) );
 
 			// Only operate when the state field is actually empty.
 			if(!empty($state)) {
@@ -218,7 +218,7 @@ class Address_Field {
 			$state_input = NULL;
 
 			foreach($field->inputs as $index => $input) {
-				if ($input['id'] == $field->id . '.' . self::state) {
+				if ( (string) $input['id'] === (string) ($field->id . '.' . self::state) ) {
 					$state_input = $index;
 					break;
 				}
