@@ -126,7 +126,7 @@ function civicrm_optiongroup_setting( $position, $form_id ) {
 							'YesNoOptionList',
 							'MailingGroup',
 							'Tag',
-						] ) ) {
+						], true ) ) {
 							$mapped['options'][ $input['name'] ] = $input['title'];
 						}
 					}
@@ -147,6 +147,8 @@ function civicrm_optiongroup_setting( $position, $form_id ) {
 
 			if ( $default_fp_value ) {
 				$default_fp_options = reset(array_filter( $form_processors, fn($fp) => $fp['name'] === $default_fp_value ));
+			} else {
+				$default_fp_options = null;
 			}
 
 			?>
@@ -156,24 +158,24 @@ function civicrm_optiongroup_setting( $position, $form_id ) {
 				</label>
 				<select id="civicrm_optiongroup_selector"
 				        onchange="SetCiviCRMOptionGroup(this)">
-					<option value=""><?php esc_html_e( 'None' ); ?></option>
+					<option value=""><?php esc_html_e( 'None', 'gf-civicrm' ); ?></option>
 					<?php if ( $default_fp_options ): ?>
-						<optgroup label="DEFAULT Form Processor: <?php echo $default_fp_options['title']; ?>">
+						<optgroup label="<?php echo esc_attr( sprintf( __( 'DEFAULT Form Processor: %s', 'gf-civicrm' ), $default_fp_options['title'] ) ); ?>">
 							<?php foreach ( $default_fp_options['options'] as $pr_name => $pr_title ) {
-								echo "<option value=\"civicrm_fp__{$default_fp_options['name']}__{$pr_name}\">{$pr_title}</option>";
+								printf( '<option value="%s">%s</option>', esc_attr( "civicrm_fp__{$default_fp_options['name']}__{$pr_name}" ), esc_html( $pr_title ) );
 							} ?>
 						</optgroup>
 					<?php endif; ?>
 					<?php foreach ( $form_processors as $processor ): ?>
-						<optgroup label="Form Processor: <?php echo $processor['title']; ?>">
+						<optgroup label="<?php echo esc_attr( sprintf( __( 'Form Processor: %s', 'gf-civicrm' ), $processor['title'] ) ); ?>">
 							<?php foreach ( $processor['options'] as $pr_name => $pr_title ) {
-								echo "<option value=\"civicrm_fp__{$processor['name']}__{$pr_name}\">{$pr_title}</option>";
+								printf( '<option value="%s">%s</option>', esc_attr( "civicrm_fp__{$processor['name']}__{$pr_name}" ), esc_html( $pr_title ) );
 							} ?>
 						</optgroup>
 					<?php endforeach; ?>
-					<optgroup label="Option Groups">
+					<optgroup label="<?php esc_attr_e( 'Option Groups', 'gf-civicrm' ); ?>">
 						<?php foreach ( $option_groups as $group ) {
-							echo "<option value=\"civicrm__{$group['name']}\">" . sprintf( __( '%1$s (ID: %2$u)', 'gf-civicrm' ), $group['title'], $group['id'] ) . "</option>";
+							printf( '<option value="%s">%s</option>', esc_attr( "civicrm__{$group['name']}" ), esc_html( sprintf( __( '%1$s (ID: %2$u)', 'gf-civicrm' ), $group['title'], $group['id'] ) ) );
 						} ?>
 					</optgroup>
 				</select>
