@@ -33,13 +33,13 @@ function webhooks_request_data( $request_data, $feed, $entry, $form ) {
 		/** @var \GF_Field $field */
 		foreach ( $form['fields'] as $field ) {
 			// Skip if not part of entry meta
-			if( !$feed_keys[ $field->id ] ) {
+			if( empty( $feed_keys[ $field->id ] ) ) {
 				continue;
 			}
 
 			// Send multi-value fields encode in json instead of comma separated
 			if ( $feed['meta']['requestFormat'] === 'json' ) {
-				if ( property_exists( $field, 'storageType' ) && $field->storageType == 'json' ) {
+				if ( property_exists( $field, 'storageType' ) && $field->storageType === 'json' ) {
 					$rewrite_data[ $field['id'] ] = json_decode( $entry[ $field['id'] ] );
 				} elseif (
 					! empty( $multi_json ) &&  // JSON encoding selected in settings
@@ -53,7 +53,7 @@ function webhooks_request_data( $request_data, $feed, $entry, $form ) {
 			* Custom Price, Product fields send the value in $ 50.00 format which is problematic
 			* @TODO If the $feed['meta']['fieldValues'][x] field has a value=gf_custom then custom_value will contain something like {membership_type:83:price} - this requires new logic extract the field ID. Will not contain the usual field ID.
 			*/
-			if ( is_a( $field, 'GF_Field_Price' ) && $field->inputType == 'price' && isset( $entry[ $field->id ] ) ) {
+			if ( is_a( $field, 'GF_Field_Price' ) && $field->inputType === 'price' && isset( $entry[ $field->id ] ) ) {
 				$rewrite_data[ $field->id ] = convertInternationalCurrencyToFloat( $entry[ $field->id ] );
 			}
 
@@ -90,7 +90,7 @@ add_filter( 'gform_webhooks_request_data', 'GFCiviCRM\webhooks_request_data', 10
 add_filter( 'gform_max_async_feed_attempts', 'GFCiviCRM\custom_max_async_feed_attempts', 10, 5 );
 
 function custom_max_async_feed_attempts( $max_attempts, $form, $entry, $addon_slug, $feed ) {
-    if ( $addon_slug == 'gravityformswebhooks' ) {
+    if ( $addon_slug === 'gravityformswebhooks' ) {
         $max_attempts = 3;
     }
     return $max_attempts;
@@ -128,13 +128,13 @@ function webhook_alerts( $response, $feed, $entry, $form ) {
 
 		GFCommon::log_debug( __METHOD__ . '(): WP_Error detected.' );
 	} else {
-		$response_data = $response['body'] ? json_decode($response['body'], true) : '';
+		$response_data = ! empty( $response['body'] ) ? json_decode($response['body'], true) : '';
 
 		// Build the webhook response entry content
     	$webhook_feed_response = [ 
-			'date' => $response['headers']['data']['date'],
+			'date' => $response['headers']['data']['date'] ?? '',
 			'body' => $response_data, 
-			'response' => $response['response']
+			'response' => $response['response'] ?? ''
 		];
 
 		if ( is_wp_error( $response ) ) {
@@ -145,7 +145,7 @@ function webhook_alerts( $response, $feed, $entry, $form ) {
 			GFCommon::log_debug( __METHOD__ . '(): WP_Error detected.' );
 		} 
 		
-		if ( isset( $response['response']['code'] ) && $response['response']['code'] >= 300 && strpos( $response['body'], 'is_error' ) == false ) {
+		if ( isset( $response['response']['code'] ) && $response['response']['code'] >= 300 && strpos( $response['body'], 'is_error' ) === false ) {
 			// If we get an error response
 			$response_data = json_decode( $response['body'], true );
 			
@@ -155,7 +155,7 @@ function webhook_alerts( $response, $feed, $entry, $form ) {
 			GFCommon::log_debug( __METHOD__ . '(): Error detected.' );
 		}
 		
-		if ( strpos( $response['body'], 'is_error' ) != false ) {
+		if ( strpos( $response['body'], 'is_error' ) !== false ) {
 			// If is_error appears in the response body 
 			// This may happen if the webhook response appears as a success, but the response value from the REST url is actually an error.
 
@@ -193,8 +193,8 @@ function webhook_alerts( $response, $feed, $entry, $form ) {
 		}
 
 		// Build the alert email
-		$to     		= $plugin_settings['gf_civicrm_alerts_email'];
-		$subject 		= sprintf('Webhook failed on %s', get_site_url());
+		$to     		= sanitize_email( $plugin_settings['gf_civicrm_alerts_email'] );
+		$subject 		= sprintf('Webhook failed on %s', esc_url( get_site_url() ) );
 		$request_url 	= $feed['meta']['requestURL'];
 		$entry_id 		= $entry['id'];
 
@@ -202,15 +202,15 @@ function webhook_alerts( $response, $feed, $entry, $form ) {
 
 		$body    = sprintf(
 			'Webhook feed on %s failed.' . "\n\n%s%s\n" . 'Feed: "%s" (ID: %s) from form "%s" (ID: %s)' . "\n" . 'Request URL: %s' . "\n" . 'Failed Entry ID: %s',
-			get_site_url(),
-			$error_code ? "Error Code: " . $error_code . "\n": '', 
-			$error_message ? "Error: " . $error_message . "\n": '', 
-			$feed['meta']['feedName'], 
-			$feed['id'], 
-			$form['title'], 
-			$form['id'], 
-			$request_url,
-			$entry_id
+			esc_url( get_site_url() ),
+			$error_code ? "Error Code: " . esc_html( $error_code ) . "\n": '', 
+			$error_message ? "Error: " . esc_html( $error_message ) . "\n": '', 
+			esc_html( $feed['meta']['feedName'] ), 
+			absint( $feed['id'] ), 
+			esc_html( $form['title'] ), 
+			absint( $form['id'] ), 
+			esc_url_raw( $request_url ),
+			absint( $entry_id )
     	);
 
 		// Send an email to the nominated alerts email address
@@ -222,8 +222,7 @@ add_action( 'gform_webhooks_post_request', 'GFCiviCRM\webhook_alerts', 10, 4);
 
 /**
  * Save the webhook request to the Entry.
- * 
- * Request URL is processed before request args. We'll use both filters to build the request
+ * * Request URL is processed before request args. We'll use both filters to build the request
  * data. Supports multiple feeds.
  */
 add_filter( 'gform_webhooks_request_url', function ( $request_url, $feed, $entry, $form ) {
@@ -324,9 +323,9 @@ add_filter( 'gform_entry_detail_meta_boxes', function ( $meta_boxes, $entry, $fo
 }, 10, 3 );
 
 function display_webhook_meta_box( $args, $meta_key ) {
-	// Don't display if the current user is not an admin.
-	if (!in_array( 'administrator', (array) wp_get_current_user()->roles )) {
-		echo '<p>' . esc_html__( 'You need the administrator role to view this data.', 'gf-civicrm' ) . '</p>';
+	// Don't display if the current user lacks the capability to view entries.
+	if ( ! \GFCommon::current_user_can_any( 'gravityforms_view_entries' ) ) {
+		echo '<p>' . esc_html__( 'You do not have sufficient permissions to view this data.', 'gf-civicrm' ) . '</p>';
 		return;
 	}
 
@@ -336,9 +335,9 @@ function display_webhook_meta_box( $args, $meta_key ) {
 	$meta = rgar( $entry, $meta_key );
 
 	if ( ! empty( $meta ) && is_array( $meta ) ) {
-		// Display the response code and message.
+		// Display the response code and message safely encoded.
 		echo '<pre style="text-wrap: auto;">';
-		print_r( $meta );
+		echo esc_html( print_r( $meta, true ) );
 		echo '</pre>';
 	} else {
 		echo '<p>' . esc_html__( 'No data available.', 'gf-civicrm' ) . '</p>';
