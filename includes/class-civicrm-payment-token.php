@@ -58,7 +58,7 @@ class CiviCRM_Payment_Token extends GF_Field {
 	public static function field_standard_settings( int $position, int $form_id ) {
 
 		// BEFORE_CHOICES_SETTING determines the position of the field settings on the form
-		if ( $position != BEFORE_CHOICES_SETTING ) {
+		if ( $position !== BEFORE_CHOICES_SETTING ) {
 			return;
 		}
 
@@ -80,7 +80,7 @@ class CiviCRM_Payment_Token extends GF_Field {
 			$api_options = [ 'limit' => 0, 'sort' => "title ASC" ];
 			$payment_processors = api_wrapper( $profile_name, 'PaymentProcessor', 'get', $api_params, $api_options );
 
-			if ( $payment_processors['is_error'] || is_null( $payment_processors ) ) {
+			if ( ! empty( $payment_processors['is_error'] ) || is_null( $payment_processors ) ) {
 				// Received error response from API endpoint
 				throw new \GFCiviCRM_Exception( $payment_processors['error_message'], $payment_processors['error_code']);
 			}
@@ -93,13 +93,19 @@ class CiviCRM_Payment_Token extends GF_Field {
 					<?php esc_html_e( 'Payment Processor', 'gf-civicrm' ); ?>
                 </label>
                 <select id="civicrm_payment_processor" onchange="SetCiviCRMPaymentProcessorSetting(this.value);">
-					<?php echo array_reduce(
+					<?php echo wp_kses( 
+						array_reduce(
                             $payment_processors,
                             fn( $result, $processor ) => $result . sprintf(
                                     '<option value="%1$u">%2$s (ID: %1$u%3$s)</option>',
-                                    $processor['id'], $processor['title'], ($processor['is_test'] ? ' : test' : '')
+                                    absint( $processor['id'] ), 
+									esc_html( $processor['title'] ), 
+									($processor['is_test'] ? ' : test' : '')
                               ),
-                            '' ); ?>
+                            '' 
+						),
+						[ 'option' => [ 'value' => true ] ]
+					); ?>
                 </select>
             </li>
 			<?php
@@ -116,13 +122,13 @@ class CiviCRM_Payment_Token extends GF_Field {
 	            const field_type = "%s";
 	            console.debug(`Loading for field_type ${field_type}`);
 		        $( document ).bind( "gform_load_field_settings", function( event, field ) {
-		            if( GetInputType( field ) == field_type ) {
+		            if( GetInputType( field ) === field_type ) {
 		                console.debug( `Loading ${field.civicrm_payment_processor} as default`, field );
 		                $( "#civicrm_payment_processor" ).val( field.civicrm_payment_processor );
 		            }
 		        } );
 		    } )( jQuery ); ',
-			$this->type
+			esc_js( $this->type )
 		);
 
 		// Saves the selected value for the field
@@ -189,8 +195,8 @@ class CiviCRM_Payment_Token extends GF_Field {
 		$is_entry_detail = $this->is_entry_detail();
 		$is_form_editor  = $this->is_form_editor();
 
-		$id       = $this->id;
-		$field_id = $is_entry_detail || $is_form_editor || $form_id == 0 ? "input_$id" : 'input_' . $form_id . "_$id";
+		$id       = absint( $this->id );
+		$field_id = $is_entry_detail || $is_form_editor || $form_id === 0 ? "input_$id" : 'input_' . $form_id . "_$id";
 
 		$size                   = $this->size;
 		$class_suffix           = $is_entry_detail ? '_admin' : '';
@@ -203,9 +209,17 @@ class CiviCRM_Payment_Token extends GF_Field {
 		$describedby_attribute  = $this->get_aria_describedby();
 		$autocomplete_attribute = $this->enableAutocomplete ? $this->get_field_autocomplete_attribute() : '';
 
-		return sprintf( '<div class="ginput_container ginput_container_select"><select name="input_%d" id="%s" class="%s" %s %s %s %s %s %s>%s</select></div>',
-            $id, $field_id, $css_class,
-            $tabindex, $describedby_attribute, $disabled_text, $required_attribute, $invalid_attribute, $autocomplete_attribute,
+		return sprintf( 
+			'<div class="ginput_container ginput_container_select"><select name="input_%1$d" id="%2$s" class="%3$s" %4$s %5$s %6$s %7$s %8$s %9$s>%10$s</select></div>',
+            $id, 
+			esc_attr( $field_id ), 
+			esc_attr( $css_class ),
+            $tabindex, 
+			$describedby_attribute, 
+			$disabled_text, 
+			$required_attribute, 
+			$invalid_attribute, 
+			$autocomplete_attribute,
             $this->get_choices( $value )
         );
 
@@ -218,7 +232,7 @@ class CiviCRM_Payment_Token extends GF_Field {
 	public function get_value_entry_list( $value, $entry, $field_id, $columns, $form ) {
 		$return = esc_html( $value );
 
-		return GFCommon::selection_display( $return, $this, $entry['currency'] );
+		return GFCommon::selection_display( $return, $this, rgar( $entry, 'currency' ) );
 	}
 
 	/*
@@ -262,8 +276,8 @@ class CiviCRM_Payment_Token extends GF_Field {
 				$api_params['savedSearch'] = 'API_Credit_card_tokens_with_associated_payment_data';
 				$api_params['afform'] = 'afsearchAPIForm';
 				$api_params['filters'] = [
-					"payment_processor_id" => $field['civicrm_payment_processor'], 
-					"contact_id" => $contact_id
+					"payment_processor_id" => absint( $field['civicrm_payment_processor'] ), 
+					"contact_id"           => absint( $contact_id )
 				];
 
 				$payment_tokens = api_wrapper($profile_name, 'SearchDisplay', 'run', $api_params, [], 4);
@@ -306,7 +320,7 @@ class CiviCRM_Payment_Token extends GF_Field {
 					],
 					'where' => [
 						['contribution_recur.contribution_status_id:name', 'IN', [ 'In Progress', 'Pending', 'Failing', 'Failed', 'Processing', ]],
-						['payment_processor_id', '=', $field['civicrm_payment_processor']],
+						['payment_processor_id', '=', absint( $field['civicrm_payment_processor'] )],
 					],
 					'orderBy' => [
 						'expiry_date' => 'DESC',
@@ -318,7 +332,7 @@ class CiviCRM_Payment_Token extends GF_Field {
 				
 				if ( $contact_id = validateChecksumFromURL() ) {
 					// cid and cs provided in URL. Could be remote, or non-logged in
-					$api_params['where'][] = ['contact_id', '=', $contact_id];
+					$api_params['where'][] = ['contact_id', '=', absint( $contact_id )];
 				} else if ( method_exists( 'CRM_Core_Session', 'getLoggedInContactID' ) && !empty( \CRM_Core_Session::getLoggedInContactID() ) ) {
 					// Assume Local connection, get logged in contact. Default to auto-select current user
 					$api_params['where'][] = ['contact_id', '=', 'user_contact_id'];
@@ -385,14 +399,14 @@ class CiviCRM_Payment_Token extends GF_Field {
 				$for_string = strtr($for_string, ["\r" => '', "\n" => ' ']);
 				$field->choices[] = [
 					'text' => sprintf( '*%1$s (Expires %2$s) - $%3$.2f every %4$u %5$s for %6$s',
-						substr( $payment_token['masked_account_number'], - 4 ),
-						date_create_immutable( $payment_token['expiry_date'] )->format( 'm/y' ),
-						$payment_token['amount'],
-						$payment_token['interval'],
-						$payment_token['unit'],
-						$for_string
+						esc_html( substr( $payment_token['masked_account_number'], - 4 ) ),
+						esc_html( date_create_immutable( $payment_token['expiry_date'] )->format( 'm/y' ) ),
+						floatval( $payment_token['amount'] ),
+						absint( $payment_token['interval'] ),
+						esc_html( $payment_token['unit'] ),
+						esc_html( $for_string )
 					),
-					'value'      => (string) $payment_token['id'],
+					'value'      => esc_attr( (string) $payment_token['id'] ),
 					'isSelected' => false,
 				];
 			}
@@ -465,7 +479,7 @@ class CiviCRM_Payment_Token extends GF_Field {
 		$modifiers       = $this->get_modifiers();
 		$use_value       = in_array( 'value', $modifiers );
 
-		if ( is_array( $raw_value ) && (string) intval( $input_id ) != $input_id ) {
+		if ( is_array( $raw_value ) && (string) intval( $input_id ) !== (string) $input_id ) {
 			$items = array( $input_id => $value ); // Float input Ids. (i.e. 4.1 ). Used when targeting specific checkbox items.
 		} elseif ( is_array( $raw_value ) ) {
 			$items = $raw_value;
@@ -479,8 +493,8 @@ class CiviCRM_Payment_Token extends GF_Field {
 			if ( $use_value ) {
 				[ $val, ] = rgexplode( '|', $item, 2 );
 			}
-            elseif ( $this->type == 'post_category' ) {
-				$use_id     = strtolower( $modifier ) == 'id';
+            elseif ( $this->type === 'post_category' ) {
+				$use_id     = strtolower( $modifier ) === 'id';
 				$item_value = GFCommon::format_post_category( $item, $use_id );
 
 				$val = RGFormsModel::is_field_hidden( $form, $this, array(), $entry ) ? '' : $item_value;
@@ -519,7 +533,7 @@ class CiviCRM_Payment_Token extends GF_Field {
 	 * @return string
 	 */
 	public function sanitize_entry_value( $value, $form_id ) {
-		return wp_strip_all_tags( $value );
+		return sanitize_text_field( $value );
 	}
 
 	/**
