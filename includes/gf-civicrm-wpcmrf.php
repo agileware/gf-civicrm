@@ -30,10 +30,10 @@ use GFCiviCRM_Exception;
 function api_wrapper( $profile, $entity, $action, $params, $options=[], $api_version = '3', $ignore = false ) {
 	$profiles = get_profiles();
 
-	if ( !isset( $profiles[$profile] ) ) {
+	if ( ! isset( $profiles[$profile] ) ) {
 		return [
 			'is_error' => 1,
-			'error_message' => __('Profile not found', 'gf-civicrm'),
+			'error_message' => esc_html__('Profile not found', 'gf-civicrm'),
 			'error_code' => 'profile_not_found',
 		];
 	}
@@ -56,10 +56,10 @@ function api_wrapper( $profile, $entity, $action, $params, $options=[], $api_ver
 		$e->logErrorMessage( $e->getErrorMessage(), true );
 	}
 
-	if ( !empty( $result['is_error'] ) || !empty( $result['error_code'] )) { 
+	if ( ! empty( $result['is_error'] ) || ! empty( $result['error_code'] )) { 
 		return [
 			'is_error' => 1,
-			'error_message' => __( $result['error_message'], 'gf-civicrm' ),
+			'error_message' => esc_html__( $result['error_message'], 'gf-civicrm' ),
 			'error_code' => $result['error_code'],
 		];
 	}
@@ -68,7 +68,7 @@ function api_wrapper( $profile, $entity, $action, $params, $options=[], $api_ver
 		return $result['values'];
 	}
 	
-	return $result;
+	return $result ?? [];
 }
 
 /**
@@ -121,24 +121,24 @@ function get_profiles() {
  */
 function get_rest_connection_profile( $form = null ) {
 	// If CMRF is not enabled, return the profile id for the local CiviCRM installation
-	if ( !function_exists('wpcmrf_get_core') ) {
+	if ( ! function_exists('wpcmrf_get_core') ) {
 		$profiles = get_profiles();
 		return array_key_first( $profiles );
 	}
 
-	if ( is_null( $form )) {
+	if ( $form === null ) {
 		$form = FieldsAddOn::get_instance()->get_current_form();
 	}
 
 	$form_settings = FieldsAddOn::get_instance()->get_form_settings( $form );
 	$profile = $form_settings['civicrm_rest_connection'] ?? null;
 
-	if ( is_null( $profile ) || $profile === "default" ) {
+	if ( $profile === null || $profile === "default" ) {
 		$profile = FieldsAddOn::get_instance()->get_plugin_setting( 'civicrm_rest_connection' );
 	}
 
 	// If still no profile, return the profile id for the local CiviCRM installation
-	if ( !$profile ) {
+	if ( ! $profile ) {
 		$profiles = get_profiles();
 		return array_key_first( $profiles );
 	}
@@ -174,7 +174,7 @@ function gf_civicrm_wpcmrf_api( $profile, $entity, $action, $params, $options = 
  * valid response, we can confirm the installation exists.
  */
 function check_civicrm_installation( $profile = null ) {
-	if ( is_null( $profile ) ) {
+	if ( $profile === null ) {
 		$form = FieldsAddOn::get_instance()->get_current_form();
 		$profile = get_rest_connection_profile( $form );
 	}
@@ -186,8 +186,8 @@ function check_civicrm_installation( $profile = null ) {
 		return [
 			'is_error' => $installation ? 0 : 1,
 			'message'  => $installation
-				? "$profile CiviCRM installation is accessible."
-				: "$profile CiviCRM installation is not accessible.",
+				? sprintf( esc_html__( "%s CiviCRM installation is accessible.", 'gf-civicrm' ), esc_html( $profile ) )
+				: sprintf( esc_html__( "%s CiviCRM installation is not accessible.", 'gf-civicrm' ), esc_html( $profile ) ),
 		];
 	}
 
@@ -202,7 +202,7 @@ function check_civicrm_installation( $profile = null ) {
 		$installation = true;
 		return [
 			'is_error' => 0,
-			'message'  => "$profile CiviCRM installation is accessible." . ( $has_perm_err ? ' But user has insufficient permissions.' : '' ),
+			'message'  => sprintf( esc_html__( "%s CiviCRM installation is accessible.", 'gf-civicrm' ), esc_html( $profile ) ) . ( $has_perm_err ? ' ' . esc_html__( 'But user has insufficient permissions.', 'gf-civicrm' ) : '' ),
 		];
 	}
 
@@ -210,7 +210,7 @@ function check_civicrm_installation( $profile = null ) {
 	$installation = false;
 	return [
 		'is_error' => 1,
-		'message'  => "$profile CiviCRM installation could not be accessed. " . ($result['error_message'] ?? 'Unknown error'),
+		'message'  => sprintf( esc_html__( "%s CiviCRM installation could not be accessed.", 'gf-civicrm' ), esc_html( $profile ) ) . ' ' . esc_html( $result['error_message'] ?? 'Unknown error' ),
 	];
 }
 
@@ -222,9 +222,9 @@ function check_civicrm_remote_authentication_connection( $profile_id ) {
 	$is_successful = ( $profile_id !== '_local_civi_' );
 
     if ( $is_successful ) {
-        return [ 'success' => true, 'message' => "Connection successful!" ];
+        return [ 'success' => true, 'message' => esc_html__( "Connection successful!", 'gf-civicrm' ) ];
     } else {
-        return [ 'success' => false, 'message' => "Connection failed." ];
+        return [ 'success' => false, 'message' => esc_html__( "Connection failed.", 'gf-civicrm' ) ];
     }
 }
 
@@ -239,7 +239,7 @@ function handle_ajax_connection_preflight_check() {
     $check_type 	= isset($_POST['check_type']) ? sanitize_key($_POST['check_type']) : '';
 
     if ( empty( $profile_name ) || empty( $check_type ) ) {
-		wp_send_json_error(['message' => 'Missing parameters.']);
+		wp_send_json_error(['message' => esc_html__( 'Missing parameters.', 'gf-civicrm' )]);
     }
 
 	// Dispatch to the correct function based on the check type
@@ -287,7 +287,7 @@ function handle_ajax_connection_preflight_check() {
 			break;
         // Add more checks here...
         default:
-            wp_send_json_error(['message' => 'Invalid check type specified.']);
+            wp_send_json_error(['message' => esc_html__( 'Invalid check type specified.', 'gf-civicrm' )]);
     }
 
     // Send a JSON response back.
@@ -311,15 +311,15 @@ function get_helpful_error_message( $result ) {
 	return match (true) {
 		str_contains( $result, 'API permission check failed' ), 
 		str_contains( $result, 'insufficient permission' ), 
-			=> "Permission Error: Check the API user for this connection profile has the required permissions: " . 
-               (explode("insufficient permission:", $result)[1] ?? ''),
+			=> esc_html__( "Permission Error: Check the API user for this connection profile has the required permissions: ", 'gf-civicrm' ) . 
+               esc_html( explode("insufficient permission:", $result)[1] ?? '' ),
 		str_contains( $result, 'Failed to connect' ) 
-			=> 'Failed to connect: Check the REST URL settings for the connection profile.',
+			=> esc_html__( 'Failed to connect: Check the REST URL settings for the connection profile.', 'gf-civicrm' ),
 		str_contains( $result, 'Missing or invalid param' ) 
-			=> $result . ': Check the settings for the connection profile.',
+			=> esc_html( $result ) . ': ' . esc_html__( 'Check the settings for the connection profile.', 'gf-civicrm' ),
 		str_contains( $result, 'Mandatory key(s) missing from params array: id, checksum' ) // Validate Checksum check
 			=> 0,
-		default => $result // Return the original error message if we haven't caught the case
+		default => esc_html( $result ) // Return the original error message if we haven't caught the case
 	};
 }
 
@@ -331,7 +331,7 @@ function handle_ajax_get_connection_profile_type() {
 
 	static $profiles;
 
-	if ( !$profiles ) {
+	if ( ! $profiles ) {
 		$profiles = get_profiles();
 	}
 
@@ -339,17 +339,17 @@ function handle_ajax_get_connection_profile_type() {
     $profile_name 	= isset($_POST['profile']) ? sanitize_text_field($_POST['profile']) : '';
 
     if ( empty( $profile_name ) ) {
-		wp_send_json_error(['message' => 'Missing parameters.']);
+		wp_send_json_error(['message' => esc_html__( 'Missing parameters.', 'gf-civicrm' )]);
     }
 
-	if ( !isset( $profiles[$profile_name] ) ) {
-		wp_send_json_error( ['message' => 'Connection profile not found.'] );
+	if ( ! isset( $profiles[$profile_name] ) ) {
+		wp_send_json_error( ['message' => esc_html__( 'Connection profile not found.', 'gf-civicrm' )] );
 	}
 
-	if ( !isset( $profiles[$profile_name]['connector'] ) ) {
+	if ( ! isset( $profiles[$profile_name]['connector'] ) ) {
 		// If no connector, assume this is local
 		wp_send_json_success( "local" );
 	}
 	
-	wp_send_json_success( $profiles[$profile_name]['connector'] );
+	wp_send_json_success( esc_html( $profiles[$profile_name]['connector'] ) );
 }

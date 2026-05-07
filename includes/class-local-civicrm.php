@@ -22,21 +22,21 @@ class LocalCiviCRM {
 	public static function api( $profile, $entity, $action, $params, $options = [], $api_version = '3' ) {
 		$contract_errors = [];
 		if ( empty( $entity ) ) {
-			$contract_errors[] = sprintf( __( "'%s' is required" ), '$entity' );
+			$contract_errors[] = sprintf( esc_html__( "'%s' is required", 'gf-civicrm' ), '$entity' );
 		}
 		if ( empty( $action ) ) {
-			$contract_errors[] = sprintf( __( "'%s' is required" ), '$action' );
+			$contract_errors[] = sprintf( esc_html__( "'%s' is required", 'gf-civicrm' ), '$action' );
 		}
 		if ( ! is_array( $params ) ) {
-			$contract_errors = sprintf( __( "'%s' must be an array" ), '$params' );
+			$contract_errors[] = sprintf( esc_html__( "'%s' must be an array", 'gf-civicrm' ), '$params' );
 		}
 
-		if(!empty($contract_errors)){
+		if( ! empty( $contract_errors ) ){
 			throw new GFCiviCRM_Exception( implode( '\r\n', $contract_errors ) );
 		}
 
 		if ( ! civi_wp()->initialize() ) {
-			return [ 'error' => 'CiviCRM not Initialized', 'is_error' => '1' ];
+			return [ 'error' => 'CiviCRM not Initialized', 'is_error' => 1 ];
 		}
 
 		/*
@@ -56,7 +56,7 @@ class LocalCiviCRM {
 		}
 
 		try {
-			switch($api_version) {
+			switch ( (string) $api_version ) {
 				case '3':
 					if ( ! empty( $options ) ) {
 						$params['options'] = $options;
@@ -65,6 +65,9 @@ class LocalCiviCRM {
 					break;
 				case '4':
 					$result = civicrm_api4( $entity, $action, $params )->getArrayCopy();
+					break;
+				default:
+					$result = [];
 					break;
 			}
 
@@ -94,7 +97,7 @@ class LocalCiviCRM {
 	public static function loadProfile( $profiles ) {
 		if ( function_exists( 'civi_wp' ) ) {
 			$profiles['_local_civi_'] = [
-				'title'    => __( 'Local CiviCRM' ),
+				'title'    => esc_html__( 'Local CiviCRM', 'gf-civicrm' ),
 				'function' => [ 'GFCiviCRM\LocalCiviCRM', 'api' ],
 			];
 		}
