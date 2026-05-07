@@ -120,7 +120,7 @@ function do_civicrm_replacement( $form, $context ) {
 							$field->choices[] = [
 								'text'       => $label,
 								'value'      => $value,
-								'isSelected' => ( ( is_array( $default_option ) && in_array( $value, $default_option ) ) || ( $value == $default_option ) ),
+								'isSelected' => ( ( is_array( $default_option ) && in_array( $value, $default_option ) ) || ( (string) $value === (string) $default_option ) ),
 							];
 						}
 
@@ -135,7 +135,7 @@ function do_civicrm_replacement( $form, $context ) {
 			}
 
 			// Add checkboxes to the form entry meta
-			if ( $field->type == 'checkbox' ) {
+			if ( $field->type === 'checkbox' ) {
                 $i = 0;
                 $field->inputs = [];
 				foreach ( $field->choices as [ 'text' => $label ] ) {
@@ -148,7 +148,7 @@ function do_civicrm_replacement( $form, $context ) {
 			}
 
 			// Adds default none option
-			if ( ( $context === 'pre_render' ) && ( ! $field->isRequired ) && ( $field->type != 'multiselect' ) && ( $field->type != 'checkbox' ) ) {
+			if ( ( $context === 'pre_render' ) && ( ! $field->isRequired ) && ( $field->type !== 'multiselect' ) && ( $field->type !== 'checkbox' ) ) {
 				array_unshift( $field->choices, [
 					'text'       => __( '- None -', 'gf-civicrm' ),
 					'value'      => NULL,
@@ -162,7 +162,7 @@ function do_civicrm_replacement( $form, $context ) {
 }
 
 function pre_render( $form, $ajax, $field_values, $context ) {
-	if($context == 'form_config') {
+	if( $context === 'form_config' ) {
         // Do not perform our pre-render callbacks when retrieving form configuration
         return $form;
     }
@@ -171,13 +171,13 @@ function pre_render( $form, $ajax, $field_values, $context ) {
 	// @TODO - do_civicrm_replacement should be done first or last?
 
 	// Only do this on form_display
-	if ( $context !== 'form_display') {
+	if ( $context !== 'form_display' ) {
 		return $form;
 	}
 
 	// Use the default value if set for radio buttons 
 	foreach ( $form['fields'] as &$field ) {
-		if ( $field->inputType != 'radio' ) {
+		if ( $field->inputType !== 'radio' ) {
 			continue;
 		}
 
@@ -185,7 +185,7 @@ function pre_render( $form, $ajax, $field_values, $context ) {
 			$default_value = $field->defaultValue;
 
 			foreach ( $field->choices as &$choice ) {
-				if ( $choice['text'] == $default_value ) {
+				if ( (string) $choice['text'] === (string) $default_value ) {
 					$choice['isSelected'] = TRUE;
 				}
 			}
@@ -195,7 +195,7 @@ function pre_render( $form, $ajax, $field_values, $context ) {
 	// Apply comma separated default values to multiselect and checkbox fields
 	foreach ( $form['fields'] as &$field ) {
 		// Check if the field is of a type that should have comma-separated defaults
-		if ( in_array( $field->type, [ 'multiselect', 'checkbox' ] ) ) {
+		if ( in_array( $field->type, [ 'multiselect', 'checkbox' ], true ) ) {
 			// Check if the custom comma-separated default setting is set
 
 			/* @TODO
@@ -207,7 +207,7 @@ function pre_render( $form, $ajax, $field_values, $context ) {
 				$defaults = explode( ',', trim( $field->defaultValue ) );
 				// Apply these defaults to the field
 				foreach ( $field->choices as $i => $choice ) {
-					if ( in_array( trim( $choice['value'] ), $defaults ) ) {
+					if ( in_array( trim( $choice['value'] ), $defaults, true ) ) {
 						$field->choices[ $i ]['isSelected'] = TRUE;
 					}
 				}
@@ -241,8 +241,8 @@ add_filter( 'gform_admin_pre_render', function ( $form ) {
  */
 function editor_script() {
 	?>
-  	<script src="<?= plugin_dir_url( __FILE__ ) . 'js/gf-civicrm-merge-tags.js?ver=' . GF_CIVICRM_FIELDS_ADDON_VERSION; ?>"></script>
-	<script src="<?= plugin_dir_url( __FILE__ ) . 'js/gf-civicrm-fields.js?ver=' . GF_CIVICRM_FIELDS_ADDON_VERSION; ?>"></script>
+  	<script src="<?= esc_url( plugin_dir_url( __FILE__ ) . 'js/gf-civicrm-merge-tags.js?ver=' . GF_CIVICRM_FIELDS_ADDON_VERSION ); ?>"></script>
+	<script src="<?= esc_url( plugin_dir_url( __FILE__ ) . 'js/gf-civicrm-fields.js?ver=' . GF_CIVICRM_FIELDS_ADDON_VERSION ); ?>"></script>
 
 	<script type="text/javascript">
 		for (let field of ['select', 'multiselect', 'checkbox', 'radio']) {
