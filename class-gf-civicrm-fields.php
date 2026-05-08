@@ -107,7 +107,9 @@ class FieldsAddOn extends \GFAddOn {
 
     // Notify the Webhook URL Merge Tags Replacer status
     add_action( 'admin_notices', function() {
-      if ( isset($_GET['subview']) && $_GET['subview'] === 'gf-civicrm' ) {
+      // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only check of GF admin tab; GF handles its own nonce.
+      $subview = isset( $_GET['subview'] ) ? sanitize_text_field( wp_unslash( $_GET['subview'] ) ) : '';
+      if ( 'gf-civicrm' === $subview ) {
         if (get_transient('gfcv_webhook_merge_tags_replacement_failure')) {
           $status_message = 'Something went wrong.';
           $notice_class = 'error';
@@ -124,7 +126,7 @@ class FieldsAddOn extends \GFAddOn {
             esc_html__( $status_message, 'gravityforms' ),
         );
 
-        printf( '<div class="notice notice-%s gf-notice" id="gform_status_notice">%s</div>', $notice_class, $message );
+        printf( '<div class="notice notice-%s gf-notice" id="gform_status_notice">%s</div>', esc_attr( $notice_class ), wp_kses_post( $message ) );
         }
     } );
 
@@ -132,14 +134,25 @@ class FieldsAddOn extends \GFAddOn {
   }
   
   public function maybe_run_merge_tags_replacer() {
-    if ( isset( $_GET['gf_webhook_merge_tags_replacement_action'] ) && 'run' === $_GET['gf_webhook_merge_tags_replacement_action'] ) {
+    // Bail early if the user doesn't have permission to manage GF settings.
+    if ( ! current_user_can( 'gravityforms_edit_settings' ) ) {
+      return;
+    }
+
+    $action = isset( $_GET['gf_webhook_merge_tags_replacement_action'] )
+        ? sanitize_text_field( wp_unslash( $_GET['gf_webhook_merge_tags_replacement_action'] ) )
+        : '';
+    if ( 'run' === $action ) {
       // Clear status messaging transients
       delete_transient('gfcv_webhook_merge_tags_replacement_failure');
       delete_transient('gfcv_webhook_merge_tags_replacement_success');
 
       // Verify nonce for security.
-      if ( ! isset( $_GET['gf_webhook_merge_tags_replacement_nonce'] ) || ! wp_verify_nonce( $_GET['gf_webhook_merge_tags_replacement_nonce'], 'webhook_merge_tags_replacement_nonce' ) ) {
-          wp_die( __( 'Security check failed', 'gf-civicrm' ) );
+      $nonce_value = isset( $_GET['gf_webhook_merge_tags_replacement_nonce'] )
+          ? sanitize_text_field( wp_unslash( $_GET['gf_webhook_merge_tags_replacement_nonce'] ) )
+          : '';
+      if ( ! wp_verify_nonce( $nonce_value, 'webhook_merge_tags_replacement_nonce' ) ) {
+          wp_die( esc_html__( 'Security check failed', 'gf-civicrm' ) );
       }
       
       // Call the replacer function
@@ -195,7 +208,15 @@ class FieldsAddOn extends \GFAddOn {
 		foreach ( $forms as $form ) {
 			$settings = $this->get_form_settings($form);
 			if ( !empty( $settings['civicrm_auth_checksum'] ) ) {
-				$settings_link = admin_url( 'admin.php?page=gf_edit_forms&view=settings&subview=gf-civicrm&id=' . $form['id'] );
+				$settings_link = add_query_arg(
+					[
+						'page'    => 'gf_edit_forms',
+						'view'    => 'settings',
+						'subview' => 'gf-civicrm',
+						'id'      => absint( $form['id'] ),
+					],
+					admin_url( 'admin.php' )
+				);
         $warnings[]    = sprintf(__('The Gravity Form "%1$s" has the <strong>nonfunctional</strong> CiviCRM auth checksum setting enabled. <a href="%2$s">Click here to edit the form settings.</a>', 'text-domain'), esc_html($form['title']), esc_url($settings_link));
 			}
 		}
@@ -235,7 +256,7 @@ class FieldsAddOn extends \GFAddOn {
       esc_html__( 'These are required for the {gf_civicrm_site_key} and {gf_civicrm_api_key} merge tags. If you are using these, please check your configuration.', 'gravityforms' ),
     );
 
-    printf( '<div class="notice notice-warning gf-notice" id="gform_warn_missing_keys_notice">%s</div>', $message );
+    printf( '<div class="notice notice-warning gf-notice" id="gform_warn_missing_keys_notice">%s</div>', wp_kses_post( $message ) );
 	}
 
   /**
