@@ -6,7 +6,7 @@
  * Requires plugins: civicrm, gravityforms
  * Author: Agileware
  * Author URI: https://agileware.com.au
- * Version: 1.11.6
+ * Version: 1.11.7
  * Text Domain: gf-civicrm
  * 
  * Copyright (c) Agileware Pty Ltd (email : support@agileware.com.au)
@@ -477,9 +477,10 @@ function webhooks_request_data( $request_data, $feed, $entry, $form ) {
         }
     }
     foreach ( $feed['meta']['fieldValues'] as $field_value ) {
-        if ( ( ! empty( $field_value['custom_key'] ) ) && ( $value = $rewrite_data[ $field_value['value'] ] ?? NULL ) ) {
-            $request_data[ $field_value['custom_key'] ] = $value;
-        }
+      if ( ! empty( $field_value['custom_key'] ) && isset( $rewrite_data[ $field_value['value'] ] ) ) {
+        $value = $rewrite_data[ $field_value['value'] ];
+        $request_data[ $field_value['custom_key'] ] = $value;
+      }
     }
 
 	return $request_data;
