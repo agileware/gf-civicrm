@@ -477,9 +477,10 @@ function webhooks_request_data( $request_data, $feed, $entry, $form ) {
         }
     }
     foreach ( $feed['meta']['fieldValues'] as $field_value ) {
-        if ( ( ! empty( $field_value['custom_key'] ) ) && ( $value = $rewrite_data[ $field_value['value'] ] ?? NULL ) ) {
-            $request_data[ $field_value['custom_key'] ] = $value;
-        }
+      if ( ! empty( $field_value['custom_key'] ) && isset( $rewrite_data[ $field_value['value'] ] ) ) {
+        $value = $rewrite_data[ $field_value['value'] ];
+        $request_data[ $field_value['custom_key'] ] = $value;
+      }
     }
 
 	return $request_data;
