@@ -100,7 +100,7 @@ For Gravity Forms fields that support setting choices (e.g. Drop Down, Checkboxe
    Note that the Choices will not appear filled from CiviCRM until you save the form and reload - also, if you change any options here your changes will be replaced with options filled from CiviCRM, so if you need to make any changes to the available options, including order, it is important to make them in the *Form Processor* configuration
 6. Save the Form and either Preview or embed it to see the changes
 
-If you set defaults for the Form Processor input used as a "CiviCRM Source", these will be applied when the form is loaded, including any Retrieval criteria specified in the URL parameters.
+**Default Value**: If you set defaults for the Form Processor input used as a "CiviCRM Source", these will be applied when the form is loaded, including any Retrieval criteria specified in the URL parameters. No need to set the Default Value attribute for the Gravity Form Field.
 
 # Processing form submissions as a specific Contact
 
