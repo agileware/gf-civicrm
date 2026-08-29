@@ -32,7 +32,7 @@
      * Watch for changes to country selectors on Address fields
      */
     $(doc.body).on("change", ".gf-civicrm-address-field .address_country select", function () {
-        populateStateProvinceField(this, true);
+        populateStateProvinceField(this);
     });
 
     /**
@@ -57,35 +57,8 @@
 
                 // NB: must allow for hidden country input, e.g address type !== international
                 const country_id = field.id.replace(/field_([0-9]+)_([0-9]+)/, "input_$1_$2_6");
-                populateStateProvinceField(getByID(country_id), false);
+                populateStateProvinceField(getByID(country_id));
             }
-        }
-    }
-
-    /**
-     * GFCV-89 Add maxlength to single-line text fields
-     */
-    function addMaxLengthToSingleLineTextFields(field) {
-        const address_field = field.querySelector(".ginput_container_address");
-        const street_address_1_input = address_field.querySelector(".address_line_1 input");
-        const street_address_2_input = address_field.querySelector(".address_line_2 input");
-        const city_input = address_field.querySelector(".address_city input");
-        const zip_input = address_field.querySelector(".address_zip input");
-
-        if (street_address_1_input) {
-            street_address_1_input.maxLength = 96;
-        }
-
-        if (street_address_2_input) {
-            street_address_2_input.maxLength = 96;
-        }
-
-        if (city_input) {
-            city_input.maxLength = 64;
-        }
-
-        if (zip_input) {
-            zip_input.maxLength = 64;
         }
     }
 
@@ -234,6 +207,12 @@
      * Switch between dropdown and simple input depending on which Country was selected.
      */
     function populateStateProvinceField(country_select) {
+        // Guard against a missing Country input, e.g. an unexpected id or markup override,
+        // so one bad match doesn't abort decoration of every other Address field on the form.
+        if (!country_select) {
+            return;
+        }
+
         const address_field = country_select.closest(".ginput_container_address");
         let state_input = address_field.querySelector(".address_state select,.address_state input");
 
@@ -270,32 +249,4 @@
         }
     }
 
-    /**
-     * Create data for State field template use.
-     */
-    function getAddressData(input, states) {
-        const data = {
-            field_name: input.name,
-            field_id: input.id,
-            tabindex: input.tabIndex,
-            state: input.value
-        };
-
-        const field = gf_civicrm_address_fields.fields.inputs[data.field_id];
-
-        if (field) {
-            data.autocomplete = field.autocomplete;
-            data.required = field.required;
-            data.describedby = field.describedby;
-        }
-
-        if (data.field_id in gf_civicrm_address_fields.fields.inputs) {
-            data.placeholder = gf_civicrm_address_fields.fields.inputs[data.field_id].placeholder;
-        }
-
-        if (states !== undefined) {
-            data.states = states;
-        }
-        return data;
-    }
 })(document, jQuery);
