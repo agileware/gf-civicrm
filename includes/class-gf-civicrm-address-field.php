@@ -149,12 +149,20 @@ class Address_Field {
 
 		// Compile the list of states_data and labels
 		foreach ( $countries as $country ) {
-			$state_abbreviation                = __( $country['state_province.abbreviation'], 'gf-civicrm-formprocessor' );
-			$state_name                        = __( $country['state_province.name'], 'gf-civicrm-formprocessor' );
-			$states_data[ $country['name'] ][] = [
+			$state_abbreviation = __( $country['state_province.abbreviation'], 'gf-civicrm-formprocessor' );
+			$state_name         = __( $country['state_province.name'], 'gf-civicrm-formprocessor' );
+			$state_entry        = [
 				$state_abbreviation,
 				$state_name,
 			];
+
+			// GF 3.0.3+ uses the ISO 3166-1 alpha-2 country code as the Address field's
+			// country select value/defaultCountry, rather than the country name. Key by
+			// both so the state lookup in gf-civicrm-address-fields.js matches regardless
+			// of which one Gravity Forms hands back.
+			$states_data[ $country['iso_code'] ][] = $state_entry;
+			$states_data[ $country['name'] ][]     = $state_entry;
+
 			// DEV: Do we need this?
 			$labels['countries'][ $country['name'] ][] = __( $country['state_province.name'], 'gf-civicrm-formprocessor' );
 		}
@@ -207,7 +215,14 @@ class Address_Field {
 
 			if($state_input && empty($state)) {
 				try {
-					$statecount = civicrm_api3( 'StateProvince', 'getcount', [ 'country_id.name' => $country ] );
+					// GF 3.0.3+ posts the ISO 3166-1 alpha-2 country code (e.g. 'AU') for the
+					// Address field's country input, rather than the country name. Match on
+					// iso_code first, falling back to name for any markup that still posts it.
+					$statecount = civicrm_api3( 'StateProvince', 'getcount', [ 'country_id.iso_code' => $country ] );
+
+					if ( ! $statecount ) {
+						$statecount = civicrm_api3( 'StateProvince', 'getcount', [ 'country_id.name' => $country ] );
+					}
 
 					if ( ! $statecount ) {
 						$field->inputs[ $state_input ]['isHidden'] = TRUE;
