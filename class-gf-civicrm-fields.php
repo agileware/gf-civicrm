@@ -488,6 +488,26 @@ class FieldsAddOn extends \GFAddOn {
     ];
 
     $fields[] = [
+      'title'       => esc_html__( 'Address Field - Country Value', 'gf-civicrm' ),
+      'description' => esc_html__( 'Since Gravity Forms 3.0.3, the Address field\'s Country value is stored, and sent to Add-On Framework based integrations (e.g. Webhooks, Zapier), as an ISO 3166-1 alpha-2 code (e.g. "AU") rather than the full country name (e.g. "Australia"). Choose how the Country value should be sent, for all forms.', 'gf-civicrm' ),
+      'fields'      => [ [
+        'type'          => 'radio',
+        'name'          => 'civicrm_address_country_format',
+        'default_value' => 'name',
+        'choices' => [
+          [
+            'label' => esc_html__( 'Country Name, e.g. "Australia" (restores the behaviour prior to Gravity Forms 3.0.3)', 'gf-civicrm' ),
+            'value' => 'name',
+          ],
+          [
+            'label' => esc_html__( 'Country ISO Code, e.g. "AU" (Gravity Forms\' native behaviour since version 3.0.3)', 'gf-civicrm' ),
+            'value' => 'code',
+          ],
+        ],
+      ] ],
+    ];
+
+    $fields[] = [
       'title'       => esc_html__( 'Import/Export Directory', 'gf-civicrm' ),
       'description' => nl2br(esc_html__( "Define the path to the import/export directory, relative to the server document root. Used by Export GF CiviCRM and Import GF CiviCRM.\n\nYou can modify the subdirectories using the 'gf-civicrm/export-directory' and 'gf-civicrm/fp-export-directory' filters.", 'gf-civicrm' )),
       'fields'      => [ [
