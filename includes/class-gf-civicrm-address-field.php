@@ -158,22 +158,33 @@ class Address_Field {
 			}
 
 			// Compile the list of states_data and labels
-			foreach ( $countries as $country ) {
+			foreach ( $countries as $index => $country ) {
 				$country_name = $country['name'];
-				
+				$country_code = $country['iso_code'];
+
 				$state_province = $country['api.StateProvince.get']['values'] ?? [];
 				$country['states'] = $state_province;
 				unset($country['api.StateProvince.get']);
 
-				$countries[] = $country;
+				// Replace the raw API entry in place with the normalised version, rather than
+				// appending it, which previously left $countries with two copies of every
+				// country (the raw entry and the normalised one) once cached.
+				$countries[ $index ] = $country;
 
 				foreach ($state_province as $sp) {
-					$state_id                					 		 = $sp['id'];
-					$state_name                        					 = __( $sp['name'], 'gf-civicrm-formprocessor' );
-					$states_data[ $country_name ][ $state_id ] = [
+					$state_id    = $sp['id'];
+					$state_name  = __( $sp['name'], 'gf-civicrm-formprocessor' );
+					$state_entry = [
 						$state_id,
 						$state_name,
 					];
+
+					// GF 3.0.3+ uses the ISO 3166-1 alpha-2 country code as the Address field's
+					// country select value/defaultCountry, rather than the country name. Key by
+					// both so the state lookup in gf-civicrm-address-fields.js matches regardless
+					// of which one Gravity Forms hands back.
+					$states_data[ $country_code ][ $state_id ] = $state_entry;
+					$states_data[ $country_name ][ $state_id ] = $state_entry;
 				}
 			}
 
@@ -229,7 +240,15 @@ class Address_Field {
 			if($state_input && empty($state)) {
 				try {
 					$profile_name = get_rest_connection_profile( $form );
-					$statecount = api_wrapper( $profile_name, 'StateProvince', 'getcount', [ 'country_id.name' => $country ], [] );
+
+					// GF 3.0.3+ posts the ISO 3166-1 alpha-2 country code (e.g. 'AU') for the
+					// Address field's country input, rather than the country name. Match on
+					// iso_code first, falling back to name for any markup that still posts it.
+					$statecount = api_wrapper( $profile_name, 'StateProvince', 'getcount', [ 'country_id.iso_code' => $country ], [] );
+
+					if ( ! $statecount ) {
+						$statecount = api_wrapper( $profile_name, 'StateProvince', 'getcount', [ 'country_id.name' => $country ], [] );
+					}
 
 					if ( ! $statecount ) {
 						$field->inputs[ $state_input ]['isHidden'] = TRUE;
