@@ -6,7 +6,7 @@
  * Requires plugins: gravityforms
  * Author: Agileware
  * Author URI: https://agileware.com.au
- * Version: 2.0.0
+ * Version: 2.0.1
  * Text Domain: gf-civicrm
  * 
  * Copyright (c) Agileware Pty Ltd (email : support@agileware.com.au)
@@ -65,7 +65,7 @@ function check_plugin_dependencies() {
             'CiviCRM' );
 
         // Show an error message and exit immediately
-		\wp_die( $notice, __( 'Plugin Activation Error', 'gf-civicrm' ), [ 'back_link' => TRUE ] );
+		\wp_die( wp_kses( $notice, 'data' ), __( 'Plugin Activation Error', 'gf-civicrm' ), [ 'back_link' => TRUE ] );
 	}
 }
 
@@ -169,6 +169,8 @@ function set_text_input_counter( $script, $form_id, $input_id, $max_length, $fie
 		$max_length = 255;
 	}
 
+    $input_id      = esc_js( $input_id );
+    $max_length    = absint( $max_length );
     $displayFormat = esc_js( __( '#input of #max max characters', 'gravityforms' ) );
 
     $script = <<<EOJS
@@ -272,17 +274,21 @@ function address_replace_countries_list( $choices ) {
  */
 add_action( 'gform_pre_submission', 'GFCiviCRM\handle_optional_select_field_values' );
 function handle_optional_select_field_values( $form ) {
+	// phpcs:ignore WordPress.Security.NonceVerification.Missing -- Gravity Forms verifies its own nonce before firing gform_pre_submission.
 	// Get the input id for multi select type fields
 	$fields = $form['fields'];
 
 	foreach ($fields as $field) {
 		if ( 'select' === $field->inputType ) {
-			$field_id = $field->id;
-			$value = $_POST['input_' . $field_id];
+			$field_id  = $field->id;
+			$input_key = 'input_' . $field_id;
+			$value     = isset( $_POST[ $input_key ] )
+				? sanitize_text_field( wp_unslash( $_POST[ $input_key ] ) )
+				: '';
 
 			// Fix optional dropdown fields saving no selection as "- None -"
-			if ($value == '- None -') {
-				$_POST['input_' . $field_id] = '';
+			if ( '- None -' === $value ) {
+				$_POST[ $input_key ] = ''; // phpcs:ignore WordPress.Security.NonceVerification.Missing -- GF handles nonce verification before this hook fires.
 			}
 		}
 	}

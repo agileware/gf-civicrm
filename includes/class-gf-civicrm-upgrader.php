@@ -81,7 +81,7 @@ class Upgrader extends \Plugin_Upgrader {
             // Optionally rollback webhook urls to the previous saved version
             if ( isset( $_GET['rollback_webhook_urls'] ) && isset( $_GET['page'] ) && $_GET['page'] === 'gf_settings' ) {
                 $this->rollback_gravity_forms_webhook_urls();
-                echo 'Webhook URLs have been reverted to their original values.';
+                echo esc_html__( 'Webhook URLs have been reverted to their original values.', 'gf-civicrm' );
             }
         });
     }
@@ -107,7 +107,7 @@ class Upgrader extends \Plugin_Upgrader {
         // Get the latest version information from GitHub
         $update_info = $this->get_update_info();
 
-        if ( !$update_info ) {
+        if ( ! $update_info ) {
             return $transient;
         }
 
@@ -158,7 +158,7 @@ class Upgrader extends \Plugin_Upgrader {
         $plugin_info->name = $this->name . ' version ' . $update_info->tag_name;
         $plugin_info->slug = $this->plugin;
         $plugin_info->version = ltrim($update_info->tag_name, 'v');
-        $plugin_info->author = '<a href="' . $this->author_uri . '">' . $this->author . '</a>';
+        $plugin_info->author = '<a href="' . esc_url( $this->author_uri ) . '">' . esc_html( $this->author ) . '</a>';
         $plugin_info->homepage = $this->plugin_uri;
         $plugin_info->download_link = $update_info->zipball_url;
         $plugin_info->sections = [
@@ -325,7 +325,7 @@ class Upgrader extends \Plugin_Upgrader {
 	}
 
 	private function allowCached() : bool {
-		return empty($_GET['force-check']);
+		return empty( $_GET['force-check'] );
 	}
 
     /**
@@ -381,7 +381,7 @@ class Upgrader extends \Plugin_Upgrader {
      */
     function upgrade_version_1_10_3( $upgrader, $hook_extra ) {
         // Check if we're updating this plugin
-        if ( $hook_extra['action'] != 'update' || $hook_extra['type'] != 'plugin' ) {
+        if ( $hook_extra['action'] !== 'update' || $hook_extra['type'] !== 'plugin' ) {
             return;
         }
         
@@ -443,7 +443,7 @@ class Upgrader extends \Plugin_Upgrader {
     
         foreach ( $forms as $form ) {
             $form_id = $form['id'];
-            $feeds = GFAPI::get_feeds( form_ids: [ $form_id ] );
+            $feeds = GFAPI::get_feeds( null, [ $form_id ] );
     
             if( $feeds instanceof \WP_Error ) {
                 $feeds = [];
@@ -498,7 +498,7 @@ class Upgrader extends \Plugin_Upgrader {
                 if ( $new_url !== $old_url ) {
                     $feed['meta']['requestURL'] = $new_url;
                     // Save the updated feed settings
-                    $result = GFAPI::update_feed($feed['id'], $feed['meta']);
+                    $result = GFAPI::update_feed($feed['id'], $feed['meta'], $form_id);
 
                     if (is_wp_error($result)) {
                         // Log the error
@@ -536,11 +536,11 @@ class Upgrader extends \Plugin_Upgrader {
 
         // Update the Site Key and API Key settings, only IF they aren't already populated
         if ( !isset( $current_settings['gf_civicrm_site_key'] ) || empty( $current_settings['gf_civicrm_site_key'] ) ) {
-            $current_settings['gf_civicrm_site_key'] = $site_key != '{gf_civicrm_site_key}' ? $site_key : $current_settings['gf_civicrm_site_key'];
+            $current_settings['gf_civicrm_site_key'] = $site_key !== '{gf_civicrm_site_key}' ? $site_key : $current_settings['gf_civicrm_site_key'];
         }
 
         if ( !isset( $current_settings['gf_civicrm_api_key'] ) || empty( $current_settings['gf_civicrm_api_key'] ) ) {
-            $current_settings['gf_civicrm_api_key'] = $api_key != '{gf_civicrm_api_key}' ? $api_key : $current_settings['gf_civicrm_api_key'];
+            $current_settings['gf_civicrm_api_key'] = $api_key !== '{gf_civicrm_api_key}' ? $api_key : $current_settings['gf_civicrm_api_key'];
         }
         
         FieldsAddOn::get_instance()->update_plugin_settings($current_settings);

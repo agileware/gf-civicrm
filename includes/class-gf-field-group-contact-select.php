@@ -47,7 +47,7 @@ class GF_Field_Group_Contact_Select extends GF_Field {
   public static function field_standard_settings(int $position, int $form_id) {
 
     // BEFORE_CHOICES_SETTING determines the position of the field settings on the form
-    if ($position != BEFORE_CHOICES_SETTING) return;
+    if ($position !== BEFORE_CHOICES_SETTING) return;
 
     if ( GFCiviCRM\check_civicrm_installation()['is_error'] ) {
       return;
@@ -68,7 +68,7 @@ class GF_Field_Group_Contact_Select extends GF_Field {
       $groups = GFCiviCRM\api_wrapper($profile_name, 'Group', 'get', $api_params, $api_options);
 
       // Something went wrong when attempting to retrieve Groups
-      if ( isset( $groups['is_error'] ) && $groups['is_error'] != 0 ) {
+      if ( isset( $groups['is_error'] ) && $groups['is_error'] !== 0 ) {
         throw new \GFCiviCRM_Exception( $groups['error_message'] );
       }
 
@@ -91,7 +91,7 @@ class GF_Field_Group_Contact_Select extends GF_Field {
          */
         $savedSearches = GFCiviCRM\api_wrapper($profile_name, 'SavedSearch', 'get', $api_params, $api_options);
 
-        if ( isset( $savedSearches['is_error'] ) && $savedSearches['is_error'] != 0  ) {
+        if ( isset( $savedSearches['is_error'] ) && $savedSearches['is_error'] !== 0  ) {
           throw new \GFCiviCRM_Exception( $savedSearches['error_message'] );
         }
 
@@ -110,17 +110,17 @@ class GF_Field_Group_Contact_Select extends GF_Field {
         </label>
         <select id="civicrm_group" onchange="SetCiviCRMGroupSetting(jQuery(this).val());">
           <option value=""><?php esc_html_e('None'); ?></option>
-          <optgroup label="<?php esc_html_e('Active CiviCRM Groups', 'gf-civicrm'); ?>">
+          <optgroup label="<?php esc_attr_e('Active CiviCRM Groups', 'gf-civicrm'); ?>">
             <?php
             foreach ($groups as $group) {
-              echo "<option value=\"{$group['id']}\">{$group['title']} (ID: {$group['id']})</option>";
+              printf( '<option value="%1$d">%2$s (ID: %1$d)</option>', absint( $group['id'] ), esc_html( $group['title'] ) );
             }
             ?>
           </optgroup>
           <?php if( $savedSearches && ( count( $savedSearches ) > 0) ): ?>
-            <optgroup label="<?php esc_html_e( 'Saved Searches', 'gf-civicrm' ); ?>">
+            <optgroup label="<?php esc_attr_e( 'Saved Searches', 'gf-civicrm' ); ?>">
                 <?php foreach( $savedSearches as $search ) {
-                    echo "<option value=\"ss:{$search['id']}\">{$search['label']} (Search ID: {$search['id']})</option>";
+                    printf( '<option value="ss:%1$d">%2$s (Search ID: %1$d)</option>', absint( $search['id'] ), esc_html( $search['label'] ) );
                 } ?>
             </optgroup>
           <?php endif;?>
@@ -141,12 +141,12 @@ class GF_Field_Group_Contact_Select extends GF_Field {
     $js = sprintf( '
 	        ( function( $ ) {
 		        $( document ).bind( "gform_load_field_settings", function( event, field ) {
-		            if( GetInputType( field ) == "%s" ) {
+		            if( GetInputType( field ) === "%s" ) {
 		                $( "#civicrm_group" ).val( field.civicrm_group );		                
 		            }
 		        } );
 		    } )( jQuery );',
-      $this->type
+      esc_js( $this->type )
     );
 
     // Saves the selected value for the field
@@ -213,8 +213,8 @@ class GF_Field_Group_Contact_Select extends GF_Field {
     $is_entry_detail = $this->is_entry_detail();
     $is_form_editor  = $this->is_form_editor();
 
-    $id       = $this->id;
-    $field_id = $is_entry_detail || $is_form_editor || $form_id == 0 ? "input_$id" : 'input_' . $form_id . "_$id";
+    $id       = absint( $this->id );
+    $field_id = $is_entry_detail || $is_form_editor || $form_id === 0 ? "input_$id" : 'input_' . $form_id . "_$id";
 
     $size                   = $this->size;
     $class_suffix           = $is_entry_detail ? '_admin' : '';
@@ -227,7 +227,7 @@ class GF_Field_Group_Contact_Select extends GF_Field {
     $describedby_attribute = $this->get_aria_describedby();
     $autocomplete_attribute = $this->enableAutocomplete ? $this->get_field_autocomplete_attribute() : '';
 
-    return sprintf( "<div class='ginput_container ginput_container_select'><select name='input_%d' id='%s' class='%s' $tabindex $describedby_attribute %s %s %s %s>%s</select></div>", $id, $field_id, $css_class, $disabled_text, $required_attribute, $invalid_attribute, $autocomplete_attribute, $this->get_choices( $value ) );
+    return sprintf( "<div class='ginput_container ginput_container_select'><select name='input_%d' id='%s' class='%s' %s %s %s %s %s %s>%s</select></div>", $id, esc_attr( $field_id ), esc_attr( $css_class ), $tabindex, $describedby_attribute, $disabled_text, $required_attribute, $invalid_attribute, $autocomplete_attribute, $this->get_choices( $value ) );
 
   }
 
@@ -237,7 +237,7 @@ class GF_Field_Group_Contact_Select extends GF_Field {
 
   public function get_value_entry_list( $value, $entry, $field_id, $columns, $form ) {
     $return = esc_html( $value );
-    return GFCommon::selection_display( $return, $this, $entry['currency'] );
+    return GFCommon::selection_display( $return, $this, rgar( $entry, 'currency' ) );
   }
 
   /*
@@ -246,7 +246,7 @@ class GF_Field_Group_Contact_Select extends GF_Field {
 
   public function group_contact_select_options($field, $value = '', $support_placeholders = TRUE) {
     // Define empty value to return
-    $empty_option = "<option value=''>No Contacts in this Group</option>";
+    $empty_option = "<option value=''>" . esc_html__('No Contacts in this Group', 'gf-civicrm') . "</option>";
 
     // If no group has been selected, then return empty
     if (!isset($this->civicrm_group)) {
@@ -283,11 +283,11 @@ class GF_Field_Group_Contact_Select extends GF_Field {
            */
           $savedSearch = GFCiviCRM\api_wrapper( $profile_name, 'SavedSearch', 'get', $api_params, $api_options );
   
-          if ( isset( $savedSearch['is_error'] ) && $savedSearch['is_error'] != 0  ) {
+          if ( isset( $savedSearch['is_error'] ) && $savedSearch['is_error'] !== 0  ) {
             throw new \GFCiviCRM_Exception( $savedSearch['error_message'] );
           }
 
-          if ( isset( $savedSearch[$m['id']]['api_entity'] ) && $savedSearch[$m['id']]['api_entity'] != 'Contact' ) {
+          if ( isset( $savedSearch[$m['id']]['api_entity'] ) && $savedSearch[$m['id']]['api_entity'] !== 'Contact' ) {
             throw new \GFCiviCRM_Exception( 'SavedSearch return type is invalid. Must be Contact.' );
           }
         } catch ( \GFCiviCRM_Exception $e ) {
@@ -308,7 +308,7 @@ class GF_Field_Group_Contact_Select extends GF_Field {
         $groupContacts = GFCiviCRM\api_wrapper( $profile_name, 'Contact', 'get', (array)$api_params, $api_options );
 
         // Something went wrong trying to get group contacts
-        if ( isset( $groupContacts['is_error'] ) && $groupContacts['is_error'] != 0  ) {
+        if ( isset( $groupContacts['is_error'] ) && $groupContacts['is_error'] !== 0  ) {
           throw new \GFCiviCRM_Exception( $groupContacts['error_message'] );
         }
       }
@@ -326,7 +326,7 @@ class GF_Field_Group_Contact_Select extends GF_Field {
         );
         $groupContacts = GFCiviCRM\api_wrapper($profile_name, 'Contact', 'get', (array)$api_params, $api_options );
 
-        if ( isset( $groupContacts['is_error'] ) && $groupContacts['is_error'] != 0  ) {
+        if ( isset( $groupContacts['is_error'] ) && $groupContacts['is_error'] !== 0  ) {
           // Something went wrong trying to get group contacts
           throw new \GFCiviCRM_Exception( $groupContacts['error_message'] );
         }
@@ -345,8 +345,8 @@ class GF_Field_Group_Contact_Select extends GF_Field {
 
       foreach ( $groupContacts as $groupContact ) {
         $field->choices[] = [
-          'text'       => $groupContact['sort_name'],
-          'value'      => (string) $groupContact['id'],
+          'text'       => esc_html( $groupContact['sort_name'] ),
+          'value'      => esc_attr( (string) $groupContact['id'] ),
           'isSelected' => FALSE,
           'price'      => '',
         ];
@@ -416,7 +416,7 @@ class GF_Field_Group_Contact_Select extends GF_Field {
     $format_currency = ! $use_value && in_array( 'currency', $modifiers );
     $use_price       = $format_currency || ( ! $use_value && in_array( 'price', $modifiers ) );
 
-    if ( is_array( $raw_value ) && (string) intval( $input_id ) != $input_id ) {
+    if ( is_array( $raw_value ) && (string) intval( $input_id ) !== (string) $input_id ) {
       $items = array( $input_id => $value ); // Float input Ids. (i.e. 4.1 ). Used when targeting specific checkbox items.
     } elseif ( is_array( $raw_value ) ) {
       $items = $raw_value;
@@ -434,8 +434,8 @@ class GF_Field_Group_Contact_Select extends GF_Field {
         if ( $format_currency ) {
           $val = GFCommon::to_money( $val, rgar( $entry, 'currency' ) );
         }
-      } elseif ( $this->type == 'post_category' ) {
-        $use_id     = strtolower( $modifier ) == 'id';
+      } elseif ( $this->type === 'post_category' ) {
+        $use_id     = strtolower( $modifier ) === 'id';
         $item_value = GFCommon::format_post_category( $item, $use_id );
 
         $val = RGFormsModel::is_field_hidden( $form, $this, array(), $entry ) ? '' : $item_value;
@@ -465,7 +465,7 @@ class GF_Field_Group_Contact_Select extends GF_Field {
   }
 
   /**
-   * Strips all tags from the input value.
+   * Strips all tags and sanitizes the input value.
    *
    * @param string $value The field value to be processed.
    * @param int $form_id The ID of the form currently being processed.
@@ -474,7 +474,7 @@ class GF_Field_Group_Contact_Select extends GF_Field {
    */
   public function sanitize_entry_value( $value, $form_id ) {
 
-    $value = wp_strip_all_tags( $value );
+    $value = sanitize_text_field( $value );
 
     return $value;
   }
@@ -487,7 +487,7 @@ class GF_Field_Group_Contact_Select extends GF_Field {
    * @return array
    */
   public function get_filter_operators() {
-    $operators = $this->type == 'product' ? array( 'is' ) : array( 'is', 'isnot', '>', '<' );
+    $operators = $this->type === 'product' ? array( 'is' ) : array( 'is', 'isnot', '>', '<' );
 
     return $operators;
   }

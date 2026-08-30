@@ -46,8 +46,9 @@ function fp_tag_default( $matches, $fallback = '', $multiple = false ) {
 			}
 
 			foreach ( $fields as $value ) {
+				// Secure direct usage of $_GET via unslashing and sanitization 
 				if ( ! empty( $_GET[ $value['name'] ] ) ) {
-					$api_params[ $value['name'] ] = $_GET[ $value['name'] ];
+					$api_params[ $value['name'] ] = sanitize_text_field( wp_unslash( $_GET[ $value['name'] ] ) );
 				}
 			}
 

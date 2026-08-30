@@ -26,10 +26,10 @@ class GFCiviCRM_Exception extends Exception
     }
 
     public function logErrorMessage( $message = '', $include_trace = false ) {
-        if ( WP_DEBUG && WP_DEBUG_LOG ) {
+        if ( defined('WP_DEBUG') && WP_DEBUG && defined('WP_DEBUG_LOG') && WP_DEBUG_LOG ) {
             error_log( print_r( $this->getErrorMessage( $message, $include_trace ), true ) );
-        } else if ( WP_DEBUG && !WP_DEBUG_LOG ) {
-            error_log( print_r( $this->getErrorMessage( $message, $include_trace ) ) );
+        } else if ( defined('WP_DEBUG') && WP_DEBUG && ( ! defined('WP_DEBUG_LOG') || ! WP_DEBUG_LOG ) ) {
+            error_log( print_r( $this->getErrorMessage( $message, $include_trace ), true ) );
         }
     }
 
