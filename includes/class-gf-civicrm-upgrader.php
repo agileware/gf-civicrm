@@ -76,7 +76,10 @@ class Upgrader extends \Plugin_Upgrader {
 
         // 1.10.3
         add_action( 'upgrader_process_complete', [$this, 'upgrade_version_1_10_3'], 10, 2 );
-        
+
+        // 2.0.3
+        add_action( 'upgrader_process_complete', [$this, 'upgrade_version_2_0_3'], 10, 2 );
+
         add_action( 'admin_init', function() {
             // Optionally rollback webhook urls to the previous saved version
             if ( isset( $_GET['rollback_webhook_urls'] ) && isset( $_GET['page'] ) && $_GET['page'] === 'gf_settings' ) {
@@ -411,6 +414,61 @@ class Upgrader extends \Plugin_Upgrader {
         }
     }
     
+    /**
+     * Runs the 2.0.3 upgrade.
+     *
+     * Explicitly persists the "Address Field - Country Value" setting as "Country Name" for
+     * existing installations, so sites upgrading from before this release keep sending the
+     * country name to integrations (e.g. Webhooks) rather than switching to Gravity Forms'
+     * native ISO code behaviour (introduced in Gravity Forms 3.0.3) without notice.
+     *
+     * Also purges the gfcv_civicrm_countries / gfcv_civicrm_stateprovinces transients.
+     * These are set with no expiry, so a site that cached them before this release fixed
+     * the Country ISO code vs. name mismatch would otherwise keep serving the old, wrongly
+     * keyed data indefinitely — masking the fix entirely until the cache happened to be
+     * cleared some other way. Both transients now also carry a 12-hour expiry going forward
+     * (see loadCountriesAndStatesData() and address_replace_countries_list()), but existing
+     * installations need this one-time purge to pick that up immediately rather than waiting
+     * out whatever's left of the old, never-expiring cache.
+     *
+     * Uses its own one-time flag rather than the shared gfcv_version gate used by
+     * upgrade_version_1_10_3(), since that option is stamped with the plugin's current
+     * (post-update) version by whichever versioned upgrade routine runs first in a given
+     * update pass, which would cause this routine to be skipped if it ran after another.
+     */
+    function upgrade_version_2_0_3( $upgrader, $hook_extra ) {
+        // Check if we're updating this plugin
+        if ( $hook_extra['action'] !== 'update' || $hook_extra['type'] !== 'plugin' ) {
+            return;
+        }
+
+        if ( !is_array( $hook_extra['plugins'] ) || !in_array( $this->plugin, $hook_extra['plugins'], true ) ) {
+            return;
+        }
+
+        // One-time migration, regardless of which version is being updated from.
+        if ( get_option( 'gfcv_country_format_migrated', false ) ) {
+            return;
+        }
+
+        if ( class_exists( 'GFCiviCRM\FieldsAddOn' ) ) {
+            $addon    = FieldsAddOn::get_instance();
+            $settings = $addon->get_plugin_settings();
+
+            if ( ! isset( $settings['civicrm_address_country_format'] ) ) {
+                $settings['civicrm_address_country_format'] = 'name';
+                $addon->update_plugin_settings( $settings );
+            }
+        }
+
+        delete_transient( 'gfcv_civicrm_countries' );
+        delete_transient( 'gfcv_civicrm_stateprovinces' );
+
+        update_option( 'gfcv_country_format_migrated', true );
+
+        error_log('Gravity Forms CiviCRM Integration upgrade 2.0.3 complete.');
+    }
+
     function rollback_gravity_forms_webhook_urls() {
         // Retrieve the backup data.
         $backup_data = get_option('gfcv_webhook_urls_backup', []);

@@ -2,6 +2,7 @@
 
 namespace GFCiviCRM;
 
+use GFAPI;
 use GFCommon;
 
 /**
@@ -83,6 +84,49 @@ function webhooks_request_data( $request_data, $feed, $entry, $form ) {
 }
 
 add_filter( 'gform_webhooks_request_data', 'GFCiviCRM\webhooks_request_data', 10, 4 );
+
+/**
+ * Gravity Forms 3.0.3 changed the Address field's Country value to the ISO 3166-1 alpha-2 code
+ * (e.g. "AU") instead of the full country name (e.g. "Australia"), for storage and for any
+ * Add-On Framework based add-on that maps the Country sub-field directly. This restores the
+ * option to send the country name instead, per the "Address Field - Country Value" setting on
+ * the CiviCRM Settings page.
+ *
+ * Deliberately scoped to only the Webhooks add-on (via the $addon_slug argument) rather than
+ * applying to every Add-On Framework based add-on: `gform_addon_field_value` also fires for
+ * add-ons like Stripe and EWAY, where the Address field's Country sub-field may be consumed
+ * quite differently (e.g. expected to be a valid ISO code for a payment gateway), so converting
+ * it there could break those integrations.
+ *
+ * @see https://docs.gravityforms.com/gform_addon_field_value/#h-use-country-name-instead-of-country-code
+ */
+add_filter( 'gform_addon_field_value', 'GFCiviCRM\maybe_convert_address_country_field_value', 10, 5 );
+function maybe_convert_address_country_field_value( $field_value, $form, $entry, $field_id, $addon_slug = '' ) {
+	if ( $addon_slug !== 'gravityformswebhooks' ) {
+		return $field_value;
+	}
+
+	if ( empty( $field_value ) || substr( (string) $field_id, -2 ) !== '.6' ) {
+		return $field_value;
+	}
+
+	// Default (including when the setting has never been saved) is to restore the pre-3.0.3
+	// behaviour of sending the country name; site admins can opt back into Gravity Forms'
+	// native ISO code behaviour via the plugin setting.
+	$country_format = FieldsAddOn::get_instance()->get_plugin_setting( 'civicrm_address_country_format' );
+
+	if ( $country_format === 'code' ) {
+		return $field_value;
+	}
+
+	$field = GFAPI::get_field( $form, $field_id );
+
+	if ( $field instanceof \GF_Field_Address && $field->is_country_code( $field_value ) ) {
+		$field_value = $field->get_country_name( $field_value );
+	}
+
+	return $field_value;
+}
 
 /*
 * Extend the maximum attempts for webhook calls, so Gravity Forms does not give up if unable to connect on first go

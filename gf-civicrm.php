@@ -6,7 +6,7 @@
  * Requires plugins: gravityforms
  * Author: Agileware
  * Author URI: https://agileware.com.au
- * Version: 2.0.1
+ * Version: 2.0.3
  * Text Domain: gf-civicrm
  * 
  * Copyright (c) Agileware Pty Ltd (email : support@agileware.com.au)
@@ -251,7 +251,9 @@ function address_replace_countries_list( $choices ) {
 					$countries[] = $country;
 				}
 
-				set_transient( 'gfcv_civicrm_countries', $countries );
+				// Expire after 12 hours, matching loadCountriesAndStatesData(), which shares
+				// this same transient key.
+				set_transient( 'gfcv_civicrm_countries', $countries, 12 * 60 * 60 );
 			}
 		} catch ( \CRM_Core_Exception $e ) {
 			// Could not retrieve CiviCRM countries list

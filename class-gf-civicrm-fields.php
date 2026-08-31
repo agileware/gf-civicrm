@@ -59,6 +59,49 @@ class FieldsAddOn extends \GFAddOn {
   }
 
   /**
+   * Runs one-time upgrade tasks whenever the installed add-on version changes. Unlike
+   * Upgrader::upgrade_version_2_0_3() (in includes/class-gf-civicrm-upgrader.php), which only
+   * fires when an update runs through WordPress' own Plugin_Upgrader process, this is driven by
+   * GFAddOn comparing the plugin's Version header against a stored option on admin page load —
+   * so it also runs after a git pull, WP-CLI deploy, or manual file upload, none of which fire
+   * upgrader_process_complete. Kept alongside the Upgrader-based routine (both are idempotent,
+   * guarded by the same option) rather than replacing it, in case that path is relied on too.
+   *
+   * @param string $previous_version The previously installed add-on version, or an empty
+   *                                  string on first activation.
+   */
+  public function upgrade( $previous_version ) {
+    if ( $previous_version && version_compare( $previous_version, '2.0.3', '<' ) ) {
+      $this->upgrade_to_2_0_3();
+    }
+  }
+
+  /**
+   * 2.0.3: Explicitly persist "Country Name" as the Address field Country value format for
+   * existing installations, so they keep sending the country name to integrations (e.g.
+   * Webhooks) rather than switching to Gravity Forms' native ISO code behaviour (introduced in
+   * Gravity Forms 3.0.3) without notice. Also purges the CiviCRM countries/states transients,
+   * which were previously cached with no expiry — a site that cached them before this release
+   * fixed the Country ISO code vs. name mismatch would otherwise keep serving the old, wrongly
+   * keyed data indefinitely, masking the fix entirely.
+   */
+  private function upgrade_to_2_0_3() {
+    if ( ! get_option( 'gfcv_country_format_migrated', false ) ) {
+      $settings = $this->get_plugin_settings();
+
+      if ( ! isset( $settings['civicrm_address_country_format'] ) ) {
+        $settings['civicrm_address_country_format'] = 'name';
+        $this->update_plugin_settings( $settings );
+      }
+
+      update_option( 'gfcv_country_format_migrated', true );
+    }
+
+    delete_transient( 'gfcv_civicrm_countries' );
+    delete_transient( 'gfcv_civicrm_stateprovinces' );
+  }
+
+  /**
    * Include the field early, so it is available when entry exports are being
    * performed.
    */
@@ -484,6 +527,26 @@ class FieldsAddOn extends \GFAddOn {
             $field->set_error( __( 'Please enter a valid email address.', 'gravityforms' ) );
           }
         }
+      ] ],
+    ];
+
+    $fields[] = [
+      'title'       => esc_html__( 'Address Field - Country Value', 'gf-civicrm' ),
+      'description' => esc_html__( 'Since Gravity Forms 3.0.3, the Address field\'s Country value is stored, and sent to Add-On Framework based integrations (e.g. Webhooks, Zapier), as an ISO 3166-1 alpha-2 code (e.g. "AU") rather than the full country name (e.g. "Australia"). Choose how the Country value should be sent, for all forms.', 'gf-civicrm' ),
+      'fields'      => [ [
+        'type'          => 'radio',
+        'name'          => 'civicrm_address_country_format',
+        'default_value' => 'name',
+        'choices' => [
+          [
+            'label' => esc_html__( 'Country Name, e.g. "Australia" (restores the behaviour prior to Gravity Forms 3.0.3)', 'gf-civicrm' ),
+            'value' => 'name',
+          ],
+          [
+            'label' => esc_html__( 'Country ISO Code, e.g. "AU" (Gravity Forms\' native behaviour since version 3.0.3)', 'gf-civicrm' ),
+            'value' => 'code',
+          ],
+        ],
       ] ],
     ];
 
