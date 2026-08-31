@@ -262,8 +262,13 @@ function address_replace_countries_list( $choices ) {
 	}
 
 	if ( !empty( $countries ) ) {
+		// GF 3.1.0.3 fixed an issue where the default country isn't selected on form display
+		// when this filter returns a plain indexed array; GF's changelog recommends returning
+		// an associative array keyed by country code instead, so key by CiviCRM's iso_code
+		// directly rather than relying on Gravity Forms to re-derive a code from the name
+		// (which silently fails for any name that doesn't exactly match GF's own country list).
 		foreach ($countries as $country) {
-      		$replace[] = __($country['name'], 'gf-civicrm-formprocessor');
+			$replace[ $country['iso_code'] ] = __($country['name'], 'gf-civicrm-formprocessor');
 		}
 		return $replace;
 	}
