@@ -188,8 +188,11 @@ class Address_Field {
 				}
 			}
 
-			set_transient( 'gfcv_civicrm_countries', $countries );
-			set_transient( 'gfcv_civicrm_stateprovinces', $states_data );
+			// Expire after 12 hours so a future data/format change (e.g. this fix) doesn't get
+			// masked indefinitely by a cache set before the change, on top of the explicit purge
+			// this update also runs once via upgrade_version_2_0_3().
+			set_transient( 'gfcv_civicrm_countries', $countries, 12 * 60 * 60 );
+			set_transient( 'gfcv_civicrm_stateprovinces', $states_data, 12 * 60 * 60 );
 		}
 
 		// Compile script data
