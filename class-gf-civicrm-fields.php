@@ -57,6 +57,43 @@ class FieldsAddOn extends GFAddOn {
   }
 
   /**
+   * Runs one-time upgrade tasks whenever the installed add-on version changes. Unlike
+   * Upgrader::upgrade_version_1_12_0() (in includes/class-gf-civicrm-upgrader.php), which only
+   * fires when an update runs through WordPress' own Plugin_Upgrader process, this is driven by
+   * GFAddOn comparing the plugin's Version header against a stored option on admin page load —
+   * so it also runs after a git pull, WP-CLI deploy, or manual file upload, none of which fire
+   * upgrader_process_complete. Kept alongside the Upgrader-based routine (both are idempotent,
+   * guarded by the same option) rather than replacing it, in case that path is relied on too.
+   *
+   * @param string $previous_version The previously installed add-on version, or an empty
+   *                                  string on first activation.
+   */
+  public function upgrade( $previous_version ) {
+    if ( $previous_version && version_compare( $previous_version, '1.12.1', '<' ) ) {
+      $this->upgrade_to_1_12_1();
+    }
+  }
+
+  /**
+   * 1.12.1: Explicitly persist "Country Name" as the Address field Country value format for
+   * existing installations, so they keep sending the country name to integrations (e.g.
+   * Webhooks) rather than switching to Gravity Forms' native ISO code behaviour (introduced in
+   * Gravity Forms 3.0.3) without notice.
+   */
+  private function upgrade_to_1_12_1() {
+    if ( ! get_option( 'gfcv_country_format_migrated', false ) ) {
+      $settings = $this->get_plugin_settings();
+
+      if ( ! isset( $settings['civicrm_address_country_format'] ) ) {
+        $settings['civicrm_address_country_format'] = 'name';
+        $this->update_plugin_settings( $settings );
+      }
+
+      update_option( 'gfcv_country_format_migrated', true );
+    }
+  }
+
+  /**
    * Include the field early, so it is available when entry exports are being
    * performed.
    */
