@@ -161,7 +161,7 @@ function do_civicrm_replacement( $form, $context ) {
 	return $form;
 }
 
-function pre_render( $form, $ajax, $field_values, $context ) {
+function pre_render( $form, $ajax = false, $field_values = array(), $context = '' ) {	
 	if( $context === 'form_config' ) {
         // Do not perform our pre-render callbacks when retrieving form configuration
         return $form;

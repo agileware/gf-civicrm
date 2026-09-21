@@ -6,7 +6,7 @@
  * Requires plugins: gravityforms
  * Author: Agileware
  * Author URI: https://agileware.com.au
- * Version: 2.0.4
+ * Version: 2.0.5
  * Text Domain: gf-civicrm
  * 
  * Copyright (c) Agileware Pty Ltd (email : support@agileware.com.au)
