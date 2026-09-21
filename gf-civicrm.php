@@ -6,7 +6,7 @@
  * Requires plugins: civicrm, gravityforms
  * Author: Agileware
  * Author URI: https://agileware.com.au
- * Version: 1.12.2
+ * Version: 1.12.3
  * Text Domain: gf-civicrm
  * 
  * Copyright (c) Agileware Pty Ltd (email : support@agileware.com.au)
@@ -192,8 +192,8 @@ function compose_merge_tags ( $merge_tags, $form_id ) {
 	return $merge_tags;
 }
 
-function pre_render( $form, $ajax, $field_values, $context ) {
-	if($context == 'form_config') {
+function pre_render( $form, $ajax = false, $field_values = array(), $context = '' ) {
+	if ( $context === 'form_config' ) {
         // Do not perform our pre-render callbacks when retrieving form configuration
         return $form;
     }
