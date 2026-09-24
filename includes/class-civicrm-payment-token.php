@@ -269,8 +269,13 @@ class CiviCRM_Payment_Token extends GF_Field {
 				 * It utilises a SearchKit set up as an API endpoint, so we can get PaymentToken values for remote installations,
 				 * circumventing permissions. This is NOT final. In future we are looking to implement a more robust, cleaner solution.
 				 * 
-				 * 
+				 *
 				 */
+				if ( ! $contact_id ) {
+					// Remote installations can only identify the contact from a validated cid and cs.
+					return $empty_option;
+				}
+
 				$api_params['checkPermissions'] = false;
 				$api_params['display'] = 'API';
 				$api_params['savedSearch'] = 'API_Credit_card_tokens_with_associated_payment_data';
@@ -330,7 +335,7 @@ class CiviCRM_Payment_Token extends GF_Field {
 				];
 				
 				
-				if ( $contact_id = validateChecksumFromURL() ) {
+				if ( $contact_id ) {
 					// cid and cs provided in URL. Could be remote, or non-logged in
 					$api_params['where'][] = ['contact_id', '=', absint( $contact_id )];
 				} else if ( method_exists( 'CRM_Core_Session', 'getLoggedInContactID' ) && !empty( \CRM_Core_Session::getLoggedInContactID() ) ) {
