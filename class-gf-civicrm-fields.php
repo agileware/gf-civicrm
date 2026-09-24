@@ -534,6 +534,7 @@ class FieldsAddOn extends \GFAddOn {
         [
           'type'          => 'text',
           'name'          => 'gf_civicrm_site_key',
+          'input_type'    => 'password',
           'label'         => 'CiviCRM Site Key',
           'description'   => esc_html__( 'Provide the CiviCRM site key for making API calls, can be output using the merge tag {gf_civicrm_site_key}.', 'gf-civicrm' ),
           'default_value' => '',
@@ -541,6 +542,7 @@ class FieldsAddOn extends \GFAddOn {
         [
           'type'          => 'text',
           'name'          => 'gf_civicrm_api_key',
+          'input_type'    => 'password',
           'label'         => 'CiviCRM API Key',
           'description'   => esc_html__( 'Provide the CiviCRM API key for making API calls, can be output using the merge tag {gf_civicrm_api_key}.', 'gf-civicrm' ),
           'default_value' => '',

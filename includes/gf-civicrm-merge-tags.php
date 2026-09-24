@@ -116,7 +116,100 @@ function compose_merge_tags ( $merge_tags, $form_id ) {
 }
 
 /**
- * Find and replace {civicrm_fp.*}, {gf_civicrm_site_key}, {gf_civicrm_api_key}, and {rest_api_url} merge tags
+ * Get a CiviCRM credential ('site_key' or 'api_key') from the selected connection profile, or from the
+ * plugin settings.
+ *
+ * @param string $name
+ *
+ * @return string
+ */
+function get_civicrm_credential( $name ) {
+	$profile_name  = get_rest_connection_profile();
+	$profiles      = get_profiles();
+	$plugin_active = is_plugin_active( 'connector-civicrm-mcrestface/wpcmrf.php' );
+
+	if ( $plugin_active && isset( $profiles[ $profile_name ][ $name ] ) ) {
+		return (string) $profiles[ $profile_name ][ $name ];
+	}
+
+	return (string) FieldsAddOn::get_instance()->get_plugin_setting( 'gf_civicrm_' . $name );
+}
+
+/**
+ * Replace the {gf_civicrm_site_key} and {gf_civicrm_api_key} merge tags with the CiviCRM credentials.
+ *
+ * Only used while a Gravity Forms Webhooks request is being built, so the credentials cannot be output in
+ * confirmations, notifications, field values or anywhere else merge tags are processed.
+ *
+ * @param mixed $text
+ * @param bool  $json_escape Escape the credentials for use inside a JSON string.
+ *
+ * @return mixed
+ */
+function replace_key_merge_tags( $text, $json_escape = false ) {
+	if ( ! is_string( $text ) ) {
+		return $text;
+	}
+
+	$tags = [
+		'{gf_civicrm_site_key}' => 'site_key',
+		'{gf_civicrm_api_key}'  => 'api_key',
+	];
+
+	foreach ( $tags as $tag => $name ) {
+		if ( strpos( $text, $tag ) === false ) {
+			continue;
+		}
+
+		$value = get_civicrm_credential( $name );
+		if ( $json_escape ) {
+			$value = substr( json_encode( $value ), 1, -1 );
+		}
+
+		$text = str_replace( $tag, $value, $text );
+	}
+
+	return $text;
+}
+
+/**
+ * Replace the key merge tags in the webhook request URL. Runs after the request URL is saved to the entry
+ * (priority 10), so the saved URL keeps the merge tags.
+ */
+add_filter( 'gform_webhooks_request_url', function ( $request_url ) {
+	return replace_key_merge_tags( $request_url );
+}, 20 );
+
+/**
+ * Replace the key merge tags in the webhook request headers and body. Runs after the request arguments are
+ * saved to the entry (priority 10), so the saved arguments keep the merge tags.
+ */
+add_filter( 'gform_webhooks_request_args', function ( $request_args ) {
+	if ( ! empty( $request_args['headers'] ) && is_array( $request_args['headers'] ) ) {
+		foreach ( $request_args['headers'] as $name => $value ) {
+			$request_args['headers'][ $name ] = replace_key_merge_tags( $value );
+		}
+	}
+
+	if ( ! empty( $request_args['body'] ) ) {
+		if ( is_array( $request_args['body'] ) ) {
+			array_walk_recursive( $request_args['body'], function ( &$value ) {
+				$value = replace_key_merge_tags( $value );
+			} );
+		} elseif ( is_string( $request_args['body'] ) ) {
+			// JSON request bodies are sent as a string
+			$is_json = json_decode( $request_args['body'] ) !== null;
+			$request_args['body'] = replace_key_merge_tags( $request_args['body'], $is_json );
+		}
+	}
+
+	return $request_args;
+}, 20 );
+
+/**
+ * Find and replace {civicrm_fp.*} and {gf_civicrm_rest_url} merge tags.
+ *
+ * {gf_civicrm_site_key} and {gf_civicrm_api_key} are deliberately not replaced here; see replace_key_merge_tags().
  *
  * @param string $text
  * @param array $form
@@ -130,14 +223,9 @@ function compose_merge_tags ( $merge_tags, $form_id ) {
  */
 function replace_merge_tags( $text, $form, $entry, $url_encode, $esc_html, $nl2br, $format ) {
 	$gf_civicrm_rest_url_merge_tag = '{gf_civicrm_rest_url}';
-	$gf_civicrm_site_key_merge_tag = '{gf_civicrm_site_key}';
-	$gf_civicrm_api_key_merge_tag = '{gf_civicrm_api_key}';
 	$needs_rest_url  = strpos( $text, $gf_civicrm_rest_url_merge_tag ) !== false;
-	$needs_site_key = strpos( $text, $gf_civicrm_site_key_merge_tag ) !== false;
-	$needs_api_key  = strpos( $text, $gf_civicrm_api_key_merge_tag ) !== false;
 
-	if ( $needs_rest_url || $needs_site_key || $needs_api_key ) {
-		// Only call these once if needed
+	if ( $needs_rest_url ) {
 		$profile_name = get_rest_connection_profile();
 		$profiles     = get_profiles();
 		$plugin_active = is_plugin_active( 'connector-civicrm-mcrestface/wpcmrf.php' );
@@ -148,20 +236,8 @@ function replace_merge_tags( $text, $form, $entry, $url_encode, $esc_html, $nl2b
 			$profile = null;
 		}
 
-		if ( $needs_rest_url ) {
-			$gf_civicrm_rest_url = $profile && isset( $profile['url'] ) ? $profile['url'] : GFCommon::format_variable_value( rest_url(), $url_encode, $esc_html, $format, $nl2br );
-			$text = str_replace( $gf_civicrm_rest_url_merge_tag, $gf_civicrm_rest_url, $text );
-		}
-
-		if ( $needs_site_key ) {
-			$gf_civicrm_site_key = $profile && isset( $profile['site_key'] ) ? $profile['site_key'] : FieldsAddOn::get_instance()->get_plugin_setting( 'gf_civicrm_site_key' );
-			$text = str_replace( $gf_civicrm_site_key_merge_tag, $gf_civicrm_site_key, $text );
-		}
-
-		if ( $needs_api_key ) {
-			$gf_civicrm_api_key = $profile && isset( $profile['api_key'] ) ? $profile['api_key'] : FieldsAddOn::get_instance()->get_plugin_setting( 'gf_civicrm_api_key' );
-			$text = str_replace( $gf_civicrm_api_key_merge_tag, $gf_civicrm_api_key, $text );
-		}
+		$gf_civicrm_rest_url = $profile && isset( $profile['url'] ) ? $profile['url'] : GFCommon::format_variable_value( rest_url(), $url_encode, $esc_html, $format, $nl2br );
+		$text = str_replace( $gf_civicrm_rest_url_merge_tag, $gf_civicrm_rest_url, $text );
 	}
 
 	// TODO - This may pass in multiple options
