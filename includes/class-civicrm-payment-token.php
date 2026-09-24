@@ -450,7 +450,25 @@ class CiviCRM_Payment_Token extends GF_Field {
 			if ( ! is_numeric( $value ) ) {
 				$this->failed_validation  = true;
 				$this->validation_message = esc_attr__( 'This field is required.', 'gf-civicrm' );
+				return;
 			}
+		}
+
+		// No selection ("Add new card")
+		if ( rgblank( $value ) ) {
+			return;
+		}
+
+		// Only accept a payment token that was offered to this contact. Rebuild the choices the same way
+		// they were built for display, on a copy so this field's own choices are left untouched.
+		$probe          = clone $this;
+		$probe->choices = [];
+		$probe->payment_token_options( $probe, $value );
+		$allowed = array_map( 'strval', array_column( (array) $probe->choices, 'value' ) );
+
+		if ( ! in_array( (string) $value, $allowed, true ) ) {
+			$this->failed_validation  = true;
+			$this->validation_message = esc_html__( 'Invalid selection. Please select from the available choices.', 'gf-civicrm' );
 		}
 	}
 
