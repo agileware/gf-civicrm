@@ -613,6 +613,12 @@ class FieldsAddOn extends \GFAddOn {
         'type'          => 'text',
         'name'          => 'gf_civicrm_import_export_directory',
         'default_value' => 'CRM/gf-civicrm-exports',
+        'validation_callback' => function( $field, $value ) {
+          // Must stay inside the document root
+          if ( class_exists( 'GFCiviCRM\ExportAddOn' ) && ExportAddOn::normalise_directory_base( $value ) === null ) {
+            $field->set_error( __( 'Enter a path relative to the server document root. It cannot be empty or contain "..".', 'gf-civicrm' ) );
+          }
+        }
       ] ],
     ];
 
