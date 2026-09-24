@@ -80,13 +80,8 @@ class Upgrader extends \Plugin_Upgrader {
         // 2.0.3
         add_action( 'upgrader_process_complete', [$this, 'upgrade_version_2_0_3'], 10, 2 );
 
-        add_action( 'admin_init', function() {
-            // Optionally rollback webhook urls to the previous saved version
-            if ( isset( $_GET['rollback_webhook_urls'] ) && isset( $_GET['page'] ) && $_GET['page'] === 'gf_settings' ) {
-                $this->rollback_gravity_forms_webhook_urls();
-                echo esc_html__( 'Webhook URLs have been reverted to their original values.', 'gf-civicrm' );
-            }
-        });
+        // The webhook URL rollback is triggered from the CiviCRM Settings page.
+        // See FieldsAddOn::maybe_run_webhook_urls_rollback().
     }
 
     /**

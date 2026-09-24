@@ -173,7 +173,63 @@ class FieldsAddOn extends \GFAddOn {
         }
     } );
 
+    // Notify the Webhook URL rollback status
+    add_action( 'admin_notices', function() {
+      // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only check of GF admin tab; GF handles its own nonce.
+      $subview = isset( $_GET['subview'] ) ? sanitize_text_field( wp_unslash( $_GET['subview'] ) ) : '';
+      if ( 'gf-civicrm' === $subview && get_transient( 'gfcv_webhook_urls_rollback_success' ) ) {
+        printf(
+          '<div class="notice notice-success gf-notice"><p>%s</p></div>',
+          esc_html__( 'Webhook URLs have been reverted to their original values.', 'gf-civicrm' )
+        );
+      }
+    } );
+
     add_action( 'admin_init', [ $this, 'maybe_run_merge_tags_replacer' ] );
+    add_action( 'admin_init', [ $this, 'maybe_run_webhook_urls_rollback' ] );
+  }
+
+  /**
+   * Reverts the Gravity Forms webhook request URLs to the values saved before the merge tags replacement.
+   * Requires the gravityforms_edit_settings capability and a valid nonce.
+   */
+  public function maybe_run_webhook_urls_rollback() {
+    // Bail early if the user doesn't have permission to manage GF settings.
+    if ( ! current_user_can( 'gravityforms_edit_settings' ) ) {
+      return;
+    }
+
+    $action = isset( $_GET['gf_webhook_urls_rollback_action'] )
+        ? sanitize_text_field( wp_unslash( $_GET['gf_webhook_urls_rollback_action'] ) )
+        : '';
+    if ( 'run' !== $action ) {
+      return;
+    }
+
+    delete_transient( 'gfcv_webhook_urls_rollback_success' );
+
+    // Verify nonce for security.
+    $nonce_value = isset( $_GET['gf_webhook_urls_rollback_nonce'] )
+        ? sanitize_text_field( wp_unslash( $_GET['gf_webhook_urls_rollback_nonce'] ) )
+        : '';
+    if ( ! wp_verify_nonce( $nonce_value, 'webhook_urls_rollback_nonce' ) ) {
+      wp_die( esc_html__( 'Security check failed', 'gf-civicrm' ) );
+    }
+
+    Upgrader::get_instance()->rollback_gravity_forms_webhook_urls();
+    set_transient( 'gfcv_webhook_urls_rollback_success', true, 60 );
+
+    // Redirect back to the CiviCRM Settings page with a status message
+    wp_redirect(
+      add_query_arg(
+        [
+          'page' => 'gf_settings',
+          'subview' => 'gf-civicrm',
+        ],
+        admin_url( 'admin.php' )
+      )
+    );
+    exit;
   }
   
   public function maybe_run_merge_tags_replacer() {
@@ -570,6 +626,28 @@ class FieldsAddOn extends \GFAddOn {
         'html'  => '<a href="' . esc_url( $action_url ) . '" class="button">Replace the Merge Tags</a>',
       ] ],
     ];
+
+    // Only offer the rollback if the merge tags replacement has saved a backup.
+    if ( ! empty( get_option( 'gfcv_webhook_urls_backup' ) ) ) {
+      $rollback_url = add_query_arg(
+        [
+          'gf_webhook_urls_rollback_action' => 'run',
+          'gf_webhook_urls_rollback_nonce'  => wp_create_nonce( 'webhook_urls_rollback_nonce' ),
+        ],
+        admin_url('admin.php?page=gf_settings&subview=gf-civicrm')
+      );
+
+      $fields[] = [
+        'title'       => esc_html__( 'Webhook URL Rollback', 'gf-civicrm' ),
+        'description' => __( 'Reverts the Gravity Forms webhook request URLs to the values saved before the last Webhook URL Merge Tags Replacement.<br /><br /><strong>CAUTION:</strong> This overwrites any changes made to those webhook URLs since the replacement ran.', 'gf-civicrm' ),
+        'fields'      => [ [
+          'name'  => 'webhook_urls_rollback',
+          'label' => '',
+          'type'  => 'html',
+          'html'  => '<a href="' . esc_url( $rollback_url ) . '" class="button">' . esc_html__( 'Revert the Webhook URLs', 'gf-civicrm' ) . '</a>',
+        ] ],
+      ];
+    }
 
 		return $fields;
 	}
