@@ -151,7 +151,9 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
         }
 
         public static function settings_tabs( $settings_tabs ) {
-            if( GFCommon::current_user_can_any('gravityforms_edit_forms') ) {
+            // Import/export replaces forms, webhook feeds and CiviCRM Form Processors, so it is limited to users
+            // who can manage the Gravity Forms settings.
+            if( GFCommon::current_user_can_any('gravityforms_edit_settings') ) {
                 $settings_tabs[25] = [ 'name' => 'export_gfcivicrm', 'label' => esc_html__( 'Export GF CiviCRM', 'gf-civicrm' ) ];
                 $settings_tabs[50] = [ 'name' => 'import_gfcivicrm', 'label' => esc_html__( 'Import GF CiviCRM', 'gf-civicrm' ) ];
             }
@@ -162,7 +164,7 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
         public function export_form_and_feeds() {
             // Verify the nonce and permissions using specific GF capabilities
             check_admin_referer( 'gf_export_forms', 'gf_export_forms_nonce' );
-            if ( ! GFCommon::current_user_can_any( 'gravityforms_edit_forms' ) ) {
+            if ( ! GFCommon::current_user_can_any( 'gravityforms_edit_settings' ) ) {
                 wp_die( esc_html__( 'Unauthorized request.', 'gf-civicrm' ), 403 );
             }
 
@@ -438,7 +440,7 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
          */
         public function export_gfcivicrm_form_html() {
 
-            if ( ! GFCommon::current_user_can_any( 'gravityforms_edit_forms' ) ) {
+            if ( ! GFCommon::current_user_can_any( 'gravityforms_edit_settings' ) ) {
                 wp_die( esc_html__( 'You do not have sufficient permissions to access this page.', 'gf-civicrm' ) );
             }
 
@@ -524,7 +526,7 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
          */
         public function import_gfcivicrm_form_html() {
 
-            if ( ! GFCommon::current_user_can_any( 'gravityforms_edit_forms' ) ) {
+            if ( ! GFCommon::current_user_can_any( 'gravityforms_edit_settings' ) ) {
                 wp_die( esc_html__( 'You do not have sufficient permissions to access this page.', 'gf-civicrm' ) );
             }
 
@@ -788,7 +790,7 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
             delete_transient('gfcv_imports_status_success');
             delete_transient('gfcv_imports_status_failure');
 
-            if ( ! GFCommon::current_user_can_any( 'gravityforms_edit_forms' ) ) {
+            if ( ! GFCommon::current_user_can_any( 'gravityforms_edit_settings' ) ) {
                 wp_die( esc_html__( 'You do not have sufficient permissions to import forms.', 'gf-civicrm' ) );
             }
 
@@ -850,7 +852,14 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
             }
 
             // Only do this step if a CiviCRM installation exists
-            if ( ! check_civicrm_installation()['is_error'] && $import_form_processors ) {
+            $civicrm_available = ! check_civicrm_installation()['is_error'];
+
+            if ( $civicrm_available && $import_form_processors && ! $this->can_import_form_processors() ) {
+                $failures['Form Processor'] = esc_html__( 'Failed to import FormProcessor => Importing form processors into a local CiviCRM installation requires the "administer CiviCRM" permission.', 'gf-civicrm' );
+                $import_form_processors = null;
+            }
+
+            if ( $civicrm_available && $import_form_processors ) {
                 // Get the CiviCRM REST Connection Profile. This may be the local CiviCRM connection if no profile is set.
                 $profile_name = get_rest_connection_profile();
 
@@ -919,6 +928,26 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
                 )
             );
             exit;
+        }
+
+        /**
+         * Whether the current user may import Form Processors.
+         *
+         * FormProcessorInstance.import requires "administer CiviCRM". Local API calls run without permission checks,
+         * so check it here. Remote installations enforce it for the connection profile's API user.
+         *
+         * @return bool
+         */
+        protected function can_import_form_processors(): bool {
+            $profile_name = get_rest_connection_profile();
+            $profiles     = get_profiles();
+            $connector    = $profiles[ $profile_name ]['connector'] ?? 'local';
+
+            if ( $connector !== 'local' ) {
+                return true;
+            }
+
+            return class_exists( 'CRM_Core_Permission' ) && \CRM_Core_Permission::check( 'administer CiviCRM' );
         }
 
         public function filter_form_names( $input ) {
