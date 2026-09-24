@@ -301,32 +301,48 @@ function handle_optional_select_field_values( $form ) {
 	}
 }
 
+/**
+ * Validates the contact ID and checksum passed in the URL.
+ *
+ * Fails closed: the contact ID is only returned after CiviCRM explicitly confirms the checksum.
+ *
+ * @return int|null The validated contact ID, or null if the checksum could not be validated.
+ */
 function validateChecksumFromURL( $cid_param = 'cid', $cs_param = 'cs' ): int|null {
 	$contact_id = rgget( $cid_param );
 	$checksum   = rgget( $cs_param );
 
-	if ( empty( $contact_id ) || empty( $checksum ) ) {
-    	return null;
+	if ( empty( $contact_id ) || empty( $checksum ) || ! is_string( $contact_id ) || ! is_string( $checksum ) ) {
+		return null;
+	}
+
+	// Contact IDs are positive integers. Reject anything else before calling the API.
+	if ( ! ctype_digit( $contact_id ) ) {
+		return null;
 	}
 
 	try {
 		$profile_name = get_rest_connection_profile();
-		
-		// Get Payment Processors from CiviCRM
-    	$api_params = [
-			'id' => $contact_id,
-			'checksum' => $checksum ,
-		];
-		$validator = api_wrapper( $profile_name, 'ContactChecksum', 'validate', $api_params );
 
-		if ( ! $validator[1][0] ) { // checksum validation value
-			throw new \CRM_Core_Exception('Invalid checksum');
-		}
-	} catch ( \CRM_Core_Exception $e ) {
-		// TODO Log error?
+		$api_params = [
+			'id'       => $contact_id,
+			'checksum' => $checksum,
+		];
+		// ContactChecksum.validate returns [ 'id' => <contact id>, 'checksum' => <bool> ].
+		$validator = api_wrapper( $profile_name, 'ContactChecksum', 'validate', $api_params );
+	} catch ( \CRM_Core_Exception | \GFCiviCRM_Exception $e ) {
+		error_log( 'GF CiviCRM: contact checksum validation failed for contact ID ' . absint( $contact_id ) . ': ' . $e->getMessage() );
+
+		return null;
 	}
 
-	return $contact_id;
+	if ( ! is_array( $validator ) || ! empty( $validator['is_error'] ) || ! in_array( $validator['checksum'] ?? null, [ true, 1, '1' ], true ) ) {
+		error_log( 'GF CiviCRM: invalid contact checksum supplied for contact ID ' . absint( $contact_id ) );
+
+		return null;
+	}
+
+	return absint( $contact_id );
 }
 
 add_action( 'admin_notices', function() {

@@ -234,6 +234,10 @@ function handle_ajax_connection_preflight_check() {
     // Verify the security nonce.
     check_ajax_referer( 'gf_civicrm_ajax_nonce', 'security' );
 
+    if ( ! current_user_can( 'gravityforms_edit_settings' ) ) {
+        wp_send_json_error( [ 'message' => esc_html__( 'You do not have permission to run connection checks.', 'gf-civicrm' ) ], 403 );
+    }
+
     // Sanitize and retrieve the values.
     $profile_name 	= isset($_POST['profile']) ? sanitize_text_field($_POST['profile']) : '';
     $check_type 	= isset($_POST['check_type']) ? sanitize_key($_POST['check_type']) : '';
@@ -290,12 +294,12 @@ function handle_ajax_connection_preflight_check() {
             wp_send_json_error(['message' => esc_html__( 'Invalid check type specified.', 'gf-civicrm' )]);
     }
 
-    // Send a JSON response back.
+    // Send a JSON response back. Only the pass/fail status is returned, never the raw API result.
     if ( isset( $result['is_error'] ) && $result['is_error'] === 1 ) {
 		$message = get_helpful_error_message( $result['error_message'] );
 		if ( $message === 0 ) {
 			// It may have been a false-positive error (e.g. Validate Checksum)
-			wp_send_json_success( $result );
+			wp_send_json_success( ['message' => esc_html__( 'OK', 'gf-civicrm' )] );
 		}
 		wp_send_json_error( ['message' => $message] );
 	} else if ( isset( $result['code'] ) && $result['code'] === 'civicrm_rest_api_error' ) {
@@ -303,7 +307,7 @@ function handle_ajax_connection_preflight_check() {
 		$message = get_helpful_error_message( $result['message'] );
 		wp_send_json_error( ['message' => $message] );
     } else {
-        wp_send_json_success( $result );
+        wp_send_json_success( ['message' => esc_html__( 'OK', 'gf-civicrm' )] );
     }
 }
 
@@ -328,6 +332,10 @@ add_action( 'wp_ajax_check_connection_profile_type', 'GFCiviCRM\handle_ajax_get_
 function handle_ajax_get_connection_profile_type() {
 	// Verify the security nonce.
 	check_ajax_referer( 'gf_civicrm_ajax_nonce', 'security' );
+
+	if ( ! current_user_can( 'gravityforms_edit_settings' ) ) {
+		wp_send_json_error( [ 'message' => esc_html__( 'You do not have permission to view connection profiles.', 'gf-civicrm' ) ], 403 );
+	}
 
 	static $profiles;
 

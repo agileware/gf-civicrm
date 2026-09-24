@@ -80,13 +80,8 @@ class Upgrader extends \Plugin_Upgrader {
         // 2.0.3
         add_action( 'upgrader_process_complete', [$this, 'upgrade_version_2_0_3'], 10, 2 );
 
-        add_action( 'admin_init', function() {
-            // Optionally rollback webhook urls to the previous saved version
-            if ( isset( $_GET['rollback_webhook_urls'] ) && isset( $_GET['page'] ) && $_GET['page'] === 'gf_settings' ) {
-                $this->rollback_gravity_forms_webhook_urls();
-                echo esc_html__( 'Webhook URLs have been reverted to their original values.', 'gf-civicrm' );
-            }
-        });
+        // The webhook URL rollback is triggered from the CiviCRM Settings page.
+        // See FieldsAddOn::maybe_run_webhook_urls_rollback().
     }
 
     /**
@@ -558,13 +553,14 @@ class Upgrader extends \Plugin_Upgrader {
                     // Save the updated feed settings
                     $result = GFAPI::update_feed($feed['id'], $feed['meta'], $form_id);
 
+                    // Only log the feed ID: the old URL contains the plaintext CiviCRM site key and API key.
                     if (is_wp_error($result)) {
                         // Log the error
-                        error_log("Error: Failed to update Gravity Forms Webhook URL for feed ID {$feed['id']} from {$old_url} to {$new_url}");
+                        error_log("Error: Failed to replace the site key and API key with merge tags in the Gravity Forms Webhook URL for feed ID {$feed['id']} (form ID {$form_id}): " . $result->get_error_message());
                         $errors[] = $result;
                     } else {
                         // Log the update
-                        error_log("Updated Gravity Forms Webhook URL for feed ID {$feed['id']} from {$old_url} to {$new_url}");
+                        error_log("Replaced the site key and API key with merge tags in the Gravity Forms Webhook URL for feed ID {$feed['id']} (form ID {$form_id})");
                     }
     
                     // Store the old URL for possible rollbacks

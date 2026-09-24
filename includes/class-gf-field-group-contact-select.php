@@ -380,7 +380,30 @@ class GF_Field_Group_Contact_Select extends GF_Field {
       if (!is_numeric($value)) {
         $this->failed_validation  = TRUE;
         $this->validation_message = esc_attr__('This field is required.', 'gf-civicrm');
+        return;
       }
+    }
+
+    // No selection
+    if ( rgblank( $value ) ) {
+      return;
+    }
+
+    // Only accept a contact that was offered. Rebuild the choices the same way they were built for display,
+    // on a copy so this field's own choices are left untouched.
+    $probe          = clone $this;
+    $probe->choices = [];
+    $probe->group_contact_select_options( $probe, $value );
+    $allowed = array_column( (array) $probe->choices, 'value' );
+
+    // Choices saved on the field are displayed alongside the group's contacts.
+    if ( ! empty( $allowed ) && ! empty( $this->choices[0]['value'] ) ) {
+      $allowed = array_merge( array_column( $this->choices, 'value' ), $allowed );
+    }
+
+    if ( ! in_array( (string) $value, array_map( 'strval', $allowed ), TRUE ) ) {
+      $this->failed_validation  = TRUE;
+      $this->validation_message = esc_html__( 'Invalid selection. Please select from the available choices.', 'gf-civicrm' );
     }
   }
 

@@ -111,8 +111,49 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
             add_filter('gform_export_menu', [ self::class, 'settings_tabs' ], 10, 1);
         }
 
+        /**
+         * Normalises the Import/Export Directory setting, a path relative to the server document root.
+         *
+         * @param mixed $directory_base
+         *
+         * @return string|null The normalised path, or null if it is empty or would escape the document root.
+         */
+        public static function normalise_directory_base( $directory_base ) {
+            $directory_base = trim( str_replace( '\\', '/', (string) $directory_base ), "/ \t\n\r\0\x0B" );
+
+            if ( $directory_base === '' || str_contains( $directory_base, "\0" ) ) {
+                return null;
+            }
+
+            foreach ( explode( '/', $directory_base ) as $segment ) {
+                if ( $segment === '..' ) {
+                    return null;
+                }
+            }
+
+            return $directory_base;
+        }
+
+        /**
+         * Get the validated Import/Export Directory setting.
+         *
+         * @return string|null
+         */
+        private function get_directory_base() {
+            return self::normalise_directory_base( FieldsAddOn::get_instance()->get_plugin_setting( 'gf_civicrm_import_export_directory' ) );
+        }
+
+        /**
+         * Message shown when the Import/Export Directory setting is invalid.
+         */
+        private function invalid_directory_message() {
+            return esc_html__( 'The GF CiviCRM Import/Export Directory setting is invalid. Enter a path relative to the server document root; it cannot be empty or contain "..".', 'gf-civicrm' );
+        }
+
         public static function settings_tabs( $settings_tabs ) {
-            if( GFCommon::current_user_can_any('gravityforms_edit_forms') ) {
+            // Import/export replaces forms, webhook feeds and CiviCRM Form Processors, so it is limited to users
+            // who can manage the Gravity Forms settings.
+            if( GFCommon::current_user_can_any('gravityforms_edit_settings') ) {
                 $settings_tabs[25] = [ 'name' => 'export_gfcivicrm', 'label' => esc_html__( 'Export GF CiviCRM', 'gf-civicrm' ) ];
                 $settings_tabs[50] = [ 'name' => 'import_gfcivicrm', 'label' => esc_html__( 'Import GF CiviCRM', 'gf-civicrm' ) ];
             }
@@ -123,7 +164,7 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
         public function export_form_and_feeds() {
             // Verify the nonce and permissions using specific GF capabilities
             check_admin_referer( 'gf_export_forms', 'gf_export_forms_nonce' );
-            if ( ! GFCommon::current_user_can_any( 'gravityforms_edit_forms' ) ) {
+            if ( ! GFCommon::current_user_can_any( 'gravityforms_edit_settings' ) ) {
                 wp_die( esc_html__( 'Unauthorized request.', 'gf-civicrm' ), 403 );
             }
 
@@ -144,6 +185,11 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
             }
 
             $docroot = $_SERVER['DOCUMENT_ROOT'];
+
+            $directory_base = $this->get_directory_base();
+            if ( $directory_base === null ) {
+                wp_die( $this->invalid_directory_message() );
+            }
 
             $forms_data = GFFormsModel::get_form_meta_by_id( $form_ids );
 
@@ -179,7 +225,6 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
                 $form_slug = str_replace( '-', '_', $form_slug ); // Replace dashes with underscores
 
                 // Define the subdirectory paths by form title. Form processors exported to a separate subdirectory.
-                $directory_base = FieldsAddOn::get_instance()->get_plugin_setting( 'gf_civicrm_import_export_directory' );
                 $fp_directory = 'form-processors';
                 $directory_name = $form_slug;
                 $export_directory = apply_filters(
@@ -193,20 +238,28 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
                     $docroot, $directory_base, $directory_name, $fp_directory, $action_value, $form_slug, $form_id
                 );
 
-                // Generate the directories and protect with htaccess using WP_Filesystem
+                // Generate the directories and protect with htaccess using WP_Filesystem.
+                // The protection files go in the export directories themselves, not their parent, so a misconfigured
+                // base path can't block access to an unrelated directory.
                 foreach ( [$export_directory, $fp_export_directory] as $directory ) {
-                    $parent_directory = dirname($directory);
-                    $htaccess = "$parent_directory/.htaccess";
+                    $htaccess = "$directory/.htaccess";
+                    $index    = "$directory/index.php";
 
                     // Create the directory if it doesn’t exist
                     if ( ! $wp_filesystem->is_dir( $directory ) ) {
                         $wp_filesystem->mkdir( $directory, FS_CHMOD_DIR );
                     }
 
-                    // Create the htaccess if it doesn't exist. Restricts access to the exports.
+                    // Create the htaccess if it doesn't exist. Restricts access to the exports on Apache 2.4+, and on
+                    // Apache 2.2 as a fallback. Servers that ignore .htaccess (e.g. nginx) need their own rule.
                     if ( ! $wp_filesystem->exists( $htaccess ) ) {
-                        $htaccess_contents = "Order allow,deny\nDeny from all";
+                        $htaccess_contents = "<IfModule mod_authz_core.c>\n\tRequire all denied\n</IfModule>\n<IfModule !mod_authz_core.c>\n\tOrder allow,deny\n\tDeny from all\n</IfModule>\n";
                         $wp_filesystem->put_contents( $htaccess, $htaccess_contents, FS_CHMOD_FILE );
+                    }
+
+                    // Prevent directory listings where .htaccess is not honoured.
+                    if ( ! $wp_filesystem->exists( $index ) ) {
+                        $wp_filesystem->put_contents( $index, "<?php\n// Silence is golden.\n", FS_CHMOD_FILE );
                     }
                 }
 
@@ -387,7 +440,7 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
          */
         public function export_gfcivicrm_form_html() {
 
-            if ( ! GFCommon::current_user_can_any( 'gravityforms_edit_forms' ) ) {
+            if ( ! GFCommon::current_user_can_any( 'gravityforms_edit_settings' ) ) {
                 wp_die( esc_html__( 'You do not have sufficient permissions to access this page.', 'gf-civicrm' ) );
             }
 
@@ -473,12 +526,19 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
          */
         public function import_gfcivicrm_form_html() {
 
-            if ( ! GFCommon::current_user_can_any( 'gravityforms_edit_forms' ) ) {
+            if ( ! GFCommon::current_user_can_any( 'gravityforms_edit_settings' ) ) {
                 wp_die( esc_html__( 'You do not have sufficient permissions to access this page.', 'gf-civicrm' ) );
             }
 
             $docroot = $_SERVER['DOCUMENT_ROOT'];
-            $directory_base = FieldsAddOn::get_instance()->get_plugin_setting( 'gf_civicrm_import_export_directory' );
+            $directory_base = $this->get_directory_base();
+
+            if ( $directory_base === null ) {
+                GFExport::page_header();
+                echo '<div class="notice notice-error gf-notice"><p>' . $this->invalid_directory_message() . '</p></div>';
+                GFExport::page_footer();
+                return;
+            }
 
             $import_directory = apply_filters(
                 'gf-civicrm/import-export-directory',
@@ -730,7 +790,7 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
             delete_transient('gfcv_imports_status_success');
             delete_transient('gfcv_imports_status_failure');
 
-            if ( ! GFCommon::current_user_can_any( 'gravityforms_edit_forms' ) ) {
+            if ( ! GFCommon::current_user_can_any( 'gravityforms_edit_settings' ) ) {
                 wp_die( esc_html__( 'You do not have sufficient permissions to import forms.', 'gf-civicrm' ) );
             }
 
@@ -792,7 +852,14 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
             }
 
             // Only do this step if a CiviCRM installation exists
-            if ( ! check_civicrm_installation()['is_error'] && $import_form_processors ) {
+            $civicrm_available = ! check_civicrm_installation()['is_error'];
+
+            if ( $civicrm_available && $import_form_processors && ! $this->can_import_form_processors() ) {
+                $failures['Form Processor'] = esc_html__( 'Failed to import FormProcessor => Importing form processors into a local CiviCRM installation requires the "administer CiviCRM" permission.', 'gf-civicrm' );
+                $import_form_processors = null;
+            }
+
+            if ( $civicrm_available && $import_form_processors ) {
                 // Get the CiviCRM REST Connection Profile. This may be the local CiviCRM connection if no profile is set.
                 $profile_name = get_rest_connection_profile();
 
@@ -861,6 +928,26 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
                 )
             );
             exit;
+        }
+
+        /**
+         * Whether the current user may import Form Processors.
+         *
+         * FormProcessorInstance.import requires "administer CiviCRM". Local API calls run without permission checks,
+         * so check it here. Remote installations enforce it for the connection profile's API user.
+         *
+         * @return bool
+         */
+        protected function can_import_form_processors(): bool {
+            $profile_name = get_rest_connection_profile();
+            $profiles     = get_profiles();
+            $connector    = $profiles[ $profile_name ]['connector'] ?? 'local';
+
+            if ( $connector !== 'local' ) {
+                return true;
+            }
+
+            return class_exists( 'CRM_Core_Permission' ) && \CRM_Core_Permission::check( 'administer CiviCRM' );
         }
 
         public function filter_form_names( $input ) {

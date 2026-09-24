@@ -6,6 +6,72 @@ use GFAPI;
 use GFCommon;
 
 /**
+ * Replacement for credentials removed from stored webhook requests and alert emails.
+ */
+const REDACTED_VALUE = 'REDACTED';
+
+/**
+ * Masks the CiviCRM site key and API key query parameters in a webhook request URL,
+ * so they are not stored in entry meta or sent in alert emails.
+ *
+ * @param mixed $url
+ *
+ * @return mixed
+ */
+function redact_request_url( $url ) {
+	if ( ! is_string( $url ) || $url === '' ) {
+		return $url;
+	}
+
+	return preg_replace( '/([?&](?:key|api_key)=)[^&#]*/i', '${1}' . REDACTED_VALUE, $url );
+}
+
+/**
+ * Masks credentials in webhook request arguments: authentication headers, and key / api_key
+ * values in the request body.
+ *
+ * @param array $request_args
+ *
+ * @return array
+ */
+function redact_request_args( $request_args ) {
+	if ( ! is_array( $request_args ) ) {
+		return $request_args;
+	}
+
+	$secret_headers = [ 'x-civi-key', 'x-civi-auth', 'authorization' ];
+	if ( ! empty( $request_args['headers'] ) && is_array( $request_args['headers'] ) ) {
+		foreach ( $request_args['headers'] as $name => $value ) {
+			if ( in_array( strtolower( (string) $name ), $secret_headers, true ) ) {
+				$request_args['headers'][ $name ] = REDACTED_VALUE;
+			}
+		}
+	}
+
+	$redact_body = function ( array $body ) {
+		foreach ( $body as $name => $value ) {
+			if ( in_array( strtolower( (string) $name ), [ 'key', 'api_key' ], true ) ) {
+				$body[ $name ] = REDACTED_VALUE;
+			}
+		}
+		return $body;
+	};
+
+	if ( ! empty( $request_args['body'] ) ) {
+		if ( is_array( $request_args['body'] ) ) {
+			$request_args['body'] = $redact_body( $request_args['body'] );
+		} elseif ( is_string( $request_args['body'] ) ) {
+			$decoded = json_decode( $request_args['body'], true );
+			if ( is_array( $decoded ) ) {
+				$request_args['body'] = json_encode( $redact_body( $decoded ) );
+			}
+		}
+	}
+
+	return $request_args;
+}
+
+/**
  * Replace request data output with json-decoded structures where applicable.
  *
  * @param $request_data
@@ -254,7 +320,7 @@ function webhook_alerts( $response, $feed, $entry, $form ) {
 			absint( $feed['id'] ), 
 			esc_html( $form['title'] ), 
 			absint( $form['id'] ), 
-			esc_url_raw( $request_url ),
+			esc_url_raw( redact_request_url( $request_url ) ),
 			absint( $entry_id )
     	);
 
@@ -271,17 +337,17 @@ add_action( 'gform_webhooks_post_request', 'GFCiviCRM\webhook_alerts', 10, 4);
  * data. Supports multiple feeds.
  */
 add_filter( 'gform_webhooks_request_url', function ( $request_url, $feed, $entry, $form ) {
-	// Add the webhook request to the entry meta
+	// Add the webhook request to the entry meta, without credentials
 	$current_request = gform_get_meta( $entry['id'], 'webhook_feed_request' );
 
 	if ( $current_request && is_array($current_request) ) {
 		$current_request[$feed['id']] = [
-			'request_url' => $request_url,
+			'request_url' => redact_request_url( $request_url ),
 		];
 	} else {
 		$current_request = [
 			$feed['id'] => [
-				'request_url' => $request_url,
+				'request_url' => redact_request_url( $request_url ),
 			],
 		];
 	}
@@ -292,22 +358,22 @@ add_filter( 'gform_webhooks_request_url', function ( $request_url, $feed, $entry
 
 add_filter( 'gform_webhooks_request_args', function ( $request_args, $feed, $entry, $form ) {
 	// Ensure that other WordPress plugins have not lowered the curl timeout which impacts Gravity Forms webhook requests.
-	// Set timeout to 10 seconds
-	$request_args['timeout'] = 10000;
+	// Set timeout to 10 seconds (the WordPress HTTP API timeout is in seconds)
+	$request_args['timeout'] = 10;
 
-	// Add the webhook request to the entry meta
+	// Add the webhook request to the entry meta, without credentials
 	$current_request = gform_get_meta( $entry['id'], 'webhook_feed_request' );
     if (! is_array( $current_request ) ) {
 		$current_request = [
 			$feed['id'] => [
-				'request_url' => $current_request
+				'request_url' => redact_request_url( $current_request )
 			]
 		];
     }
 
     $current_request[$feed['id']] = [
       'request_url' => $current_request[$feed['id']]['request_url'] ?? '',
-      'request_args' => $request_args,
+      'request_args' => redact_request_args( $request_args ),
     ];
 
 	gform_update_meta( $entry['id'], 'webhook_feed_request', $current_request );
