@@ -358,8 +358,8 @@ add_filter( 'gform_webhooks_request_url', function ( $request_url, $feed, $entry
 
 add_filter( 'gform_webhooks_request_args', function ( $request_args, $feed, $entry, $form ) {
 	// Ensure that other WordPress plugins have not lowered the curl timeout which impacts Gravity Forms webhook requests.
-	// Set timeout to 10 seconds
-	$request_args['timeout'] = 10000;
+	// Set timeout to 10 seconds (the WordPress HTTP API timeout is in seconds)
+	$request_args['timeout'] = 10;
 
 	// Add the webhook request to the entry meta, without credentials
 	$current_request = gform_get_meta( $entry['id'], 'webhook_feed_request' );
