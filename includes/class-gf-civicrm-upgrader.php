@@ -553,13 +553,14 @@ class Upgrader extends \Plugin_Upgrader {
                     // Save the updated feed settings
                     $result = GFAPI::update_feed($feed['id'], $feed['meta'], $form_id);
 
+                    // Only log the feed ID: the old URL contains the plaintext CiviCRM site key and API key.
                     if (is_wp_error($result)) {
                         // Log the error
-                        error_log("Error: Failed to update Gravity Forms Webhook URL for feed ID {$feed['id']} from {$old_url} to {$new_url}");
+                        error_log("Error: Failed to replace the site key and API key with merge tags in the Gravity Forms Webhook URL for feed ID {$feed['id']} (form ID {$form_id}): " . $result->get_error_message());
                         $errors[] = $result;
                     } else {
                         // Log the update
-                        error_log("Updated Gravity Forms Webhook URL for feed ID {$feed['id']} from {$old_url} to {$new_url}");
+                        error_log("Replaced the site key and API key with merge tags in the Gravity Forms Webhook URL for feed ID {$feed['id']} (form ID {$form_id})");
                     }
     
                     // Store the old URL for possible rollbacks
