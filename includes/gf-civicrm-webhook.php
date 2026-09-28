@@ -187,7 +187,30 @@ function maybe_convert_address_country_field_value( $field_value, $form, $entry,
 
 	$field = GFAPI::get_field( $form, $field_id );
 
-	if ( $field instanceof \GF_Field_Address && $field->is_country_code( $field_value ) ) {
+	if ( ! $field instanceof \GF_Field_Address ) {
+		return $field_value;
+	}
+
+	// Use the filtered country list (gform_countries), which address_replace_countries_list()
+	// replaces with CiviCRM's country names keyed by ISO code. GF_Field_Address::get_country_name()
+	// reads Gravity Forms' unfiltered default list, so it returns GF's own names (e.g. "Iran")
+	// rather than CiviCRM's (e.g. "Iran, Islamic Republic of"), which then fail CiviCRM Form
+	// Processor "Country" input validation. This also covers CiviCRM-only codes (e.g. "XK").
+	$countries = $field->get_countries();
+
+	if ( isset( $countries[ $field_value ] ) ) {
+		return $countries[ $field_value ];
+	}
+
+	// Entries stored before GF 3.0.3 hold GF's country name: map name -> ISO code -> CiviCRM name.
+	$country_code = $field->get_country_code( $field_value );
+
+	if ( $country_code && isset( $countries[ $country_code ] ) ) {
+		return $countries[ $country_code ];
+	}
+
+	// Fall back to Gravity Forms' own name for a known ISO code.
+	if ( $field->is_country_code( $field_value ) ) {
 		$field_value = $field->get_country_name( $field_value );
 	}
 
