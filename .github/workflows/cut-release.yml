@@ -17,4 +17,4 @@ jobs:
     with:
       VERSION: ${{ inputs.VERSION }}
       VERSION_FILE: gf-civicrm.php
-      EXCLUDE_PATHS: "DEVELOPERS.md"
+      EXCLUDE_PATHS: "DEVELOPERS.md .gitignore"
