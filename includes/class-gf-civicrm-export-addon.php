@@ -184,6 +184,12 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
             } );
 
             add_action( 'admin_notices', function() {
+                if ( $this->should_enqueue_scripts() ) {
+                    $this->display_exposure_warning();
+                }
+            } );
+
+            add_action( 'admin_notices', function() {
                 if ( isset($_GET['subview']) && $_GET['subview'] === 'import_gfcivicrm' ) {
                     $this->display_import_status();
                 }
@@ -1233,6 +1239,82 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
             $import = api_wrapper( $profile_name, 'FormProcessorInstance', 'import', $api_params, [ 'cache' => 0 ] ) ?? [];
 
             return $import;
+        }
+
+        /**
+         * Checks over HTTP whether the base export directory is publicly readable.
+         *
+         * Writes a probe file into the base directory and requests it via the site's host. A 200 response
+         * containing the probe token means the server is not honouring the directory protection, e.g. nginx,
+         * or Apache with AllowOverride disabled. The result is cached briefly.
+         *
+         * @return bool|null True if exposed, false if protected, null if it couldn't be determined
+         *                   (e.g. the directory doesn't exist yet, or the request failed).
+         */
+        public static function exports_are_publicly_readable(): ?bool {
+            $directory_base = self::normalise_directory_base(
+                FieldsAddOn::get_instance()->get_plugin_setting( 'gf_civicrm_import_export_directory' )
+            );
+            if ( $directory_base === null ) {
+                return null;
+            }
+
+            $cache_key = 'gfcv_exports_exposed_' . md5( $directory_base );
+            $cached    = get_transient( $cache_key );
+            if ( $cached !== false ) {
+                return $cached === 'yes' ? true : ( $cached === 'no' ? false : null );
+            }
+
+            $base = untrailingslashit( $_SERVER['DOCUMENT_ROOT'] ) . "/$directory_base";
+            if ( ! self::protect_directory( $base, false, false ) ) {
+                return null;
+            }
+
+            $token      = wp_generate_password( 32, false );
+            $probe_name = 'gfcv-probe.txt';
+            if ( ! self::init_filesystem()->put_contents( "$base/$probe_name", $token, FS_CHMOD_FILE ) ) {
+                return null;
+            }
+
+            $home = wp_parse_url( home_url() );
+            $url  = ( $home['scheme'] ?? 'https' ) . '://' . ( $home['host'] ?? '' ) . ( isset( $home['port'] ) ? ':' . $home['port'] : '' )
+                . '/' . implode( '/', array_map( 'rawurlencode', explode( '/', $directory_base ) ) ) . "/$probe_name";
+
+            $response = wp_remote_get( $url, [
+                'timeout'     => 5,
+                'redirection' => 3,
+                // Same default and filter WordPress uses for its own loopback requests (e.g. Site Health).
+                'sslverify'   => apply_filters( 'https_local_ssl_verify', false ),
+            ] );
+            self::init_filesystem()->delete( "$base/$probe_name" );
+
+            if ( is_wp_error( $response ) ) {
+                $result = null;
+            } else {
+                $result = wp_remote_retrieve_response_code( $response ) === 200
+                    && str_contains( (string) wp_remote_retrieve_body( $response ), $token );
+            }
+
+            set_transient( $cache_key, $result === null ? 'unknown' : ( $result ? 'yes' : 'no' ), $result === true ? 5 * MINUTE_IN_SECONDS : HOUR_IN_SECONDS );
+
+            return $result;
+        }
+
+        /**
+         * Warns admins on the import/export screens when the export directory is publicly readable.
+         */
+        public function display_exposure_warning() {
+            if ( self::exports_are_publicly_readable() !== true ) {
+                return;
+            }
+
+            $message = sprintf(
+                '<p><strong>%1$s</strong></p><p>%2$s</p>',
+                esc_html__( 'The GF CiviCRM Import/Export Directory appears to be publicly accessible.', 'gf-civicrm' ),
+                esc_html__( 'Exported forms, feeds and form processors can be downloaded by anyone who knows or guesses the file URL. Your web server is not applying the .htaccess protection (nginx never does; Apache needs AllowOverride enabled). Add a rule to your server configuration that denies access to this directory. See the Importing and Exporting section of the plugin README for an nginx example.', 'gf-civicrm' )
+            );
+
+            printf( '<div class="notice notice-error gf-notice" id="gfcv_exports_exposed_notice">%s</div>', wp_kses_post( $message ) );
         }
 
         public function display_export_status() {
