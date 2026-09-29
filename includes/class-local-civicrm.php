@@ -58,6 +58,13 @@ class LocalCiviCRM {
 		try {
 			switch ( (string) $api_version ) {
 				case '3':
+					// APIv3 only reads check_permissions as a top-level parameter, and defaults to FALSE when
+					// called from PHP. Callers pass it in $options, so lift it out.
+					if ( isset( $options['check_permissions'] ) ) {
+						$params['check_permissions'] = (bool) $options['check_permissions'];
+						unset( $options['check_permissions'] );
+					}
+
 					if ( ! empty( $options ) ) {
 						$params['options'] = $options;
 					}
