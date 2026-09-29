@@ -80,6 +80,9 @@ class Upgrader extends \Plugin_Upgrader {
         // 2.0.3
         add_action( 'upgrader_process_complete', [$this, 'upgrade_version_2_0_3'], 10, 2 );
 
+        // 2.0.7
+        add_action( 'upgrader_process_complete', [$this, 'upgrade_version_2_0_7'], 10, 2 );
+
         // The webhook URL rollback is triggered from the CiviCRM Settings page.
         // See FieldsAddOn::maybe_run_webhook_urls_rollback().
     }
@@ -462,6 +465,38 @@ class Upgrader extends \Plugin_Upgrader {
         update_option( 'gfcv_country_format_migrated', true );
 
         error_log('Gravity Forms CiviCRM Integration upgrade 2.0.3 complete.');
+    }
+
+    /**
+     * Runs the 2.0.7 upgrade.
+     *
+     * Forces the .htaccess and index.php protection files to be rewritten in the base import/export
+     * directory and its existing subdirectories. Before 2.0.7 the base directory had a legacy-format
+     * .htaccess and no index.php, unlike the subdirectories.
+     *
+     * Uses its own one-time flag, for the same reason as upgrade_version_2_0_3(). The flag is only set
+     * once the refresh succeeds, so a site with no export directory yet is retried on later updates;
+     * that is harmless, since exports protect the directories they create.
+     */
+    function upgrade_version_2_0_7( $upgrader, $hook_extra ) {
+        // Check if we're updating this plugin
+        if ( $hook_extra['action'] !== 'update' || $hook_extra['type'] !== 'plugin' ) {
+            return;
+        }
+
+        if ( !is_array( $hook_extra['plugins'] ) || !in_array( $this->plugin, $hook_extra['plugins'], true ) ) {
+            return;
+        }
+
+        if ( get_option( 'gfcv_export_protection_refreshed', false ) ) {
+            return;
+        }
+
+        if ( class_exists( 'GFCiviCRM\FieldsAddOn' ) && class_exists( 'GFCiviCRM\ExportAddOn' )
+             && ExportAddOn::refresh_directory_protection() ) {
+            update_option( 'gfcv_export_protection_refreshed', true );
+            error_log('Gravity Forms CiviCRM Integration upgrade 2.0.7 complete.');
+        }
     }
 
     function rollback_gravity_forms_webhook_urls() {

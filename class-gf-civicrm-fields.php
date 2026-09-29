@@ -74,6 +74,25 @@ class FieldsAddOn extends \GFAddOn {
     if ( $previous_version && version_compare( $previous_version, '2.0.3', '<' ) ) {
       $this->upgrade_to_2_0_3();
     }
+
+    if ( $previous_version && version_compare( $previous_version, '2.0.7', '<' ) ) {
+      $this->upgrade_to_2_0_7();
+    }
+  }
+
+  /**
+   * 2.0.7: Force the .htaccess and index.php protection files to be rewritten in the base
+   * import/export directory and its existing subdirectories. Mirrors
+   * Upgrader::upgrade_version_2_0_7() and shares its option, so it runs once either way.
+   */
+  private function upgrade_to_2_0_7() {
+    if ( get_option( 'gfcv_export_protection_refreshed', false ) ) {
+      return;
+    }
+
+    if ( class_exists( 'GFCiviCRM\\ExportAddOn' ) && ExportAddOn::refresh_directory_protection() ) {
+      update_option( 'gfcv_export_protection_refreshed', true );
+    }
   }
 
   /**
@@ -610,7 +629,7 @@ class FieldsAddOn extends \GFAddOn {
 
     $fields[] = [
       'title'       => esc_html__( 'Import/Export Directory', 'gf-civicrm' ),
-      'description' => nl2br(esc_html__( "Define the path to the import/export directory, relative to the server document root. Used by Export GF CiviCRM and Import GF CiviCRM.\n\nYou can modify the subdirectories using the 'gf-civicrm/export-directory' and 'gf-civicrm/fp-export-directory' filters.", 'gf-civicrm' )),
+      'description' => nl2br(esc_html__( "Define the path to the import/export directory, relative to the server document root. Used by Export GF CiviCRM and Import GF CiviCRM.", 'gf-civicrm' )),
       'fields'      => [ [
         'type'          => 'text',
         'name'          => 'gf_civicrm_import_export_directory',
