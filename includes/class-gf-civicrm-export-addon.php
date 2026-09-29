@@ -42,13 +42,94 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
         /**
          * Initialize the WordPress Filesystem API.
          */
-        private function init_filesystem() {
+        public static function init_filesystem() {
             global $wp_filesystem;
             if ( empty( $wp_filesystem ) ) {
                 require_once ABSPATH . 'wp-admin/includes/file.php';
                 WP_Filesystem();
             }
             return $wp_filesystem;
+        }
+
+        /**
+         * Contents of the .htaccess written to export directories. Restricts access on Apache 2.4+, and on
+         * Apache 2.2 as a fallback. Servers that ignore .htaccess (e.g. nginx) need their own rule.
+         */
+        const HTACCESS_CONTENTS = "<IfModule mod_authz_core.c>\n\tRequire all denied\n</IfModule>\n<IfModule !mod_authz_core.c>\n\tOrder allow,deny\n\tDeny from all\n</IfModule>\n";
+
+        /**
+         * Contents of the index.php written to export directories, to prevent directory listings where
+         * .htaccess is not honoured.
+         */
+        const INDEX_CONTENTS = "<?php\n// Silence is golden.\n";
+
+        /**
+         * Contents of the .htaccess written to the base directory by versions before 2.0.7.
+         */
+        const LEGACY_HTACCESS_CONTENTS = "Order allow,deny\nDeny from all";
+
+        /**
+         * Protect an export directory with an .htaccess and index.php, creating the directory if needed.
+         *
+         * Existing protection files are left alone, except an .htaccess in the legacy format written by
+         * versions before 2.0.7, which is replaced. Pass $force to rewrite both files regardless.
+         *
+         * @param string $directory Absolute path of the directory.
+         * @param bool   $force     Rewrite the protection files even if they already exist.
+         * @param bool   $create    Create the directory (and any missing parents) if it doesn't exist.
+         *
+         * @return bool True if the directory exists and is protected.
+         */
+        public static function protect_directory( string $directory, bool $force = false, bool $create = true ): bool {
+            $wp_filesystem = self::init_filesystem();
+
+            if ( ! $wp_filesystem->is_dir( $directory ) ) {
+                if ( ! $create || ! wp_mkdir_p( $directory ) ) {
+                    return false;
+                }
+            }
+
+            $htaccess = "$directory/.htaccess";
+            $index    = "$directory/index.php";
+
+            $write_htaccess = $force || ! $wp_filesystem->exists( $htaccess )
+                || trim( (string) $wp_filesystem->get_contents( $htaccess ) ) === self::LEGACY_HTACCESS_CONTENTS;
+            if ( $write_htaccess ) {
+                $wp_filesystem->put_contents( $htaccess, self::HTACCESS_CONTENTS, FS_CHMOD_FILE );
+            }
+
+            if ( $force || ! $wp_filesystem->exists( $index ) ) {
+                $wp_filesystem->put_contents( $index, self::INDEX_CONTENTS, FS_CHMOD_FILE );
+            }
+
+            return true;
+        }
+
+        /**
+         * Force the protection files to be (re)written in the base export directory and each of its
+         * existing subdirectories. Used by the upgrade routines. Does nothing if the base directory
+         * doesn't exist yet, since exports create and protect it on demand.
+         *
+         * @return bool True if protection was refreshed, false if the setting is invalid or the directory is missing.
+         */
+        public static function refresh_directory_protection(): bool {
+            $directory_base = self::normalise_directory_base(
+                FieldsAddOn::get_instance()->get_plugin_setting( 'gf_civicrm_import_export_directory' )
+            );
+            if ( $directory_base === null ) {
+                return false;
+            }
+
+            $base = untrailingslashit( $_SERVER['DOCUMENT_ROOT'] ) . "/$directory_base";
+            if ( ! self::protect_directory( $base, true, false ) ) {
+                return false;
+            }
+
+            foreach ( glob( "$base/*", GLOB_ONLYDIR ) ?: [] as $subdirectory ) {
+                self::protect_directory( $subdirectory, true, false );
+            }
+
+            return true;
         }
 
         public function styles() {
@@ -191,6 +272,9 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
                 wp_die( $this->invalid_directory_message() );
             }
 
+            // Protect the base directory too, so it is covered even if nothing else is placed inside it.
+            self::protect_directory( "$docroot/$directory_base" );
+
             $forms_data = GFFormsModel::get_form_meta_by_id( $form_ids );
 
             $exports = [];
@@ -238,29 +322,10 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
                     $docroot, $directory_base, $directory_name, $fp_directory, $action_value, $form_slug, $form_id
                 );
 
-                // Generate the directories and protect with htaccess using WP_Filesystem.
-                // The protection files go in the export directories themselves, not their parent, so a misconfigured
-                // base path can't block access to an unrelated directory.
+                // Generate the directories and protect each with an .htaccess and index.php.
+                // The base directory is protected above too, and this covers directories customised by filter.
                 foreach ( [$export_directory, $fp_export_directory] as $directory ) {
-                    $htaccess = "$directory/.htaccess";
-                    $index    = "$directory/index.php";
-
-                    // Create the directory if it doesn’t exist
-                    if ( ! $wp_filesystem->is_dir( $directory ) ) {
-                        $wp_filesystem->mkdir( $directory, FS_CHMOD_DIR );
-                    }
-
-                    // Create the htaccess if it doesn't exist. Restricts access to the exports on Apache 2.4+, and on
-                    // Apache 2.2 as a fallback. Servers that ignore .htaccess (e.g. nginx) need their own rule.
-                    if ( ! $wp_filesystem->exists( $htaccess ) ) {
-                        $htaccess_contents = "<IfModule mod_authz_core.c>\n\tRequire all denied\n</IfModule>\n<IfModule !mod_authz_core.c>\n\tOrder allow,deny\n\tDeny from all\n</IfModule>\n";
-                        $wp_filesystem->put_contents( $htaccess, $htaccess_contents, FS_CHMOD_FILE );
-                    }
-
-                    // Prevent directory listings where .htaccess is not honoured.
-                    if ( ! $wp_filesystem->exists( $index ) ) {
-                        $wp_filesystem->put_contents( $index, "<?php\n// Silence is golden.\n", FS_CHMOD_FILE );
-                    }
+                    self::protect_directory( $directory );
                 }
 
                 // Save each webhook feed data for this form into the one file

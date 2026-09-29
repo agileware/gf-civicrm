@@ -74,6 +74,25 @@ class FieldsAddOn extends \GFAddOn {
     if ( $previous_version && version_compare( $previous_version, '2.0.3', '<' ) ) {
       $this->upgrade_to_2_0_3();
     }
+
+    if ( $previous_version && version_compare( $previous_version, '2.0.7', '<' ) ) {
+      $this->upgrade_to_2_0_7();
+    }
+  }
+
+  /**
+   * 2.0.7: Force the .htaccess and index.php protection files to be rewritten in the base
+   * import/export directory and its existing subdirectories. Mirrors
+   * Upgrader::upgrade_version_2_0_7() and shares its option, so it runs once either way.
+   */
+  private function upgrade_to_2_0_7() {
+    if ( get_option( 'gfcv_export_protection_refreshed', false ) ) {
+      return;
+    }
+
+    if ( class_exists( 'GFCiviCRM\\ExportAddOn' ) && ExportAddOn::refresh_directory_protection() ) {
+      update_option( 'gfcv_export_protection_refreshed', true );
+    }
   }
 
   /**
