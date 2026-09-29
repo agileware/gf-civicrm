@@ -317,19 +317,11 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
                 // Define the subdirectory paths by form title. Form processors exported to a separate subdirectory.
                 $fp_directory = 'form-processors';
                 $directory_name = $form_slug;
-                $export_directory = apply_filters(
-                    'gf-civicrm/import-export-directory',
-                    "$docroot/$directory_base/$directory_name",
-                    $docroot, $directory_base, $directory_name, $action_value, $form_slug, $form_id
-                );
-                $fp_export_directory = apply_filters(
-                    'gf-civicrm/fp-import-export-directory',
-                    "$docroot/$directory_base/$fp_directory",
-                    $docroot, $directory_base, $directory_name, $fp_directory, $action_value, $form_slug, $form_id
-                );
+                $export_directory    = "$docroot/$directory_base/$directory_name";
+                $fp_export_directory = "$docroot/$directory_base/$fp_directory";
 
                 // Generate the directories and protect each with an .htaccess and index.php.
-                // The base directory is protected above too, and this covers directories customised by filter.
+                // The base directory is protected above too.
                 foreach ( [$export_directory, $fp_export_directory] as $directory ) {
                     self::protect_directory( $directory );
                 }
@@ -611,16 +603,8 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
                 return;
             }
 
-            $import_directory = apply_filters(
-                'gf-civicrm/import-export-directory',
-                "$docroot/$directory_base",
-                $docroot, $directory_base
-            );
-            $fp_import_directory  = apply_filters(
-                'gf-civicrm/fp-import-export-directory',
-                "$docroot/$directory_base",
-                $docroot, $directory_base
-            );
+            $import_directory    = "$docroot/$directory_base";
+            $fp_import_directory = "$docroot/$directory_base";
 
             GFExport::page_header();
 

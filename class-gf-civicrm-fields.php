@@ -629,7 +629,7 @@ class FieldsAddOn extends \GFAddOn {
 
     $fields[] = [
       'title'       => esc_html__( 'Import/Export Directory', 'gf-civicrm' ),
-      'description' => nl2br(esc_html__( "Define the path to the import/export directory, relative to the server document root. Used by Export GF CiviCRM and Import GF CiviCRM.\n\nYou can modify the subdirectories using the 'gf-civicrm/import-export-directory' and 'gf-civicrm/fp-import-export-directory' filters.", 'gf-civicrm' )),
+      'description' => nl2br(esc_html__( "Define the path to the import/export directory, relative to the server document root. Used by Export GF CiviCRM and Import GF CiviCRM.", 'gf-civicrm' )),
       'fields'      => [ [
         'type'          => 'text',
         'name'          => 'gf_civicrm_import_export_directory',
