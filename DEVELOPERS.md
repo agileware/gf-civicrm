@@ -99,3 +99,10 @@ $api_params = [
 $payment_tokens = api_wrapper($profile_name, 'PaymentToken', 'get', $api_params, [], 4);
 
 ```
+
+## Cutting a Release
+
+Bump the `Version:` header in `gf-civicrm.php` on `main` and merge that. Then, from the
+Actions tab, run "Cut release" with a matching version number. It builds the release branch
+from the current tip of `main`, tags it, and publishes the GitHub Release that the plugin's
+bundled updater reads.
