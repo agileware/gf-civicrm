@@ -394,14 +394,18 @@ class GF_Field_Group_Contact_Select extends GF_Field {
     $probe          = clone $this;
     $probe->choices = [];
     $probe->group_contact_select_options( $probe, $value );
-    $allowed = array_column( (array) $probe->choices, 'value' );
+    $offered = (array) $probe->choices;
 
     // Choices saved on the field are displayed alongside the group's contacts.
-    if ( ! empty( $allowed ) && ! empty( $this->choices[0]['value'] ) ) {
-      $allowed = array_merge( array_column( $this->choices, 'value' ), $allowed );
+    if ( ! empty( $offered ) && ! empty( $this->choices[0]['value'] ) ) {
+      $offered = array_merge( $this->choices, $offered );
     }
 
-    if ( ! in_array( (string) $value, array_map( 'strval', $allowed ), TRUE ) ) {
+    // Compare against the values Gravity Forms actually renders: a choice with a blank value is rendered
+    // (and submitted) with its label as the value.
+    $allowed = array_map( fn( $choice ) => (string) $probe->get_choice_option_value( $choice ), $offered );
+
+    if ( ! in_array( (string) $value, $allowed, TRUE ) ) {
       $this->failed_validation  = TRUE;
       $this->validation_message = esc_html__( 'Invalid selection. Please select from the available choices.', 'gf-civicrm' );
     }

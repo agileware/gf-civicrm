@@ -464,7 +464,10 @@ class CiviCRM_Payment_Token extends GF_Field {
 		$probe          = clone $this;
 		$probe->choices = [];
 		$probe->payment_token_options( $probe, $value );
-		$allowed = array_map( 'strval', array_column( (array) $probe->choices, 'value' ) );
+
+		// Compare against the values Gravity Forms actually renders: a choice with a blank value, such as
+		// "Add new card", is rendered (and submitted) with its label as the value.
+		$allowed = array_map( fn( $choice ) => (string) $probe->get_choice_option_value( $choice ), (array) $probe->choices );
 
 		if ( ! in_array( (string) $value, $allowed, true ) ) {
 			$this->failed_validation  = true;
