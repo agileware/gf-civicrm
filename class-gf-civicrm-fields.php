@@ -213,8 +213,9 @@ class FieldsAddOn extends \GFAddOn {
    * Requires the gravityforms_edit_settings capability and a valid nonce.
    */
   public function maybe_run_webhook_urls_rollback() {
-    // Bail early if the user doesn't have permission to manage GF settings.
-    if ( ! current_user_can( 'gravityforms_edit_settings' ) ) {
+    // Bail early if the user doesn't have permission to manage GF settings. current_user_can_any() also
+    // honours gform_full_access, which is how Gravity Forms grants administrators its capabilities.
+    if ( ! \GFCommon::current_user_can_any( 'gravityforms_edit_settings' ) ) {
       return;
     }
 
@@ -252,8 +253,9 @@ class FieldsAddOn extends \GFAddOn {
   }
   
   public function maybe_run_merge_tags_replacer() {
-    // Bail early if the user doesn't have permission to manage GF settings.
-    if ( ! current_user_can( 'gravityforms_edit_settings' ) ) {
+    // Bail early if the user doesn't have permission to manage GF settings. current_user_can_any() also
+    // honours gform_full_access, which is how Gravity Forms grants administrators its capabilities.
+    if ( ! \GFCommon::current_user_can_any( 'gravityforms_edit_settings' ) ) {
       return;
     }
 

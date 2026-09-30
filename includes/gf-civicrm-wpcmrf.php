@@ -234,7 +234,9 @@ function handle_ajax_connection_preflight_check() {
     // Verify the security nonce.
     check_ajax_referer( 'gf_civicrm_ajax_nonce', 'security' );
 
-    if ( ! current_user_can( 'gravityforms_edit_settings' ) ) {
+    // current_user_can_any() also honours gform_full_access, which is how Gravity Forms grants administrators
+    // its capabilities.
+    if ( ! \GFCommon::current_user_can_any( 'gravityforms_edit_settings' ) ) {
         wp_send_json_error( [ 'message' => esc_html__( 'You do not have permission to run connection checks.', 'gf-civicrm' ) ], 403 );
     }
 
@@ -333,7 +335,9 @@ function handle_ajax_get_connection_profile_type() {
 	// Verify the security nonce.
 	check_ajax_referer( 'gf_civicrm_ajax_nonce', 'security' );
 
-	if ( ! current_user_can( 'gravityforms_edit_settings' ) ) {
+	// current_user_can_any() also honours gform_full_access, which is how Gravity Forms grants administrators
+	// its capabilities.
+	if ( ! \GFCommon::current_user_can_any( 'gravityforms_edit_settings' ) ) {
 		wp_send_json_error( [ 'message' => esc_html__( 'You do not have permission to view connection profiles.', 'gf-civicrm' ) ], 403 );
 	}
 
