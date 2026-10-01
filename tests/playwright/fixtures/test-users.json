@@ -1,0 +1,43 @@
+{
+  "member": {
+    "username": "gfcv_member",
+    "password": "Gfcv-Test-Member-1!",
+    "email": "gfcv-member@example.test",
+    "role": "gfcv_member",
+    "firstName": "Gfcvtest",
+    "lastName": "Member"
+  },
+  "otherMember": {
+    "username": "gfcv_other_member",
+    "password": "Gfcv-Test-Other-1!",
+    "email": "gfcv-other@example.test",
+    "role": "gfcv_member",
+    "firstName": "Gfcvtest",
+    "lastName": "Othermember"
+  },
+  "formEditor": {
+    "username": "gfcv_form_editor",
+    "password": "Gfcv-Test-Editor-1!",
+    "email": "gfcv-editor@example.test",
+    "role": "gfcv_form_editor",
+    "firstName": "Gfcvtest",
+    "lastName": "Formeditor"
+  },
+  "settingsManager": {
+    "username": "gfcv_settings_manager",
+    "password": "Gfcv-Test-Settings-1!",
+    "email": "gfcv-settings@example.test",
+    "role": "gfcv_settings_manager",
+    "firstName": "Gfcvtest",
+    "lastName": "Settingsmanager"
+  },
+  "api": {
+    "username": "gfcv_api",
+    "password": "Gfcv-Test-Api-1!",
+    "email": "gfcv-api@example.test",
+    "role": "gfcv_api",
+    "firstName": "Gfcvtest",
+    "lastName": "Apiuser",
+    "apiKey": "gfcvtest-api-key-5f2c9a"
+  }
+}

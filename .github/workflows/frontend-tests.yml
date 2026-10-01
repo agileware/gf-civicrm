@@ -1,0 +1,26 @@
+name: frontend tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch: {}
+
+jobs:
+  playwright:
+    uses: agileware/ci-workflows/.github/workflows/playwright-tests.yml@main
+    secrets:
+      DOCKERHUB_USER: ${{ secrets.DOCKERHUB_USER }}
+      DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+      # Gravity Forms and its Webhooks add-on are commercially licensed and not in the CI image.
+      GRAVITYFORMS_LICENSE_KEY: ${{ secrets.GRAVITYFORMS_LICENSE_KEY }}
+    with:
+      # Must be gf-civicrm: the add-on class hardcodes its path as gf-civicrm/gf-civicrm.php.
+      EXTENSION_NAME: gf-civicrm
+      # This repo is a WordPress plugin, not a CiviCRM extension - it has no info.xml, so it
+      # must be mounted under wp-content/plugins and activated with wp-cli.
+      COMPONENT_TYPE: plugin
+      # gf-civicrm declares "Requires plugins: gravityforms", so Gravity Forms must be active
+      # before the workflow activates it.
+      PRE_ACTIVATE_SCRIPT: tests/playwright/fixtures/install-dependencies.sh
+      SETUP_SCRIPT: tests/playwright/fixtures/setup-environment.sh
