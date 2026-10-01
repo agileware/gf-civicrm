@@ -1,0 +1,43 @@
+{
+    "name": "gfcvtest_restricted",
+    "title": "GFCVTEST Restricted",
+    "is_active": "1",
+    "output_handler": "OutputAllActionOutput",
+    "output_handler_configuration": [],
+    "enable_default_data": "1",
+    "default_data_output_configuration": {
+        "code": "action.set_code.value"
+    },
+    "permission": "administer CiviCRM",
+    "inputs": [
+        {
+            "weight": "0",
+            "include_formatted_params": "1",
+            "title": "Code",
+            "name": "code",
+            "type": "String",
+            "is_required": "0",
+            "default_value": "",
+            "configuration": [],
+            "validators": []
+        }
+    ],
+    "actions": [],
+    "default_data_inputs": [],
+    "default_data_actions": [
+        {
+            "name": "set_code",
+            "title": "Set Code",
+            "type": "SetValue",
+            "configuration": {
+                "value": "GFCVTEST_RESTRICTED"
+            },
+            "mapping": [],
+            "condition_configuration": ""
+        }
+    ],
+    "validate_actions": [],
+    "validate_validators": [],
+    "calculate_actions": [],
+    "uploaded_source_file": "1"
+}

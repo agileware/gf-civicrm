@@ -1,0 +1,161 @@
+{
+    "name": "gfcvtest_contact",
+    "title": "GFCVTEST Contact",
+    "is_active": "1",
+    "output_handler": "OutputAllActionOutput",
+    "output_handler_configuration": [],
+    "enable_default_data": "1",
+    "default_data_output_configuration": {
+        "first_name": "action.get_contact.first_name",
+        "last_name": "action.get_contact.last_name",
+        "email": "",
+        "colour": "",
+        "colours": "",
+        "amount": ""
+    },
+    "permission": "",
+    "inputs": [
+        {
+            "weight": "0",
+            "include_formatted_params": "1",
+            "title": "First Name",
+            "name": "first_name",
+            "type": "String",
+            "is_required": "0",
+            "default_value": "",
+            "configuration": [],
+            "validators": []
+        },
+        {
+            "weight": "1",
+            "include_formatted_params": "1",
+            "title": "Last Name",
+            "name": "last_name",
+            "type": "String",
+            "is_required": "0",
+            "default_value": "",
+            "configuration": [],
+            "validators": []
+        },
+        {
+            "weight": "2",
+            "include_formatted_params": "1",
+            "title": "Email",
+            "name": "email",
+            "type": "String",
+            "is_required": "1",
+            "default_value": "",
+            "configuration": [],
+            "validators": []
+        },
+        {
+            "weight": "3",
+            "include_formatted_params": "1",
+            "title": "Colour",
+            "name": "colour",
+            "type": "OptionGroup",
+            "is_required": "0",
+            "default_value": "",
+            "configuration": {
+                "use_property_as_value": "0",
+                "option_group_name": "gfcvtest_colours",
+                "multiple": "0"
+            },
+            "validators": []
+        },
+        {
+            "weight": "4",
+            "include_formatted_params": "1",
+            "title": "Colours",
+            "name": "colours",
+            "type": "OptionGroup",
+            "is_required": "0",
+            "default_value": "",
+            "configuration": {
+                "use_property_as_value": "0",
+                "option_group_name": "gfcvtest_colours",
+                "multiple": "1"
+            },
+            "validators": []
+        },
+        {
+            "weight": "5",
+            "include_formatted_params": "1",
+            "title": "Amount",
+            "name": "amount",
+            "type": "String",
+            "is_required": "0",
+            "default_value": "",
+            "configuration": [],
+            "validators": []
+        }
+    ],
+    "actions": [
+        {
+            "name": "create_contact",
+            "title": "Create Contact",
+            "type": "FindByEmailOrCreateEmailName",
+            "configuration": {
+                "contact_type": "1"
+            },
+            "mapping": {
+                "email": "input.email",
+                "first_name": "input.first_name",
+                "last_name": "input.last_name"
+            },
+            "condition_configuration": "",
+            "delay_configuration": ""
+        }
+    ],
+    "default_data_inputs": [
+        {
+            "weight": "0",
+            "include_formatted_params": "1",
+            "title": "Contact ID",
+            "name": "cid",
+            "type": "Integer",
+            "is_required": "0",
+            "default_value": "",
+            "configuration": [],
+            "validators": []
+        },
+        {
+            "weight": "1",
+            "include_formatted_params": "0",
+            "title": "Checksum",
+            "name": "cs",
+            "type": "String",
+            "is_required": "0",
+            "default_value": "",
+            "configuration": [],
+            "validators": []
+        }
+    ],
+    "default_data_actions": [
+        {
+            "name": "validate_checksum",
+            "title": "Validate Checksum",
+            "type": "ValidateChecksum",
+            "configuration": [],
+            "mapping": {
+                "cs": "input.cs",
+                "cid": "input.cid"
+            },
+            "condition_configuration": ""
+        },
+        {
+            "name": "get_contact",
+            "title": "Get Contact",
+            "type": "ContactDataById",
+            "configuration": [],
+            "mapping": {
+                "contact_id": "action.validate_checksum.contact_id"
+            },
+            "condition_configuration": ""
+        }
+    ],
+    "validate_actions": [],
+    "validate_validators": [],
+    "calculate_actions": [],
+    "uploaded_source_file": "1"
+}
