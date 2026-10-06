@@ -265,51 +265,65 @@ class GF_Field_Group_Contact_Select extends GF_Field {
       // TODO It would be nice to be able to define which name column to use for contacts: display_name, sort_name, first name and last name etc.
 
       if( preg_match('/^ss:(?<id>\d+)$/', $field['civicrm_group'], $m) ) {
-        // Group is actually a saved search, use saved search parameters
+        // Group is actually a saved search. Saved searches hold APIv4 parameters, so both calls use APIv4.
+        // If the saved search can't be run, list no contacts.
         try {
           $api_params = [
-            'id'          => $m['id'],
-            'is_current'  => true,
-          ];
-          $api_options = [
-            'check_permissions' => 0,
-            'limit'             => 1,
-            'cache'             => 0,
+            'select'           => [ 'api_entity', 'api_params' ],
+            'where'            => [ [ 'id', '=', (int) $m['id'] ], [ 'is_current', '=', true ] ],
+            'limit'            => 1,
+            'checkPermissions' => false,
           ];
 
           /**
            * DEVNOTE: CMRF can cache failed API calls, which may cache a bad request (e.g. if this entity does not exist).
            * Ref GFCV-82
            */
-          $savedSearch = GFCiviCRM\api_wrapper( $profile_name, 'SavedSearch', 'get', $api_params, $api_options );
-  
+          $savedSearch = GFCiviCRM\api_wrapper( $profile_name, 'SavedSearch', 'get', $api_params, [ 'cache' => 0 ], '4' );
+
           if ( isset( $savedSearch['is_error'] ) && $savedSearch['is_error'] !== 0  ) {
             throw new \GFCiviCRM_Exception( $savedSearch['error_message'] );
           }
 
-          if ( isset( $savedSearch[$m['id']]['api_entity'] ) && $savedSearch[$m['id']]['api_entity'] !== 'Contact' ) {
+          $savedSearch = $savedSearch[0] ?? null;
+
+          if ( empty( $savedSearch ) ) {
+            throw new \GFCiviCRM_Exception( 'SavedSearch ' . $m['id'] . ' was not found, or has expired.' );
+          }
+
+          if ( ( $savedSearch['api_entity'] ?? '' ) !== 'Contact' ) {
             throw new \GFCiviCRM_Exception( 'SavedSearch return type is invalid. Must be Contact.' );
           }
-        } catch ( \GFCiviCRM_Exception $e ) {
-          // skip
-          $e->logErrorMessage( 'Error retrieving SavedSearches for Group Contact Select.', true );
+
+          $api_params = is_string( $savedSearch['api_params'] ) ? json_decode( $savedSearch['api_params'], true ) : $savedSearch['api_params'];
+
+          if ( ! is_array( $api_params ) ) {
+            throw new \GFCiviCRM_Exception( 'SavedSearch ' . $m['id'] . ' has no search parameters.' );
+          }
+
+          // Keep the saved search's criteria (where, join, groupBy, having) and its select, which HAVING may refer
+          // to by alias, adding the columns the choices need. List every match, sorted like a group source.
+          unset( $api_params['version'], $api_params['limit'], $api_params['offset'] );
+          $api_params['select']           = array_values( array_unique( array_merge( [ 'id', 'sort_name' ], (array) ( $api_params['select'] ?? [] ) ) ) );
+          $api_params['orderBy']          = [ 'sort_name' => 'ASC' ];
+          $api_params['checkPermissions'] = false;
+
+          $groupContacts = GFCiviCRM\api_wrapper( $profile_name, 'Contact', 'get', $api_params, [ 'cache' => 0 ], '4' );
+
+          // Something went wrong trying to get the saved search's contacts
+          if ( isset( $groupContacts['is_error'] ) && $groupContacts['is_error'] !== 0  ) {
+            throw new \GFCiviCRM_Exception( $groupContacts['error_message'] );
+          }
+
+          // A join can return a contact more than once
+          $groupContacts = array_values( array_column( $groupContacts, null, 'id' ) );
+        } catch ( \Throwable $e ) {
+          // CMRF throws its own exceptions, e.g. when the connection profile has no APIv4 URL
+          if ( ! $e instanceof \GFCiviCRM_Exception ) {
+            $e = new \GFCiviCRM_Exception( $e->getMessage(), 0, $e );
+          }
+          $e->logErrorMessage( 'Error retrieving SavedSearch contacts for Group Contact Select.', true );
           return $empty_option;
-        }
-
-        // Use the saved search's api_params
-        $api_params = json_decode($savedSearch['api_params']);
-        $api_params['select'] = [ 'id', 'sort_name' ];
-        $api_options = [
-          'check_permissions' => 0,
-          'sort'              => 'sort_name ASC',
-          'limit'             => 0,
-        ];
-        
-        $groupContacts = GFCiviCRM\api_wrapper( $profile_name, 'Contact', 'get', (array)$api_params, $api_options );
-
-        // Something went wrong trying to get group contacts
-        if ( isset( $groupContacts['is_error'] ) && $groupContacts['is_error'] !== 0  ) {
-          throw new \GFCiviCRM_Exception( $groupContacts['error_message'] );
         }
       }
       else {

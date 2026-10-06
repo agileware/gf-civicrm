@@ -98,6 +98,15 @@ test.describe('Suite K - Remote connection via CMRF', () => {
     expect(cmrfCallCount('SearchDisplay')).toBe(0);
   });
 
+  // A saved search is run over APIv4, and this profile has no APIv4 URL.
+  test('K-07 without an APIv4 URL a saved search source lists no contacts, and a group source still works', async ({ anonymousPage: page }) => {
+    const formId = formIds().contactSelect;
+    await page.goto(PAGES.contactSelect);
+
+    expect(await optionLabels(gfInput(page, formId, 2))).toEqual(['No Contacts in this Group']);
+    expect(await optionLabels(gfInput(page, formId, 1))).toEqual(['Groupone, Gfcvtest', 'Grouptwo, Gfcvtest']);
+  });
+
   test('K-05 the import page warns that files must be reachable from the remote installation', async ({ adminPage: page }) => {
     await page.goto('/wp-admin/admin.php?page=gf_export&subview=import_gfcivicrm');
 

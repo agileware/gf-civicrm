@@ -42,8 +42,8 @@ function api_wrapper( $profile, $entity, $action, $params, $options=[], $api_ver
 		require_once( $profiles[$profile]['file'] );
 	}
 
-	// Mark this api request if CMRF is enabled (remote installation)
-	if ( is_plugin_active( 'connector-civicrm-mcrestface/wpcmrf.php' ) ) {
+	// Mark this api request if CMRF is enabled (remote installation). APIv3 only: APIv4 rejects unknown parameters.
+	if ( '3' === (string) $api_version && is_plugin_active( 'connector-civicrm-mcrestface/wpcmrf.php' ) ) {
 		$ts = time();
 		$params['_gf_ts'] = $ts;
 		$params['_gf_sig'] = generate_signature($entity, $action, $ts);

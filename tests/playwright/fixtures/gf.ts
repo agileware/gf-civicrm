@@ -104,6 +104,34 @@ export async function withPluginSettings<T>(changes: PluginSettings, fn: () => P
   }
 }
 
+/**
+ * Change properties of one field of a seeded form for the duration of `fn`, then restore them -
+ * even if `fn` throws.
+ */
+export async function withFieldProperties<T>(formId: number, fieldId: number, changes: Record<string, any>, fn: () => Promise<T>): Promise<T> {
+  const set = (props: Record<string, any>) =>
+    wpEvalJson<Record<string, any>>(
+      `$form = GFAPI::get_form( ${formId} );
+       $before = [];
+       foreach ( $form['fields'] as $field ) {
+         if ( (int) $field->id === ${fieldId} ) {
+           foreach ( json_decode( ${JSON.stringify(JSON.stringify(props))}, true ) as $name => $value ) {
+             $before[ $name ] = isset( $field->$name ) ? $field->$name : null;
+             $field->$name    = $value;
+           }
+         }
+       }
+       GFAPI::update_form( $form );
+       return (object) $before;`
+    );
+  const before = set(changes);
+  try {
+    return await fn();
+  } finally {
+    set(before);
+  }
+}
+
 export function getOption<T = any>(name: string): T {
   return wpEvalJson<T>(`return get_option( ${JSON.stringify(name)} );`);
 }

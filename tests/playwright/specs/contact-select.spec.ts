@@ -7,7 +7,8 @@
  */
 
 import { test, expect, PAGES, SUBMITTED, gfInput, optionLabels, optionValues, setOptionValue, submitForm, bodyText } from '../fixtures/base';
-import { entryCount, formIds, latestEntry } from '../fixtures/gf';
+import { civiApi4First } from '../fixtures/civi';
+import { entryCount, formIds, latestEntry, withFieldProperties } from '../fixtures/gf';
 import { seededIds } from '../fixtures/ids';
 
 const INVALID = 'Invalid selection. Please select from the available choices.';
@@ -26,11 +27,7 @@ test.describe('Suite C - CiviCRM Group Contact Select', () => {
     expect(await optionValues(select)).not.toContain(String(deletedGroupContactId));
   });
 
-  // Known issue (test plan 7.2): group_contact_select_options() reads api_params from the
-  // top level of the SavedSearch.get result, which is keyed by id, so it queries Contact.get
-  // with no criteria and lists EVERY contact in CiviCRM - names and contact IDs - on the form.
   test('C-02 a saved search source lists the saved search\'s contacts', async ({ anonymousPage: page }) => {
-    test.fail(true, 'Known issue: a saved search source lists every contact in CiviCRM.');
     const { savedSearchContactIds } = seededIds();
     await page.goto(PAGES.contactSelect);
 
@@ -98,5 +95,18 @@ test.describe('Suite C - CiviCRM Group Contact Select', () => {
     await page.goto(PAGES.contactSelect);
 
     expect(await optionLabels(gfInput(page, formIds().contactSelect, F.emptyGroup))).toEqual(['No Contacts in this Group']);
+  });
+
+  test('C-09 a deleted or non-Contact saved search offers only "No Contacts in this Group"', async ({ anonymousPage: page }) => {
+    const formId = formIds().contactSelect;
+    const nonContact = civiApi4First<{ id: number }>('SavedSearch.get', { select: ['id'], where: [['api_entity', '!=', 'Contact']] });
+
+    for (const source of ['ss:999999', `ss:${nonContact.id}`]) {
+      await withFieldProperties(formId, F.savedSearch, { civicrm_group: source }, async () => {
+        await page.goto(PAGES.contactSelect);
+
+        expect(await optionLabels(gfInput(page, formId, F.savedSearch)), source).toEqual(['No Contacts in this Group']);
+      });
+    }
   });
 });
