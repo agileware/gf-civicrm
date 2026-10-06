@@ -309,7 +309,7 @@ $forms['mergeTags'] = gfcvtest_form( 'GFCVTEST Merge Tags', [
 	),
 ], 'gfcv-test-merge-tags' );
 
-// ---------------------------------------------------------------- Suite L: miscellaneous
+// ---------------------------------------------------------------- a plain form (H-11 sets its legacy checksum setting)
 
 $forms['counter'] = gfcvtest_form( 'GFCVTEST Counter', [
 	[ 'type' => 'text', 'id' => 1, 'label' => 'Long Text', 'maxLength' => 500 ],
