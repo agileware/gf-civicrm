@@ -8,7 +8,7 @@
  */
 
 import { test, expect, PAGES, SUBMITTED, gfInput, optionLabels, optionValues, submitForm, bodyText } from '../fixtures/base';
-import { formIds, latestEntry } from '../fixtures/gf';
+import { formIds, latestEntry, withFieldProperties } from '../fixtures/gf';
 
 const ACTIVE_VALUES = ['gfcv_red', 'gfcv_green', 'gfcv_blue'];
 const ACTIVE_LABELS = ['Red', 'Green', 'Blue'];
@@ -23,6 +23,18 @@ async function radioValues(page: import('@playwright/test').Page, fieldId: numbe
 
 async function radioLabels(page: import('@playwright/test').Page, formId: number, fieldId: number): Promise<string[]> {
   return page.locator(`#input_${formId}_${fieldId} label`).evaluateAll((els) => els.map((e) => (e.textContent || '').trim()));
+}
+
+async function checkedRadios(page: import('@playwright/test').Page, fieldId: number): Promise<string[]> {
+  return page.locator(`input[type="radio"][name="input_${fieldId}"]:checked`).evaluateAll((els) => els.map((e) => (e as HTMLInputElement).value));
+}
+
+async function checkedBoxes(page: import('@playwright/test').Page, formId: number, fieldId: number): Promise<string[]> {
+  return page.locator(`#input_${formId}_${fieldId} input[type="checkbox"]:checked`).evaluateAll((els) => els.map((e) => (e as HTMLInputElement).value));
+}
+
+async function selectedOptions(page: import('@playwright/test').Page, formId: number, fieldId: number): Promise<string[]> {
+  return gfInput(page, formId, fieldId).locator('option:checked').evaluateAll((els) => els.map((e) => (e as HTMLOptionElement).value));
 }
 
 test.describe('Suite A - CiviCRM Source options', () => {
@@ -108,34 +120,34 @@ test.describe('Suite A - CiviCRM Source options', () => {
     await expect(gfInput(page, formId, F.required)).toHaveValue('gfcv_green');
   });
 
-  // Known issue (test plan 7.2): pre_render() applies the Default Value to the field's existing
-  // choices, then do_civicrm_replacement() rebuilds the choices from CiviCRM and the selection
-  // is lost. Marked as an expected failure so it flags as soon as the ordering is fixed.
+  // The Default Value replaces the option group's default (Green), so only the named choices are selected.
   test('A-08 Radio Buttons pre-select the choice whose label matches the Default Value', async ({ anonymousPage: page }) => {
-    test.fail(true, 'Known issue: the Default Value is applied before the choices are rebuilt from CiviCRM.');
-    const formId = formIds().sources;
     await page.goto(PAGES.sources);
 
-    const checked = await page
-      .locator(`input[type="radio"][name="input_${F.radioDefault}"]:checked`)
-      .evaluateAll((els) => els.map((e) => (e as HTMLInputElement).value));
-    expect(checked).toEqual(['gfcv_blue']);
+    expect(await checkedRadios(page, F.radioDefault)).toEqual(['gfcv_blue']);
   });
 
-  // Known issue (test plan 7.2): same ordering problem as A-08.
   test('A-09 Checkboxes and Multi Select pre-select every value in a comma-separated Default Value', async ({ anonymousPage: page }) => {
-    test.fail(true, 'Known issue: the Default Value is applied before the choices are rebuilt from CiviCRM.');
     const formId = formIds().sources;
     await page.goto(PAGES.sources);
 
-    const checked = await page
-      .locator(`#input_${formId}_${F.checkboxDefault} input[type="checkbox"]:checked`)
-      .evaluateAll((els) => els.map((e) => (e as HTMLInputElement).value));
-    expect(checked).toEqual(['gfcv_red', 'gfcv_blue']);
+    expect(await checkedBoxes(page, formId, F.checkboxDefault)).toEqual(['gfcv_red', 'gfcv_blue']);
+    expect(await selectedOptions(page, formId, F.multiDefault)).toEqual(['gfcv_red', 'gfcv_blue']);
+  });
 
-    const selected = await gfInput(page, formId, F.multiDefault)
-      .locator('option:checked')
-      .evaluateAll((els) => els.map((e) => (e as HTMLOptionElement).value));
-    expect(selected).toEqual(['gfcv_red', 'gfcv_blue']);
+  test('A-10 a Default Value may name choices by label or value, in any mix', async ({ anonymousPage: page }) => {
+    const formId = formIds().sources;
+
+    await withFieldProperties(formId, F.radioDefault, { defaultValue: 'gfcv_red' }, async () => {
+      await withFieldProperties(formId, F.checkboxDefault, { defaultValue: 'Red, gfcv_blue' }, async () => {
+        await withFieldProperties(formId, F.multiDefault, { defaultValue: 'Green,Blue' }, async () => {
+          await page.goto(PAGES.sources);
+
+          expect(await checkedRadios(page, F.radioDefault)).toEqual(['gfcv_red']);
+          expect(await checkedBoxes(page, formId, F.checkboxDefault)).toEqual(['gfcv_red', 'gfcv_blue']);
+          expect(await selectedOptions(page, formId, F.multiDefault)).toEqual(['gfcv_green', 'gfcv_blue']);
+        });
+      });
+    });
   });
 });

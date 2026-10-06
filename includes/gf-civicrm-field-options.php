@@ -167,55 +167,65 @@ function pre_render( $form, $ajax = false, $field_values = array(), $context = '
         return $form;
     }
 
-    // @TODO - Refactor this to a single loop.
-	// @TODO - do_civicrm_replacement should be done first or last?
-
 	// Only do this on form_display
 	if ( $context !== 'form_display' ) {
 		return $form;
 	}
 
-	// Use the default value if set for radio buttons 
-	foreach ( $form['fields'] as &$field ) {
-		if ( $field->inputType !== 'radio' ) {
+	// Build the choices from CiviCRM first, so the Default Value selects from the choices that are rendered.
+	$form = do_civicrm_replacement( $form, 'pre_render' );
+
+	foreach ( $form['fields'] as $field ) {
+		apply_default_choices( $field );
+	}
+
+	return $form;
+}
+
+/**
+ * Pre-select the choices named by a Radio Buttons, Checkboxes or Multi Select field's Default Value.
+ *
+ * Radio Buttons take one entry; Checkboxes and Multi Select take a comma-separated list. Each entry may be a
+ * choice's value or its label. When any entry matches, the Default Value replaces other default selections
+ * (such as the option group's default), and is rewritten as choice values: Gravity Forms compares a radio or
+ * multi select field's Default Value against the choice values, and only reads isSelected for checkboxes.
+ *
+ * @param \GF_Field $field
+ */
+function apply_default_choices( $field ) {
+	$input_type = $field->get_input_type();
+
+	if ( ! in_array( $input_type, [ 'radio', 'checkbox', 'multiselect' ], true ) || rgblank( $field->defaultValue ) || empty( $field->choices ) ) {
+		return;
+	}
+
+	$default = trim( (string) \GFCommon::replace_variables_prepopulate( $field->defaultValue ) );
+	$entries = $input_type === 'radio' ? [ $default ] : array_map( 'trim', explode( ',', $default ) );
+
+	$selected = [];
+	foreach ( $field->choices as $choice ) {
+		// Skip "- None -"
+		if ( rgblank( rgar( $choice, 'value' ) ) ) {
 			continue;
 		}
-
-		if ( isset( $field->defaultValue ) && ! empty( $field->defaultValue ) ) {
-			$default_value = $field->defaultValue;
-
-			foreach ( $field->choices as &$choice ) {
-				if ( (string) $choice['text'] === (string) $default_value ) {
-					$choice['isSelected'] = TRUE;
-				}
-			}
+		if ( in_array( (string) $choice['value'], $entries, true ) || in_array( trim( (string) rgar( $choice, 'text' ) ), $entries, true ) ) {
+			$selected[] = (string) $choice['value'];
 		}
 	}
 
-	// Apply comma separated default values to multiselect and checkbox fields
-	foreach ( $form['fields'] as &$field ) {
-		// Check if the field is of a type that should have comma-separated defaults
-		if ( in_array( $field->type, [ 'multiselect', 'checkbox' ], true ) ) {
-			// Check if the custom comma-separated default setting is set
-
-			/* @TODO
-			 * Test 1 - if this works with CiviCRM multi-value options
-			 * Test 2 - what happens when a merge tag returns a value which has commas in it, does it call this function again?
-			 */
-
-			if ( isset( $field->defaultValue ) && ! empty( $field->defaultValue ) ) {
-				$defaults = explode( ',', trim( $field->defaultValue ) );
-				// Apply these defaults to the field
-				foreach ( $field->choices as $i => $choice ) {
-					if ( in_array( trim( $choice['value'] ), $defaults, true ) ) {
-						$field->choices[ $i ]['isSelected'] = TRUE;
-					}
-				}
-			}
-		}
+	if ( empty( $selected ) ) {
+		return;
 	}
 
-	return do_civicrm_replacement( $form, 'pre_render' );
+	if ( $input_type === 'radio' ) {
+		$selected = array_slice( $selected, 0, 1 );
+	}
+
+	foreach ( $field->choices as $i => $choice ) {
+		$field->choices[ $i ]['isSelected'] = in_array( (string) rgar( $choice, 'value' ), $selected, true );
+	}
+
+	$field->defaultValue = implode( ',', $selected );
 }
 
 add_filter( 'gform_pre_render', 'GFCiviCRM\pre_render', 10, 4 );
