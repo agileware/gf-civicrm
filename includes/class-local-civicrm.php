@@ -58,9 +58,28 @@ class LocalCiviCRM {
 		try {
 			switch ( (string) $api_version ) {
 				case '3':
+					// APIv3 only reads check_permissions as a top-level parameter, and defaults to FALSE when
+					// called from PHP. Callers pass it in $options, so lift it out.
+					if ( isset( $options['check_permissions'] ) ) {
+						$params['check_permissions'] = (bool) $options['check_permissions'];
+						unset( $options['check_permissions'] );
+					}
+
 					if ( ! empty( $options ) ) {
 						$params['options'] = $options;
 					}
+
+					// CiviCRM writes a backtrace to its log for every failed API3 permission check, e.g. each time a
+					// visitor without the Form Processor's permission views a form with CiviCRM defaults. Check
+					// first, so a refused call returns an error without reaching the API.
+					if ( ! empty( $params['check_permissions'] ) && ! self::isApi3Permitted( $entity, $action, $params ) ) {
+						return [
+							'is_error'      => 1,
+							'error_message' => sprintf( 'Permission denied for %s.%s', $entity, $action ),
+							'error_code'    => 'unauthorized',
+						];
+					}
+
 					$result = civicrm_api3( $entity, $action, $params );
 					break;
 				case '4':
@@ -84,6 +103,35 @@ class LocalCiviCRM {
 				date_default_timezone_set( $wpBaseTimezone );
 			}
 		}
+	}
+
+	/**
+	 * Whether the current user passes the permission check CiviCRM will apply to this APIv3 call.
+	 *
+	 * Mirrors Civi\API\Subscriber\PermissionCheck::onApiAuthorize(), including the alterAPIPermissions hook the
+	 * Form Processor extension uses to require each processor's own permission.
+	 *
+	 * @param string $entity
+	 * @param string $action
+	 * @param array $params
+	 *
+	 * @return bool
+	 */
+	private static function isApi3Permitted( $entity, $action, $params ) {
+		// CiviCRM also grants these through ACLs, which this check does not cover. Let the API decide.
+		if ( in_array( $entity, [ 'UFGroup', 'UFField', 'ActionSchedule' ], true ) ) {
+			return true;
+		}
+
+		require_once 'CRM/Core/DAO/permissions.php';
+		$permissions = _civicrm_api3_permissions( $entity, $action, $params );
+
+		// The alterAPIPermissions hook may turn the check off.
+		if ( empty( $params['check_permissions'] ) ) {
+			return true;
+		}
+
+		return \CRM_Core_Permission::check( $permissions );
 	}
 
 	/**

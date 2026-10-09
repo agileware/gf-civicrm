@@ -32,7 +32,7 @@ function fp_tag_default( $matches, $fallback = '', $multiple = false ) {
 				'api_action' => $processor,
 			];
 			$api_options = [
-				'check_permissions' => 1, // Set check_permissions to false
+				'check_permissions' => 1, // Enforce the Form Processor's permission for front-end visitors
 				'limit'	=> 0,
 				'cache' => NULL,
 			];
