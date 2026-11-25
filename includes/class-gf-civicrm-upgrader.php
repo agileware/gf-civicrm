@@ -447,8 +447,12 @@ class Upgrader {
         // Define the minimum target version for this upgrade action.
         $target_version = '1.10.3';
 
-        // Get the current version (after the update).
-        $current_version = $this->version;
+        // Get the current version (after the update). $this->version cannot be used:
+        // it was read when this request started, before the update replaced the
+        // plugin files, so it is the version being replaced. Read the header of
+        // the newly installed plugin file instead.
+        $installed       = get_file_data( WP_PLUGIN_DIR . '/' . $this->plugin, [ 'Version' => 'Version' ] );
+        $current_version = ! empty( $installed['Version'] ) ? $installed['Version'] : $this->version;
 
         // Retrieve the stored version, or initialize it if not set.
         $previous_version = get_option('gfcv_version', false);
