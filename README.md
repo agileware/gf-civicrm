@@ -13,7 +13,7 @@ Develop forms that integrate with CiviCRM to add common features to your website
 
 # Requirements
 
-* [CiviCRM](https://civicrm.org/download) **must** be installed locally on the same WordPress site as this plugin. Remote CiviCRM is not supported at this time, [see issue #1](https://github.com/agileware/gf-civicrm/issues/1) 
+* [CiviCRM](https://civicrm.org/download), either installed on the same WordPress site as this plugin, or a remote CiviCRM installation connected with the [Connector to CiviCRM with CiviMcRestFace plugin (CMRF)](https://github.com/CiviMRF/civimcrestface-wordpress). See [Remote CiviCRM Integration using WordPress CiviMcRestFace](#remote-civicrm-integration-using-wordpress-civimcrestface).
 * Integration with the CiviCRM Form Processor uses Web Hooks, which requires the [Gravity Forms Webhooks Add-on](https://www.gravityforms.com/add-ons/webhooks/). This add-on is currently bundled with the [Gravity Forms Elite License](https://www.gravityforms.com/elite-license-plan/)
 
 # Setting up a Newsletter Subscription form using Gravity Forms and CiviCRM
