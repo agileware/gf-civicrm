@@ -19,4 +19,4 @@ The alert email will include the error message, the Feed, and the Entry ID.
 
 ## CiviCRM Source
 
-Fields that have access to CiviCRM Source to populate options will only work when using the Checkboxes or Radio fields. Multiple Choice fields were introduced into Gravity Forms later, and are currently not supported by this plugin.
+The **CiviCRM Source** setting is available on Drop Down, Multi Select, Checkboxes and Radio Buttons fields. The Multiple Choice field was introduced into Gravity Forms later, and is currently not supported by this plugin: it does not offer the CiviCRM Source setting. See [Options from CiviCRM](civicrm-options.md).
