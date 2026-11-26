@@ -6,16 +6,35 @@ use GFAPI;
 // Exit if accessed directly
 if ( ! defined( 'ABSPATH' ) ) exit;
 
-if (!class_exists('WP_Upgrader')) {
-    require_once ABSPATH . 'wp-admin/includes/class-wp-upgrader.php';
-}
-
 /**
- * Handles the update process for the plugin using WP_Upgrader.
+ * Offers the latest GitHub release of the plugin as a WordPress plugin update,
+ * and runs the post-update upgrade routines.
+ *
+ * This hooks the WordPress update checks and does not need anything from
+ * WP_Upgrader, so it does not extend it. Extending Plugin_Upgrader meant
+ * loading the WordPress upgrader classes on every request, front end included.
  */
-class Upgrader extends \Plugin_Upgrader {
+class Upgrader {
+
+    /**
+     * How long a successful release lookup is cached, in seconds.
+     */
+    const CACHE_TTL = 12 * HOUR_IN_SECONDS;
+
+    /**
+     * How long a failed release lookup is cached, in seconds, so a GitHub
+     * outage or rate limit does not cause a request on every update check.
+     */
+    const ERROR_CACHE_TTL = HOUR_IN_SECONDS;
+
+    /**
+     * Release tags accepted as versions: 2.1.0, v2.1.0, 1.10.3-beta-14, 2.0.0-alpha-4.
+     */
+    const VERSION_TAG_PATTERN = '/^v?\d+(\.\d+)*(-[0-9A-Za-z.-]+)?$/';
 
     private static $_instance = NULL;
+
+    private $enable_prereleases   = false;
 
     private $plugin_uri           = '';
     private $plugin_update_uri    = '';
@@ -54,6 +73,7 @@ class Upgrader extends \Plugin_Upgrader {
             $plugin_update_uri = 'https://api.github.com/repos/' . GF_CIVICRM_PLUGIN_GITHUB_REPO . '/releases/latest';
         }
 
+        $this->enable_prereleases       = $enable_prereleases;
         $this->plugin_uri               = $plugin_data['PluginURI'];
         $this->plugin_update_uri        = $plugin_update_uri;
         $this->plugin                   = plugin_basename( $plugin_file );
@@ -98,12 +118,10 @@ class Upgrader extends \Plugin_Upgrader {
 			$transient = new \stdClass();
 		}
 
-        if ( ! empty( $transient->response ) && ! empty( $transient->response[ $this->name ] ) ) {
+        // The response is keyed by the plugin basename, not the plugin name.
+        if ( ! empty( $transient->response[ $this->plugin ] ) ) {
 			return $transient;
 		}
-
-        // Get the current version of the plugin
-        $current_version = $this->version;
 
         // Get the latest version information from GitHub
         $update_info = $this->get_update_info();
@@ -112,20 +130,22 @@ class Upgrader extends \Plugin_Upgrader {
             return $transient;
         }
 
-        $latest_version = $update_info->tag_name;
+        $plugin = (object) [
+            'id'          => $this->plugin,
+            'slug'        => $this->slug,
+            'plugin'      => $this->plugin,
+            'new_version' => $update_info->version,
+            'url'         => $update_info->html_url,
+            'package'     => $update_info->zipball_url
+        ];
 
-        // Compare versions and add the update info if a newer version is available
-        if ( version_compare( $current_version, $latest_version, '<' ) ) {
-            $plugin = [
-                'slug'        => $this->slug,
-                'plugin'      => $this->plugin,
-                'name'        => $this->name,
-                'new_version' => $latest_version,
-                'url'         => $update_info->html_url,
-                'package'     => $update_info->zipball_url
-            ];
-
-            $transient->response[$this->plugin] = (object) $plugin;
+        // Compare versions and add the update info if a newer version is available.
+        // Listing the plugin in no_update otherwise lets WordPress offer the
+        // auto-updates setting for it.
+        if ( version_compare( $this->version, $update_info->version, '<' ) ) {
+            $transient->response[ $this->plugin ] = $plugin;
+        } else {
+            $transient->no_update[ $this->plugin ] = $plugin;
         }
 
         return $transient;
@@ -156,12 +176,13 @@ class Upgrader extends \Plugin_Upgrader {
         }
 
         $plugin_info = new \stdClass();
-        $plugin_info->name = $this->name . ' version ' . $update_info->tag_name;
-        $plugin_info->slug = $this->plugin;
-        $plugin_info->version = ltrim($update_info->tag_name, 'v');
+        $plugin_info->name = $this->name . ' version ' . $update_info->version;
+        $plugin_info->slug = $this->slug;
+        $plugin_info->version = $update_info->version;
         $plugin_info->author = '<a href="' . esc_url( $this->author_uri ) . '">' . esc_html( $this->author ) . '</a>';
         $plugin_info->homepage = $this->plugin_uri;
         $plugin_info->download_link = $update_info->zipball_url;
+        // WordPress filters the sections through wp_kses() before showing them.
         $plugin_info->sections = [
             'Release Notes' => $update_info->html_body,
         ];
@@ -173,7 +194,7 @@ class Upgrader extends \Plugin_Upgrader {
      * Convert the Markdown body to HTML using GitHub's Markdown API
      * 
      * @param string    $markdown_body
-	 * @return string
+	 * @return string HTML, or the escaped Markdown when the conversion fails
      */
     private function convert_markdown_to_html( $markdown_body ) {
         // GitHub API URL for converting Markdown to HTML
@@ -185,8 +206,8 @@ class Upgrader extends \Plugin_Upgrader {
                 'Accept'        => 'application/vnd.github.v3+json',
                 'User-Agent'    => 'WordPress Plugin Updater',
             ],
-            'body' => json_encode([
-                'text'   => $markdown_body,
+            'body' => wp_json_encode([
+                'text'   => (string) $markdown_body,
                 'mode'   => 'gfm',
                 'context' => GF_CIVICRM_PLUGIN_GITHUB_REPO
             ]),
@@ -194,7 +215,11 @@ class Upgrader extends \Plugin_Upgrader {
 
         if ( is_wp_error( $response ) ) {
             error_log( 'Error converting Markdown to HTML via GitHub API : ' . $response->get_error_message() );
-            return false;
+        }
+
+        // Show the notes as plain text rather than nothing when the conversion fails.
+        if ( is_wp_error( $response ) || 200 !== wp_remote_retrieve_response_code( $response ) ) {
+            return '<pre>' . esc_html( (string) $markdown_body ) . '</pre>';
         }
 
         $html_body = wp_remote_retrieve_body( $response );
@@ -215,27 +240,20 @@ class Upgrader extends \Plugin_Upgrader {
 			$version_info = $this->get_update_info_from_remote();
 
 			if ( ! $version_info ) {
+				// Remember the failure for a while instead of asking GitHub on every
+				// check. Unauthenticated GitHub API requests are limited to 60 an hour
+				// per IP address, shared by every site on the same host.
+				$this->set_version_info_cache( 'error', '', self::ERROR_CACHE_TTL );
 				return false;
 			}
 
-            // If we retrieved an array (i.e. if prereleases are enabled), then grab the latest
-            if ( is_array( $version_info ) ) {
-                $version_info = reset($version_info);
-            }
-
-			// This is required to support auto-updates since WordPress 5.5.
-			$version_info->plugin   = $this->name;
-			$version_info->id       = $this->name;
-			$version_info->version  = $version_info->new_version ?? $version_info->tag_name;
-			$version_info->author   = sprintf( '<a href="%s">%s</a>', esc_url($this->author_uri), esc_html($this->author) );
-
             // Cache the body after converting from Markdown to HTML
-            $version_info->html_body = $this->convert_markdown_to_html( $version_info->body );
+            $version_info->html_body = $this->convert_markdown_to_html( $version_info->body ?? '' );
 
 			$this->set_version_info_cache( $version_info );
 		}
 
-		return $version_info;
+		return is_object( $version_info ) ? $version_info : false;
     }
 
     /**
@@ -256,29 +274,52 @@ class Upgrader extends \Plugin_Upgrader {
         }
         $response = wp_remote_get( $this->plugin_update_uri, $args );
 
-        if ( is_wp_error( $response ) ) {
+        if ( is_wp_error( $response ) || 200 !== wp_remote_retrieve_response_code( $response ) ) {
             return false;
         }
 
         $body = wp_remote_retrieve_body( $response );
         $data = json_decode( $body );
 
-        if ( empty( $data ) || isset( $data->message ) ) {
-            return false;
-        }
+        // With prereleases enabled the API returns a list of releases (stable and
+        // prereleases), otherwise the single latest release.
+        $releases = is_array( $data ) ? $data : [ $data ];
 
-        // If we retrieved an array (i.e. if prereleases are enabled), then grab the latest
-        if ( is_array( $data ) ) {
-            // Run through the returned releases (including prereleases) and get the latest release by semantic tag
-            foreach ( $data as $release ) {
-                if ( isset( $release->prerelease ) && $release->prerelease && version_compare( $this->version, $release->tag_name, '<' ) ) {
-                    return $release;
-                }
+        // Use the highest valid version. Taking the first newer prerelease in the
+        // list could offer a prerelease when a newer stable release was listed
+        // before it.
+        $latest = false;
+        foreach ( $releases as $release ) {
+            if ( ! $this->is_valid_release( $release ) ) {
+                continue;
+            }
+            $release->version = ltrim( $release->tag_name, 'v' );
+            if ( ! $latest || version_compare( $release->version, $latest->version, '>' ) ) {
+                $latest = $release;
             }
         }
-        
 
-        return $data;
+        if ( $latest ) {
+            $latest->html_url = ( isset( $latest->html_url ) && is_string( $latest->html_url ) ) ? $latest->html_url : $this->plugin_uri;
+        }
+
+        return $latest;
+    }
+
+    /**
+     * Whether a release from the GitHub API can be offered as an update: a
+     * published release with a version tag and a download from this repository.
+     *
+     * @param mixed $release
+     * @return bool
+     */
+    private function is_valid_release( $release ) {
+        return is_object( $release )
+            && empty( $release->draft )
+            && ! empty( $release->tag_name ) && is_string( $release->tag_name )
+            && preg_match( self::VERSION_TAG_PATTERN, $release->tag_name )
+            && ! empty( $release->zipball_url ) && is_string( $release->zipball_url )
+            && 0 === strpos( $release->zipball_url, 'https://api.github.com/repos/' . GF_CIVICRM_PLUGIN_GITHUB_REPO . '/' );
     }
 
     /**
@@ -301,17 +342,17 @@ class Upgrader extends \Plugin_Upgrader {
     /**
 	 * Adds the plugin version information to the database.
 	 *
-	 * @param string $value
+	 * @param mixed  $value
 	 * @param string $cache_key
+	 * @param int    $expiration seconds, 12 hours by default
 	 */
-	public function set_version_info_cache( $value = '', $cache_key = '' ) {
+	public function set_version_info_cache( $value = '', $cache_key = '', $expiration = self::CACHE_TTL ) {
 
 		if ( empty( $cache_key ) ) {
 			$cache_key = $this->get_cache_key();
 		}
 
-        // Set the transient to expire in 12 hours (12 * 60 * 60 seconds)
-        set_transient( $cache_key, $value, 12 * 60 * 60 );
+        set_transient( $cache_key, $value, $expiration );
 	}
 
     /**
@@ -322,11 +363,24 @@ class Upgrader extends \Plugin_Upgrader {
 	private function get_cache_key() {
 		$string = $this->slug;
 
+		// Separate caches for the stable and prerelease channels, so changing the
+		// "Enable prereleases" setting takes effect at the next update check
+		// instead of after the cached release expires.
+		if ( $this->enable_prereleases ) {
+			$string .= '|prereleases';
+		}
+
 		return 'gfcv_vi_' . md5( $string );
 	}
 
+	/**
+	 * Whether cached release information can be used. "Check again" on the
+	 * WordPress Updates page skips the cache, for users who can update plugins.
+	 *
+	 * @return bool
+	 */
 	private function allowCached() : bool {
-		return empty( $_GET['force-check'] );
+		return empty( $_GET['force-check'] ) || ! current_user_can( 'update_plugins' );
 	}
 
     /**
@@ -393,8 +447,12 @@ class Upgrader extends \Plugin_Upgrader {
         // Define the minimum target version for this upgrade action.
         $target_version = '1.10.3';
 
-        // Get the current version (after the update).
-        $current_version = $this->version;
+        // Get the current version (after the update). $this->version cannot be used:
+        // it was read when this request started, before the update replaced the
+        // plugin files, so it is the version being replaced. Read the header of
+        // the newly installed plugin file instead.
+        $installed       = get_file_data( WP_PLUGIN_DIR . '/' . $this->plugin, [ 'Version' => 'Version' ] );
+        $current_version = ! empty( $installed['Version'] ) ? $installed['Version'] : $this->version;
 
         // Retrieve the stored version, or initialize it if not set.
         $previous_version = get_option('gfcv_version', false);
