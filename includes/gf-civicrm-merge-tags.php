@@ -34,7 +34,7 @@ function fp_tag_default( $matches, $fallback = '', $multiple = false ) {
 			$api_options = [
 				'check_permissions' => 1, // Enforce the Form Processor's permission for front-end visitors
 				'limit'	=> 0,
-				'cache' => NULL,
+				'cache' => 0,
 			];
 
 			// Get the form processor fields

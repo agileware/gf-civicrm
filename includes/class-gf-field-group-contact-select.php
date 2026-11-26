@@ -244,6 +244,21 @@ class GF_Field_Group_Contact_Select extends GF_Field {
    * Return the list of contacts for the selected group
    */
 
+  /**
+   * Whether the contacts listed by this field are limited to the contacts the person viewing the form may see
+   * under CiviCRM permissions and ACLs. On a remote (CMRF) connection the checks apply to the connection
+   * profile's API user instead.
+   *
+   * Sites can turn the checks off with the gf_civicrm_group_contact_select_check_permissions filter.
+   *
+   * @param mixed $field The field.
+   *
+   * @return bool
+   */
+  protected function check_contact_permissions( $field ) {
+    return (bool) apply_filters( 'gf_civicrm_group_contact_select_check_permissions', true, $field );
+  }
+
   public function group_contact_select_options($field, $value = '', $support_placeholders = TRUE) {
     // Define empty value to return
     $empty_option = "<option value=''>" . esc_html__('No Contacts in this Group', 'gf-civicrm') . "</option>";
@@ -306,7 +321,7 @@ class GF_Field_Group_Contact_Select extends GF_Field {
           unset( $api_params['version'], $api_params['limit'], $api_params['offset'] );
           $api_params['select']           = array_values( array_unique( array_merge( [ 'id', 'sort_name' ], (array) ( $api_params['select'] ?? [] ) ) ) );
           $api_params['orderBy']          = [ 'sort_name' => 'ASC' ];
-          $api_params['checkPermissions'] = false;
+          $api_params['checkPermissions'] = $this->check_contact_permissions( $field );
 
           $groupContacts = GFCiviCRM\api_wrapper( $profile_name, 'Contact', 'get', $api_params, [ 'cache' => 0 ], '4' );
 
@@ -327,13 +342,18 @@ class GF_Field_Group_Contact_Select extends GF_Field {
         }
       }
       else {
+        // The source must be a single group id.
+        if ( ! is_scalar( $field['civicrm_group'] ) || ! ctype_digit( (string) $field['civicrm_group'] ) ) {
+          return $empty_option;
+        }
+
         $api_params = [
           'return'  => [ 'id', 'sort_name' ],
-          'group'  => ['IN ' => $field['civicrm_group']],
+          'group'  => [ 'IN' => [ (int) $field['civicrm_group'] ] ],
           'is_deleted' => 0,
         ];
         $api_options = array(
-          'check_permissions' => 0,
+          'check_permissions' => $this->check_contact_permissions( $field ) ? 1 : 0,
           'sort'              => 'sort_name ASC',
           'limit'             => 0,
           'cache'             => 0,

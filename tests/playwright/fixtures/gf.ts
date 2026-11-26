@@ -139,3 +139,16 @@ export function getOption<T = any>(name: string): T {
 export function deleteOption(name: string): void {
   wpEvalJson(`return delete_option( ${JSON.stringify(name)} );`);
 }
+
+/**
+ * Set a WordPress option for the duration of `fn`, then delete it - even if `fn` throws.
+ * For test-only switches that are off when the option does not exist.
+ */
+export async function withOption<T>(name: string, value: unknown, fn: () => Promise<T>): Promise<T> {
+  wpEvalJson(`return update_option( ${JSON.stringify(name)}, json_decode( ${JSON.stringify(JSON.stringify(value))}, true ), false );`);
+  try {
+    return await fn();
+  } finally {
+    deleteOption(name);
+  }
+}
