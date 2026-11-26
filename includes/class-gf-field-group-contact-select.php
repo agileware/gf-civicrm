@@ -327,9 +327,14 @@ class GF_Field_Group_Contact_Select extends GF_Field {
         }
       }
       else {
+        // The source must be a single group id.
+        if ( ! is_scalar( $field['civicrm_group'] ) || ! ctype_digit( (string) $field['civicrm_group'] ) ) {
+          return $empty_option;
+        }
+
         $api_params = [
           'return'  => [ 'id', 'sort_name' ],
-          'group'  => ['IN ' => $field['civicrm_group']],
+          'group'  => [ 'IN' => [ (int) $field['civicrm_group'] ] ],
           'is_deleted' => 0,
         ];
         $api_options = array(
