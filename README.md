@@ -169,6 +169,8 @@ Reload nginx afterwards. The Import GF CiviCRM and Export GF CiviCRM screens che
 
 This plugin can support connections to a remote CiviCRM installation with the aid of the [Connector to CiviCRM with CiviMcRestFace plugin (CMRF)](https://github.com/CiviMRF/civimcrestface-wordpress). Refer to the installation notes there.
 
+See the [DEVELOPERS documentation](DEVELOPERS.md) for developer notes, including the recommended GF CiviCRM Companion Extension, which lets the remote API user work with fewer CiviCRM permissions.
+
 ## Configuring REST Connection Profiles
 
 Once you have installed CMRF, you must configure a REST Connection profile and select it for use.
@@ -217,13 +219,6 @@ The alert email will include the error message, the Feed, and the Entry ID.
 ## CiviCRM Source
 
 Fields that have access to CiviCRM Source to populate options will only work when using the Checkboxes or Radio fields. Multiple Choice fields were introduced into Gravity Forms later, and are currently not supported by this plugin.
-
-# Remote CiviCRM installations
-
-This plugin supports remote CiviCRM support via the CiviMRF framework. 
-Use of this feature of the gf-civicrm plugin is not yet recommended and impossible for non-developers.
-
-See [DEVELOPERS documentation](DEVELOPERS.md) for installation and usage.
 
 # License
 
