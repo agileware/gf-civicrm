@@ -131,6 +131,8 @@ To show a group's contacts to logged-in users, add an ACL in CiviCRM (**Administ
 
 To also show the group's contacts to visitors who are not logged in, for example on a public form, use the **Everybody** role instead of Authenticated.
 
+To show them to only some logged-in users, create an ACL role, assign it to those users (**Administer > Users and Permissions > Permissions (Access Control) > Assign Users to Roles**), and use that role in the ACL instead of Authenticated. Logged-in users without the role see "No Contacts in this Group".
+
 If the contacts do not appear straight after adding an ACL, clear CiviCRM's caches (**Administer > System Settings > Cleanup Caches and Update Paths**). CiviCRM caches each user's ACL results.
 
 An ACL on a different group only shows the contacts that are in both groups.
