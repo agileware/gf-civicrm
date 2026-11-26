@@ -180,6 +180,15 @@ Once you have installed CMRF, you must configure a REST Connection profile and s
 1. When you select a connection profile, a series of **preflight checks** will run to confirm a baseline connection to CiviCRM. This will help identify if a connection can be established and if the nominated API user who owns the API key provided has sufficient permissions for core CiviCRM API calls used by this plugin.
 1. **Save** your changes.
 
+## Default values on remote connections
+
+On a remote connection, every API call runs as the CiviCRM user that owns the connection profile's API key, not as the person viewing the form. This affects form processors used for default values (`{civicrm_fp.$processor.$field}` merge tags):
+
+* CiviCRM does not know who is logged in to WordPress, so "Contact: get contact ID of the currently logged in user" returns the API user, and the form would be pre-filled with the API user's details.
+* The form processor's permission is checked against the API user, not the person viewing the form.
+
+For a form processor used for default values on a remote connection, identify the contact with `cid` and `cs` retrieval criteria from the URL, validated with the "Contact: validate checksum" action (see [Processing form submissions as a specific Contact](#processing-form-submissions-as-a-specific-contact)). Do not use actions that depend on the logged-in user.
+
 ## {gf_civicrm_rest_url} custom merge tag
 
 You may use `{gf_civicrm_rest_url}` in your webhook **Request URL**. This will output either the full v3 REST URL from the selected connection profile, or the same contents as `{rest_api_url}` if not found.
