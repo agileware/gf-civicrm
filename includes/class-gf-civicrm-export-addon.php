@@ -1295,7 +1295,7 @@ if ( ! class_exists( 'GFCiviCRM\ExportAddOn' ) ) {
             $message = sprintf(
                 '<p><strong>%1$s</strong></p><p>%2$s</p>',
                 esc_html__( 'The GF CiviCRM Import/Export Directory appears to be publicly accessible.', 'gf-civicrm' ),
-                esc_html__( 'Exported forms, feeds and form processors can be downloaded by anyone who knows or guesses the file URL. Your web server is not applying the .htaccess protection (nginx never does; Apache needs AllowOverride enabled). Add a rule to your server configuration that denies access to this directory. See the Importing and Exporting section of the plugin README for an nginx example.', 'gf-civicrm' )
+                esc_html__( 'Exported forms, feeds and form processors can be downloaded by anyone who knows or guesses the file URL. Your web server is not applying the .htaccess protection (nginx never does; Apache needs AllowOverride enabled). Add a rule to your server configuration that denies access to this directory. See the Importing and exporting page of the plugin documentation (docs/import-export.md) for an nginx example.', 'gf-civicrm' )
             );
 
             printf( '<div class="notice notice-error gf-notice" id="gfcv_exports_exposed_notice">%s</div>', wp_kses_post( $message ) );

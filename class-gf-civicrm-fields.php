@@ -344,8 +344,8 @@ class FieldsAddOn extends \GFAddOn {
 		if( !empty( $warnings ) ) {
 			$notice_heading = __( 'Legacy setting enabled for form(s)' );
 			$notice_footer  = sprintf(
-				__( 'For details on setting up an alternative method for checksum authentication, see the README section on <a target="_blank" href="%1$s">Processing form submissions as a specific Contact</a>' ),
-        'https://github.com/agileware/gf-civicrm/blob/main/README.md#processing-form-submissions-as-a-specific-contact'
+				__( 'For details on setting up an alternative method for checksum authentication, see the documentation on <a target="_blank" href="%1$s">Processing form submissions as a specific Contact</a>' ),
+        'https://github.com/agileware/gf-civicrm/blob/main/docs/contact-checksums.md'
       );
 			return sprintf( $wrapper, '<h3>' . $notice_heading . '</h3><ul>' . implode( '', $warnings ) . '</ul><p>' . $notice_footer . '</p>'  );
 		} else {
@@ -460,9 +460,9 @@ class FieldsAddOn extends \GFAddOn {
 				'type'        => 'checkbox',
 				'name'        => 'civicrm_auth_checksum',
 				'description' => wp_kses(sprintf(__(
-					'<strong>Nonfunctional</strong>: This option is no longer functional due to a <strong>security risk</strong>. Switch to the replacement workflow using Form Processor capabilities outlined <a target="_blank" href="%s">in the README</a>.',
+					'<strong>Nonfunctional</strong>: This option is no longer functional due to a <strong>security risk</strong>. Switch to the replacement workflow using Form Processor capabilities outlined <a target="_blank" href="%s">in the documentation</a>.',
 					'gf-civicrm'
-				), 'https://github.com/agileware/gf-civicrm/tree/main?tab=readme-ov-file#processing-form-submissions-as-a-specific-contact'), 'data'),
+				), 'https://github.com/agileware/gf-civicrm/blob/main/docs/contact-checksums.md'), 'data'),
 				'choices'     => [
 					[
 						'label' => esc_html__( 'Allow authentication with checksum', 'gf-civicrm' ),
