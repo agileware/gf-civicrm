@@ -159,8 +159,13 @@ function gf_civicrm_wpcmrf_api( $profile, $entity, $action, $params, $options = 
 	 * See https://github.com/CiviMRF/CMRF_Abstract_Core/issues/24
 	 * 
 	 */
-	// If options isn't already set, set it to a default value.
-	$options['cache'] ??= '15 minutes';
+	// Cache for 15 minutes unless the caller sets 'cache'. An explicit NULL, false or 0
+	// turns caching off.
+	if ( ! array_key_exists( 'cache', $options ) ) {
+		$options['cache'] = '15 minutes';
+	} elseif ( $options['cache'] === NULL || $options['cache'] === false ) {
+		$options['cache'] = 0;
+	}
 
 	$core = \wpcmrf_get_core();
 	$call = $core->createCall( $profile_id, $entity, $action, $params, $options, NULL, $api_version );

@@ -302,7 +302,8 @@ function validateChecksumFromURL( $cid_param = 'cid', $cs_param = 'cs' ): int|nu
 			'checksum' => $checksum,
 		];
 		// ContactChecksum.validate returns [ 'id' => <contact id>, 'checksum' => <bool> ].
-		$validator = api_wrapper( $profile_name, 'ContactChecksum', 'validate', $api_params );
+		// Checksum validation is not cached.
+		$validator = api_wrapper( $profile_name, 'ContactChecksum', 'validate', $api_params, [ 'cache' => 0 ] );
 	} catch ( \CRM_Core_Exception | \GFCiviCRM_Exception $e ) {
 		error_log( 'GF CiviCRM: contact checksum validation failed for contact ID ' . absint( $contact_id ) . ': ' . $e->getMessage() );
 
