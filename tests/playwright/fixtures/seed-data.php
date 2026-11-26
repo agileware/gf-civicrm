@@ -11,6 +11,7 @@
  */
 
 use Civi\Api4\ACL;
+use Civi\Api4\ACLEntityRole;
 use Civi\Api4\Contact;
 use Civi\Api4\ContributionRecur;
 use Civi\Api4\Country;
@@ -100,7 +101,7 @@ function ensureContact(string $first, string $last): int {
     ->execute()->first()['id'];
 }
 
-function ensureGroup(string $name, string $title, ?int $savedSearchId = NULL): int {
+function ensureGroup(string $name, string $title, ?int $savedSearchId = NULL, array $groupType = []): int {
   $existing = Group::get(FALSE)->addWhere('name', '=', $name)->execute()->first();
   if ($existing) {
     return (int) $existing['id'];
@@ -108,12 +109,45 @@ function ensureGroup(string $name, string $title, ?int $savedSearchId = NULL): i
   $create = Group::create(FALSE)
     ->addValue('name', $name)
     ->addValue('title', $title)
-    ->addValue('is_active', TRUE);
+    ->addValue('is_active', TRUE)
+    ->addValue('group_type', $groupType);
   // A smart group: its members are the saved search's results.
   if ($savedSearchId) {
     $create->addValue('saved_search_id', $savedSearchId);
   }
   return (int) $create->execute()->first()['id'];
+}
+
+/**
+ * Find or create a custom ACL role, and assign it to the members of an Access Control group, as
+ * "Assign Users to Roles" does in CiviCRM. Returns the role's value, for use in an ACL.
+ */
+function ensureAclRole(string $name, string $label, int $accessGroupId): int {
+  $role = OptionValue::get(FALSE)
+    ->addWhere('option_group_id:name', '=', 'acl_role')
+    ->addWhere('name', '=', $name)
+    ->execute()->first()
+    ?: OptionValue::create(FALSE)
+      ->addValue('option_group_id:name', 'acl_role')
+      ->addValue('name', $name)
+      ->addValue('label', $label)
+      ->execute()->first();
+  $roleId = (int) $role['value'];
+
+  $assigned = ACLEntityRole::get(FALSE)
+    ->addWhere('acl_role_id', '=', $roleId)
+    ->addWhere('entity_table', '=', 'civicrm_group')
+    ->addWhere('entity_id', '=', $accessGroupId)
+    ->execute()->first();
+  if (!$assigned) {
+    ACLEntityRole::create(FALSE)
+      ->addValue('acl_role_id', $roleId)
+      ->addValue('entity_table', 'civicrm_group')
+      ->addValue('entity_id', $accessGroupId)
+      ->addValue('is_active', TRUE)
+      ->execute();
+  }
+  return $roleId;
 }
 
 /**
@@ -214,8 +248,10 @@ else {
 // The field lists only the contacts the person viewing the form may see. CiviCRM ACLs are
 // granted on groups, so logged-in users get View on the group and on a smart group made from
 // the saved search, as the README describes. The public group is visible to everybody,
-// including visitors who are not logged in, and the restricted group to nobody without
-// "view all contacts".
+// including visitors who are not logged in. The restricted group is visible only to a custom
+// ACL role that only the member holds (and to users who may view all contacts), so the member
+// and the other member, both logged in, see it differently. The mixed group holds one contact
+// every logged-in user may see and one restricted contact.
 out('Seeding the Group Contact Select ACLs...');
 $savedSearchGroupId = ensureGroup('gfcvtest_saved_search_group', PREFIX . ' Saved Search Group', $savedSearchId);
 
@@ -229,9 +265,18 @@ foreach (['Restrictedone', 'Restrictedtwo'] as $last) {
   ensureInGroup($restrictedGroupId, ensureContact('Gfcvtest', $last));
 }
 
+$mixedGroupId = ensureGroup('gfcvtest_mixed_group', PREFIX . ' Mixed Group');
+ensureInGroup($mixedGroupId, ensureContact('Gfcvtest', 'Groupone'));
+ensureInGroup($mixedGroupId, ensureContact('Gfcvtest', 'Restrictedone'));
+
+$viewersAccessGroupId = ensureGroup('gfcvtest_viewers_access', PREFIX . ' Viewers (access control)', NULL, ['Access Control']);
+ensureInGroup($viewersAccessGroupId, $contactIds['member']);
+$viewersRoleId = ensureAclRole('gfcvtest_viewers', PREFIX . ' Viewers', $viewersAccessGroupId);
+
 ensureViewAcl('gfcvtest_group_authenticated', 2, $groupId);
 ensureViewAcl('gfcvtest_saved_search_group_authenticated', 2, $savedSearchGroupId);
 ensureViewAcl('gfcvtest_public_group_everybody', 0, $publicGroupId);
+ensureViewAcl('gfcvtest_restricted_group_viewers', $viewersRoleId, $restrictedGroupId);
 
 // CiviCRM caches each user's ACL results, so an earlier run's cache must not hide the new ACLs.
 CRM_ACL_BAO_Cache::resetCache();

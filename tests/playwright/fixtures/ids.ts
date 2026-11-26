@@ -26,9 +26,14 @@ export type SeededIds = {
   /** A group whose contacts everybody may view, including visitors who are not logged in. */
   publicGroupId: number;
   publicGroupContactIds: number[];
-  /** A group with no ACL: only users who may view all contacts see its contacts. */
+  /**
+   * A group visible only to the GFCVTEST Viewers ACL role, which only the member holds, and to
+   * users who may view all contacts.
+   */
   restrictedGroupId: number;
   restrictedGroupContactIds: number[];
+  /** Groupone, which every logged-in user may see, and Restrictedone. */
+  mixedGroupId: number;
   statelessCountryIso: string;
 };
 
@@ -96,6 +101,7 @@ export function seededIds(): SeededIds {
     publicGroupContactIds: [contactByName('Publicone'), contactByName('Publictwo')],
     restrictedGroupId: groupId('gfcvtest_restricted_group'),
     restrictedGroupContactIds: [contactByName('Restrictedone'), contactByName('Restrictedtwo')],
+    mixedGroupId: groupId('gfcvtest_mixed_group'),
     statelessCountryIso: stateless.iso_code,
   };
   return cached;
