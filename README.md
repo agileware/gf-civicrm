@@ -109,7 +109,15 @@ The **CiviCRM Group Contact Select** field (under Advanced Fields) lists the con
 
 ## Permissions
 
-The field only lists the contacts that the person viewing the form is allowed to see in CiviCRM. A user with the "view all contacts" permission sees every contact in the group. Everyone else, including visitors who are not logged in, only sees contacts that a CiviCRM ACL lets them view. Without a matching ACL, the field shows "No Contacts in this Group".
+The field only lists the contacts that the person viewing the form is allowed to see in CiviCRM. The check is made on the contacts themselves, using CiviCRM's contact permissions and ACLs, in the same way as anywhere else contacts are read from CiviCRM:
+
+* A user with the **view all contacts** (or **edit all contacts**) permission sees every contact in the source.
+* Everyone else sees only the contacts in groups that their CiviCRM ACLs let them view, plus their own contact if they have the **view my contact** permission. This includes visitors who are not logged in.
+* Deleted contacts are never listed.
+
+If the person viewing the form may not see any of the source's contacts, the field shows "No Contacts in this Group".
+
+### Group sources
 
 To show a group's contacts to logged-in users, add an ACL in CiviCRM (**Administer > Users and Permissions > Permissions (Access Control) > Manage ACLs**):
 
@@ -121,17 +129,41 @@ To show a group's contacts to logged-in users, add an ACL in CiviCRM (**Administ
 
 ![CiviCRM ACL allowing authenticated users to view a group](images/civicrm-acl-group-contact-select.png)
 
+An ACL on a different group only shows the contacts that are in both groups.
+
 Anyone the ACL applies to can see these contacts anywhere in CiviCRM, not just in this field, so only use a group whose contacts may be shown to those users. Use a group that holds only the contacts the field should list, rather than a broad group.
 
-On a remote CiviCRM connection, the permissions and ACLs that apply are those of the connection profile's API user, not the person viewing the form.
+### Saved Search sources
 
-Sites that need the field to list every contact in the group regardless of permissions can turn the checks off:
+A saved search has no permissions of its own, and the field does not use its search displays, so display settings (such as bypassing permissions) have no effect here. The field takes the saved search's criteria and runs them as a contact search for the person viewing the form, with the contact permissions above applied. The field lists the contacts that match the saved search **and** that the person viewing the form may see.
+
+CiviCRM ACLs are granted on groups, not saved searches. To show a saved search's contacts to users without **view all contacts**, add an ACL (as above) on a group that contains those contacts. The simplest way is to create a smart group from the same saved search, and add the ACL on that smart group.
+
+For example, a saved search matches 50 contacts, and the only ACL lets the Authenticated role view a group called "Special Contacts Group":
+
+* A logged-in user without **view all contacts** sees only those of the 50 who are also in Special Contacts Group.
+* A user with **view all contacts** sees all 50.
+* A visitor who is not logged in sees none.
+
+Only SearchKit saved searches of contacts can be used.
+
+### Form editor
+
+When editing the field, the **CiviCRM Source Group** setting lists the titles of all active CiviCRM groups and all saved searches of contacts, to anyone who can edit Gravity Forms, whatever their CiviCRM permissions. It does not list any contacts. Previewing the form shows only the contacts the editor may see.
+
+### Remote CiviCRM connections
+
+On a remote CiviCRM connection, the permissions and ACLs that apply are those of the connection profile's API user, not the person viewing the form, so every visitor sees the same contacts.
+
+### Turning off the permission checks
+
+Sites that need the field to list every contact in the source regardless of permissions can turn the checks off:
 
 ```php
 add_filter( 'gf_civicrm_group_contact_select_check_permissions', '__return_false' );
 ```
 
-***With this filter, the field shows the name of every contact in the group to everyone who can see the form.***
+***With this filter, the field shows the name of every contact in the source to everyone who can see the form.***
 
 # Processing form submissions as a specific Contact
 
