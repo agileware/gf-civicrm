@@ -23,6 +23,12 @@ export type SeededIds = {
   deletedGroupContactId: number;
   outsideGroupContactId: number;
   savedSearchContactIds: number[];
+  /** A group whose contacts everybody may view, including visitors who are not logged in. */
+  publicGroupId: number;
+  publicGroupContactIds: number[];
+  /** A group with no ACL: only users who may view all contacts see its contacts. */
+  restrictedGroupId: number;
+  restrictedGroupContactIds: number[];
   statelessCountryIso: string;
 };
 
@@ -37,6 +43,10 @@ function contactByName(last: string, deleted = false): number {
     ['is_deleted', '=', deleted],
   ];
   return civiApi4First<{ id: number }>('Contact.get', { select: ['id'], where, checkPermissions: false }).id;
+}
+
+function groupId(name: string): number {
+  return civiApi4First<{ id: number }>('Group.get', { select: ['id'], where: [['name', '=', name]], checkPermissions: false }).id;
 }
 
 function tokenFor(contactId: number, last4: string): Token {
@@ -82,6 +92,10 @@ export function seededIds(): SeededIds {
     deletedGroupContactId: contactByName('Groupdeleted', true),
     outsideGroupContactId: contactByName('Searchone'),
     savedSearchContactIds: [contactByName('Searchone'), contactByName('Searchtwo')],
+    publicGroupId: groupId('gfcvtest_public_group'),
+    publicGroupContactIds: [contactByName('Publicone'), contactByName('Publictwo')],
+    restrictedGroupId: groupId('gfcvtest_restricted_group'),
+    restrictedGroupContactIds: [contactByName('Restrictedone'), contactByName('Restrictedtwo')],
     statelessCountryIso: stateless.iso_code,
   };
   return cached;

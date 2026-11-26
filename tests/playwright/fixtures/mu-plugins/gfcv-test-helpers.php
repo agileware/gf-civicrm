@@ -75,3 +75,11 @@ add_shortcode( 'gfcvtest_nonce', function ( $atts ) {
 	$atts = shortcode_atts( [ 'action' => '' ], $atts );
 	return '<span id="gfcvtest-nonce">' . esc_html( wp_create_nonce( $atts['action'] ) ) . '</span>';
 } );
+
+/**
+ * Turns off the Group Contact Select permission checks while the gfcvtest_contact_select_unchecked
+ * option is set, so a spec can test the gf_civicrm_group_contact_select_check_permissions filter.
+ */
+add_filter( 'gf_civicrm_group_contact_select_check_permissions', function ( $check ) {
+	return get_option( 'gfcvtest_contact_select_unchecked' ) ? false : $check;
+} );
