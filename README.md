@@ -103,6 +103,36 @@ For Gravity Forms fields that support setting choices (e.g. Drop Down, Checkboxe
 
 **Default Value**: If you set defaults for the Form Processor input used as a "CiviCRM Source", these will be applied when the form is loaded, including any Retrieval criteria specified in the URL parameters. No need to set the Default Value attribute for the Gravity Form Field.
 
+# Listing the contacts in a CiviCRM Group
+
+The **CiviCRM Group Contact Select** field (under Advanced Fields) lists the contacts in a CiviCRM Group or Saved Search as a drop down, so the person filling in the form can choose one. Choose the group or saved search in the field's **CiviCRM Source Group** setting.
+
+## Permissions
+
+The field only lists the contacts that the person viewing the form is allowed to see in CiviCRM. A user with the "view all contacts" permission sees every contact in the group. Everyone else, including visitors who are not logged in, only sees contacts that a CiviCRM ACL lets them view. Without a matching ACL, the field shows "No Contacts in this Group".
+
+To show a group's contacts to logged-in users, add an ACL in CiviCRM (**Administer > Users and Permissions > Permissions (Access Control) > Manage ACLs**):
+
+* **Role**: Authenticated
+* **Operation**: View
+* **Type of Data**: Group
+* **Which Data**: the group used by the field
+* **Mode**: Allow
+
+![CiviCRM ACL allowing authenticated users to view a group](images/civicrm-acl-group-contact-select.png)
+
+Anyone the ACL applies to can see these contacts anywhere in CiviCRM, not just in this field, so only use a group whose contacts may be shown to those users. Use a group that holds only the contacts the field should list, rather than a broad group.
+
+On a remote CiviCRM connection, the permissions and ACLs that apply are those of the connection profile's API user, not the person viewing the form.
+
+Sites that need the field to list every contact in the group regardless of permissions can turn the checks off:
+
+```php
+add_filter( 'gf_civicrm_group_contact_select_check_permissions', '__return_false' );
+```
+
+***With this filter, the field shows the name of every contact in the group to everyone who can see the form.***
+
 # Processing form submissions as a specific Contact
 
 Any Form Processor that should record actions as a specific Contact must implement checksum validation as part of the Form Processor.
